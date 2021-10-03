@@ -20,6 +20,7 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw)
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glm)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -36,4 +37,5 @@ target_link_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE glfw
     PRIVATE glad
+    PRIVATE glm
 )

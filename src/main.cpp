@@ -1,89 +1,13 @@
+#include <iostream>
+#include <math.h>
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-#include <fstream>
-#include <iostream>
-#include <sstream>
-#include <string>
-
-struct ShaderProgramSource {
-    std::string VertexSource;
-    std::string FragmentSource;
-};
-
-static ShaderProgramSource ParseShader(const std::string& filepath) {
-    std::ifstream vertexStream(filepath + ".vert");
-    std::ifstream fragmentStream(filepath + ".frag");
-
-    std::stringstream ss[2];
-
-    ss[0] << vertexStream.rdbuf();
-    ss[1] << fragmentStream.rdbuf();
-
-    return { ss[0].str(), ss[1].str() };
-}
-
-static unsigned int CompileShader(unsigned int type, const std::string& source) {
-    unsigned int shader = glCreateShader(type);
-
-    const char* src = source.c_str();
-    glShaderSource(shader, 1, &src, nullptr);
-
-    glCompileShader(shader);
-
-    int result;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
-    if (result == GL_FALSE) {
-        int lenght;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &lenght);
-
-        char* infoLog = new char[lenght];
-        glGetShaderInfoLog(shader, lenght, NULL, infoLog);
-
-        std::cout
-            << "ERROR::SHADER::" << (type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT") << "::COMPILATION_FAILED\n"
-            << infoLog
-            << std::endl;
-
-        delete[] infoLog;
-        glDeleteShader(shader);
-
-        return 0;
-    }
-
-    return shader;
-}
-
-static unsigned int CreateShader(const std::string& vertexShader, const std::string& fragmentShader) {
-    unsigned int program = glCreateProgram();
-    unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShader);
-    unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShader);
-
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-
-    int result;
-    glGetProgramiv(program, GL_LINK_STATUS, &result);
-    if (result == GL_FALSE) {
-        int lenght;
-        glGetShaderiv(program, GL_INFO_LOG_LENGTH, &lenght);
-
-        char* infoLog = new char[lenght];
-        glGetShaderInfoLog(program, lenght, NULL, infoLog);
-
-        std::cout << "ERROR::SHADER::LINKING_FAILED\n" << infoLog << std::endl;
-
-        delete[] infoLog;
-    }
-
-    glValidateProgram(program);
-
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    return program;
-}
+#include "shader.h"
 
 int main(void) {
     GLFWwindow* window;
@@ -109,21 +33,27 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    // glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+
     float positions[] = {
-        -0.5f, -0.5f, // Bottom left
-         0.5f, -0.5f, // Top left
-         0.5f,  0.5f, // Top right
-        -0.5f,  0.5f  // Bottom right
+        -0.5f, -0.5f, 0.0f,  // Bottom left
+         0.5f, -0.5f, 0.0f,  // Top left
+         0.5f,  0.5f, 0.0f,  // Top right
+        -0.5f,  0.5f, 0.0f  // Bottom right
     };
 
     int indices[] = {
         0, 1, 2,
         0, 2, 3
     };
+    
+    unsigned int VAO;
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
 
-    unsigned int buffer;
-    glGenBuffers(1, &buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    unsigned int VBO;
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(positions), positions, GL_STATIC_DRAW);
 
     unsigned int IBO;
@@ -132,28 +62,42 @@ int main(void) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 2, 0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
 
-    ShaderProgramSource src = ParseShader("assets/shaders/Basic");
-
-    unsigned int shader = CreateShader(src.VertexSource, src.FragmentSource);
-    glUseProgram(shader);
+    Shader shader("assets/shaders/Basic");
+    
+    glm::mat4 trans = glm::mat4(1.0f);
+    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
+    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));  
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
-        /* Render here */
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        shader.Bind();
+        glBindVertexArray(VAO);
+
+        float timeValue = glfwGetTime();
+        float greenValue = sin(timeValue) / 2.0f + 0.5f;
+        int vertexColorLocation = shader.GetUniformLocation("u_Color");
+        glUniform4f(vertexColorLocation, 0.0f, greenValue, 0.0f, 1.0f);
+        
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        int location = shader.GetUniformLocation("u_Transform");
+        glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(trans));
 
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
-        /* Swap front and back buffers */
         glfwSwapBuffers(window);
-
-        /* Poll for and process events */
         glfwPollEvents();
     }
 
-    glDeleteProgram(shader);
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &IBO);
 
     glfwTerminate();
     return 0;
