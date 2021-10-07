@@ -51,8 +51,18 @@ _deps
 
 build
 .cache
+CMakeDoxy*
 
 ##########
 # VSCode #
 ##########
 .vscode
+
+######
+# VS #
+######
+*.vcxproj.*
+*.vcxproj
+*.sln
+.vs
+Debug
