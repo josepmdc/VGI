@@ -13,12 +13,12 @@ Si ja l'havies clonat i però no ho has fet de forma recursiva, executa la segü
 `git submodule update --init`
 
 ### Windows + Visual Studio
-Si fas servir Windows i Visual Studio, el primer que has de fer després de clonar és executar l'script `scripts\generate.bat`. 
+Si fas servir Windows i Visual Studio, el primer que has de fer després de clonar és executar l'script `scripts\generate.bat` ***desde el directori arrel del projecte***. 
 
 Això et generara una solució de Visual Studio que podrás obrir i executar.
 
 ### Linux i macOS
-Desde el directori arrel del projecte executar:
+***Desde el directori arrel del projecte*** executar:
 
 `./scripts/run.sh`
 

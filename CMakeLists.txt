@@ -1,21 +1,25 @@
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
 
-project(OpenGL)
+project(VGI)
 
 # Add source files
 file(GLOB_RECURSE SOURCE_FILES 
-	${CMAKE_SOURCE_DIR}/src/*.c
-	${CMAKE_SOURCE_DIR}/src/*.cpp)
+${CMAKE_SOURCE_DIR}/src/*.c
+${CMAKE_SOURCE_DIR}/src/*.cpp)
 
 # Add header files
 file(GLOB_RECURSE HEADER_FILES 
-	${CMAKE_SOURCE_DIR}/src/*.h
-	${CMAKE_SOURCE_DIR}/src/*.hpp)
+${CMAKE_SOURCE_DIR}/src/*.h
+${CMAKE_SOURCE_DIR}/src/*.hpp)
 
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
+# Set the main porject as Visual Studio's Startup Project
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
+# Copy the assets folder to the build directory
 file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
 
+# Add Libraries
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
