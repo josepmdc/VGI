@@ -13,12 +13,15 @@ Si ja l'havies clonat i però no ho has fet de forma recursiva, executa la segü
 `git submodule update --init`
 
 ### Windows + Visual Studio
-Si fas servir Windows i Visual Studio, el primer que has de fer després de clonar és executar l'script `scripts\generate.bat` ***desde el directori arrel del projecte***. 
+Primer de tot has d'instalar CMake. Si fas servir Visual Studio en principi ja ve instalat, sinó el tens el pots baixar [aquí](https://github.com/Kitware/CMake/releases/download/v3.21.3/cmake-3.21.3-windows-x86_64.msi).
+
+Un cop tinguis CMake has d'executar l'script `scripts\generate.bat` ***desde el directori arrel del projecte***. 
 
 Això et generara una solució de Visual Studio que podrás obrir i executar.
 
 ### Linux i macOS
-***Desde el directori arrel del projecte*** executar:
+Primer de tot has d'instalar CMake. Pot ser que ja vingui instalat depen de la distro. Sinó el tens el pots baixar de la [web](https://cmake.org/download/) o fer servir el package manager de la distro.
+Un cop tinguis CMake has d'executar ***desde el directori arrel del projecte***:
 
 `./scripts/run.sh`
 
