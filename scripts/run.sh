@@ -6,4 +6,4 @@ cmake -H. -B$buildDir -G "Unix Makefiles"
 
 cd $buildDir
 make
-./OpenGL
+./VGI
