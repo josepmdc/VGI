@@ -6,15 +6,18 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include "shader.h"
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 
-glm::vec3 cameraPos   = glm::vec3(0.0f, 0.0f,  3.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp    = glm::vec3(0.0f, 1.0f,  0.0f);
+glm::vec3 cameraPos   = glm::vec3(0.0f,  0.0f,  10.0f);
+// glm::vec3 cameraPos   = glm::vec3(0.0f,  10.0f,  0.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f,  0.0f,  -1.0f);
+glm::vec3 cameraUp    = glm::vec3(0.0f,  1.0f,   0.0f);
+glm::vec3 cameraDown  = glm::vec3(0.0f, -1.0f,   0.0f);
 
 void processInput(GLFWwindow *window) {
     const float cameraSpeed = 0.05f; // adjust accordingly
@@ -100,13 +103,13 @@ int main(void) {
     };
 
     glm::vec3 cubePositions[] = {
-        glm::vec3( 0.0f,  0.0f,  0.0f),
-        glm::vec3( 2.0f,  5.0f, -15.0f),
-        glm::vec3(-1.5f, -2.2f, -2.5f),
-        glm::vec3(-3.8f, -2.0f, -12.3f),
-        glm::vec3(-2.0f,  1.0f, -1.5f),
-        glm::vec3( 1.5f,  2.0f, -2.5f),
-        glm::vec3( 1.3f, -2.0f, -2.5f),
+        glm::vec3(0.0f, 0.0f, 0.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        glm::vec3(2.0f, 1.0f, 2.0f),
+        glm::vec3(3.0f, 1.0f, 3.0f),
+        glm::vec3(4.0f, 1.0f, 4.0f),
+        glm::vec3(5.0f, 1.0f, 5.0f),
+        glm::vec3(6.0f, 1.0f, 6.0f),
     };
     
     unsigned int VAO;
@@ -131,7 +134,7 @@ int main(void) {
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.114, 0.125, 0.129, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.Bind();
@@ -145,11 +148,8 @@ int main(void) {
 
         // Translate on the z axis to move the scene forward thus our camera backwards
         glm::mat4 view = glm::mat4(1.0f);
-        // view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
-        float radius = 15.0f;
-        float camX   = sin(glfwGetTime()) * radius;
-        float camZ   = cos(glfwGetTime()) * radius;
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        // view = glm::lookAt(cameraPos, cameraPos + cameraDown, cameraFront);
 
         // Prespective projection matrix
         glm::mat4 projection;
@@ -162,16 +162,33 @@ int main(void) {
         int projectionLocation = shader.GetUniformLocation("u_Projection");
         glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
-        for (unsigned int i = 0; i < sizeof(cubePositions)/sizeof(*cubePositions); i++) {
+        int numberOfCubes = sizeof(cubePositions)/sizeof(*cubePositions);
+        for (unsigned int i = 0; i < numberOfCubes; i++) {
             glm::mat4 model = glm::mat4(1.0f);
-            // translate to a specific position
-            model = glm::translate(model, cubePositions[i]);
-            // Rotate around the y axis
+
+            // If they are not the central cube rotate around the central cube
+            if (i != 0) {
+                const float radius = 2.0f;
+                float camX = sin(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
+                float camZ = cos(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
+                float camY = cos(glfwGetTime() * i * (numberOfCubes - i));
+                model = glm::translate(model, glm::vec3(camX, camY, camZ) * cubePositions[i]);
+            }
+            else {
+                model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
+            }
+            
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
             int modelLocation = shader.GetUniformLocation("u_Model");
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
+            int colorLocation = shader.GetUniformLocation("u_Color");
+            if (i == 0)
+                glUniform4f(colorLocation, 0.0f, 1.0f, 0.0f, 1.0f);
+            else
+                glUniform4f(colorLocation, 1.0f, 0.0f, 0.0f, 1.0f);
+            
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
