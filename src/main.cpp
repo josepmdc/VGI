@@ -11,9 +11,6 @@
 #include "shader/shader.h"
 #include "sphere/sphere.h"
 
-const unsigned int SCR_WIDTH = 1920;
-const unsigned int SCR_HEIGHT = 1080;
-
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -76,8 +73,11 @@ int main(void) {
     if (!glfwInit())
         return -1;
 
-    /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL, NULL);
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    unsigned int SCR_WIDTH = mode->width;
+    unsigned int SCR_HEIGHT = mode->height;
+
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -152,8 +152,7 @@ int main(void) {
                 float camZ = cos(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
                 // float camY = cos(glfwGetTime() * i * (numberOfCubes - i)); // bounce
                 model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planetPositions[i]);
-            }
-            else {
+            } else {
                 model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
             }
 
