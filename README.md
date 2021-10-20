@@ -31,9 +31,10 @@ Per treballar pots obrir la carpeta i editar el codi desde qualsevol editor de t
 
 ## Estructura del projecte
 ```
-assets/             conte arxius com ara shaders, imatges, textures...
-└── shaders/        conte tots els shaders
-src/                conte tot el codi font
-scripts/            conte scripts per generar i executar el projecte
-lib/                conte les llibreries externes
+assets              conte arxius com ara imatges, textures, models obj...
+└── textures        conte les textures. Es divideix en subcarpetes
+src                 conte tot el codi font. Es divideix en subcarpetes
+scripts             conte scripts per generar i executar el projecte
+shaders             conte els shaders. .frag = fragment shaders, .vert vertex shaders
+lib                 conte les llibreries externes
 ```

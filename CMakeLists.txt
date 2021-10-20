@@ -17,8 +17,9 @@ add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
 # Set the main porject as Visual Studio's Startup Project
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
 
-# Copy the assets folder to the build directory
+# Copy the assets and shaders folders to the build directory
 file(COPY assets DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 
 # Add Libraries
 link_directories(${CMAKE_SOURCE_DIR}/lib)

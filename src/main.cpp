@@ -114,7 +114,7 @@ int main(void) {
         glm::vec3(6.0f, 1.0f, 6.0f),
     };
 
-    Shader shader("assets/shaders/Basic");
+    Shader shader("shaders/Basic");
 
     glm::mat4 trans = glm::mat4(1.0f);
     trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
