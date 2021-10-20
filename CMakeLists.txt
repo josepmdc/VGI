@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.2 FATAL_ERROR)
+set(CMAKE_CXX_STANDARD 17)
 
 project(VGI)
 
@@ -33,6 +34,8 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 target_include_directories(${PROJECT_NAME} 
     PUBLIC ${CMAKE_SOURCE_DIR}/lib/glfw/include
 )
+
+include_directories(${CMAKE_SOURCE_DIR}/lib/stb_image)
 
 target_link_directories(${PROJECT_NAME}
     PRIVATE lib/glfw/src

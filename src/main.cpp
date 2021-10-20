@@ -8,18 +8,26 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-#include "shader.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
+#include "shader/shader.h"
+#include "planets/planet.h"
 
-glm::vec3 cameraPos   = glm::vec3(0.0f,  0.0f,  10.0f);
-// glm::vec3 cameraPos   = glm::vec3(0.0f,  10.0f,  0.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f,  0.0f,  -1.0f);
-glm::vec3 cameraUp    = glm::vec3(0.0f,  1.0f,   0.0f);
-glm::vec3 cameraDown  = glm::vec3(0.0f, -1.0f,   0.0f);
+unsigned int LoadTexture(std::string path);
 
-void processInput(GLFWwindow *window) {
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 cameraDown = glm::vec3(0.0f, -1.0f, 0.0f);
+
+bool firstMouse = true;
+float yaw = -90.0f;
+float pitch = 0.0f;
+float lastX = 800.0f / 2.0;
+float lastY = 600.0 / 2.0;
+
+void processInput(GLFWwindow* window) {
     const float cameraSpeed = 0.05f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
@@ -31,6 +39,38 @@ void processInput(GLFWwindow *window) {
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 }
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.9f; // change this value to your liking
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    // make sure that when pitch is out of bounds, screen doesn't get flipped
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+}
+
 int main(void) {
     GLFWwindow* window;
 
@@ -38,8 +78,11 @@ int main(void) {
     if (!glfwInit())
         return -1;
 
-    /* Create a windowed mode window and its OpenGL context */
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL, NULL);
+    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    unsigned int SCR_WIDTH = mode->width;
+    unsigned int SCR_HEIGHT = mode->height;
+
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -47,7 +90,9 @@ int main(void) {
 
     /* Make the window's context current */
     glfwMakeContextCurrent(window);
-    
+
+    glfwSetCursorPosCallback(window, mouse_callback);
+
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
@@ -58,51 +103,8 @@ int main(void) {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
 
-    float vertices[] = {
-        -0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
 
-        -0.5f, -0.5f,  0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f, -0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-
-        -0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f, -0.5f,
-         0.5f, -0.5f,  0.5f,
-         0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f,  0.5f,
-        -0.5f, -0.5f, -0.5f,
-
-        -0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f, -0.5f,
-         0.5f,  0.5f,  0.5f,
-         0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f,  0.5f,
-        -0.5f,  0.5f, -0.5f
-    };
-
-    glm::vec3 cubePositions[] = {
+    glm::vec3 planetPositions[] = {
         glm::vec3(0.0f, 0.0f, 0.0f),
         glm::vec3(1.0f, 1.0f, 1.0f),
         glm::vec3(2.0f, 1.0f, 2.0f),
@@ -111,24 +113,15 @@ int main(void) {
         glm::vec3(5.0f, 1.0f, 5.0f),
         glm::vec3(6.0f, 1.0f, 6.0f),
     };
-    
-    unsigned int VAO;
-    glGenVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    unsigned int VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, 0);
 
     Shader shader("assets/shaders/Basic");
-    
+
     glm::mat4 trans = glm::mat4(1.0f);
     trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
-    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));  
+    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
+
+    Planet planet(0.5f, 36, 18);
+    unsigned int texture_earth = LoadTexture("assets/textures/planets/earth.jpg");
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -138,67 +131,86 @@ int main(void) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.Bind();
-        glBindVertexArray(VAO);
 
-        glm::mat4 model = glm::mat4(1.0f);
-        // Rotate 55 degrees so it's kind of flat on the ground
-        model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        // Rotate cube on every iteration
-        model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.5f, 1.0f, 0.0f));  
-
-        // Translate on the z axis to move the scene forward thus our camera backwards
         glm::mat4 view = glm::mat4(1.0f);
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         // view = glm::lookAt(cameraPos, cameraPos + cameraDown, cameraFront);
 
-        // Prespective projection matrix
-        glm::mat4 projection;
-        projection = glm::perspective(glm::radians(45.0f), (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
-
-        // Send Model, View, Projection matrices to the shader {{{
         int viewLocation = shader.GetUniformLocation("u_View");
         glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
+
+        glm::mat4 projection;
+        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
         int projectionLocation = shader.GetUniformLocation("u_Projection");
         glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
-        int numberOfCubes = sizeof(cubePositions)/sizeof(*cubePositions);
+        int modelLocation = shader.GetUniformLocation("u_Model");
+        int numberOfCubes = 7;
         for (unsigned int i = 0; i < numberOfCubes; i++) {
             glm::mat4 model = glm::mat4(1.0f);
 
-            // If they are not the central cube rotate around the central cube
+            // If they are not the central sphere rotate around the central sphere
             if (i != 0) {
                 const float radius = 2.0f;
                 float camX = sin(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
                 float camZ = cos(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
-                float camY = cos(glfwGetTime() * i * (numberOfCubes - i));
-                model = glm::translate(model, glm::vec3(camX, camY, camZ) * cubePositions[i]);
-            }
-            else {
+                model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planetPositions[i]);
+            } else {
                 model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
             }
-            
+
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
-            int modelLocation = shader.GetUniformLocation("u_Model");
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
             int colorLocation = shader.GetUniformLocation("u_Color");
             if (i == 0)
-                glUniform4f(colorLocation, 0.0f, 1.0f, 0.0f, 1.0f);
+                glUniform4f(colorLocation, 0.98, 0.741, 0.184, 1.0f);
             else
-                glUniform4f(colorLocation, 1.0f, 0.0f, 0.0f, 1.0f);
-            
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+                glUniform4f(colorLocation, 0.271, 0.522, 0.533, 1.0f);
+
+            planet.Draw();
         }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-
     glfwTerminate();
     return 0;
+}
+
+unsigned int LoadTexture(std::string path) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrComponents, 0);
+    if (data) {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
 }
