@@ -48,7 +48,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.9f; // change this value to your liking
+    float sensitivity = 0.5f; // change this value to your liking
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
@@ -97,7 +97,7 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
 
     glm::vec3 planetPositions[] = {
@@ -157,12 +157,6 @@ int main(void) {
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
-
-            int colorLocation = shader.GetUniformLocation("u_Color");
-            if (i == 0)
-                glUniform4f(colorLocation, 0.98, 0.741, 0.184, 1.0f);
-            else
-                glUniform4f(colorLocation, 0.271, 0.522, 0.533, 1.0f);
 
             planet.Draw();
         }
