@@ -8,7 +8,7 @@ Planet::Planet(float r, int sectors, int stacks, std::string texturePath) : Sphe
 }
 
 void Planet::Draw() {
-    // glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(GL_TEXTURE_2D, m_Texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_Texture);
     Sphere::Draw();
 }
