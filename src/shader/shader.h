@@ -12,7 +12,8 @@ const std::string FS_FILE_EXT = ".frag";
 
 class Shader {
     private:
-        unsigned int ID;
+        
+        GLuint ID;
         std::unordered_map<std::string, int> m_UniformCache;
 
     public:
@@ -25,6 +26,9 @@ class Shader {
         void Unbind();
 
         int GetUniformLocation(const std::string& name);
+        GLuint returnId(){
+            return ID;
+        }
 
     private:
         unsigned int Create(std::string vertexSrc, std::string fragmentSrc);

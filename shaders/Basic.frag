@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec2 texCoord;
+in vec2 texCoordinates;
 
 out vec4 color;
 
@@ -9,5 +9,5 @@ uniform vec4 u_Color;
 
 void main() {
     color = u_Color;
-    // color = texture(u_Texture, texCoord);
+    // color = texture(u_Texture, texCoordinates);
 }
