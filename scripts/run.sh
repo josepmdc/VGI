@@ -2,8 +2,7 @@
 
 buildDir="build/"
 
-cmake -H. -B$buildDir -G "Unix Makefiles"
+./scripts/generate.sh $1
 
-cd $buildDir
-make
-./VGI
+cmake --build $buildDir
+./$buildDir/VGI
