@@ -3,7 +3,8 @@
 
 #include <iostream>
 
-Planet::Planet(float r, int sectors, int stacks, std::string texturePath) : Sphere(r, sectors, stacks) {
+Planet::Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::string texturePath) : Sphere(r, sectors, stacks) {
+    m_Coordinates = coordinates;
     m_Texture = util::LoadTexture(texturePath);
 }
 

@@ -27,6 +27,7 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glm)
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/yaml-cpp)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -34,16 +35,14 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 target_include_directories(${PROJECT_NAME} 
     PUBLIC ${CMAKE_SOURCE_DIR}/lib/glfw/include
+    PUBLIC ${CMAKE_SOURCE_DIR}/lib/yaml-cpp/include
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/lib/stb_image)
-
-target_link_directories(${PROJECT_NAME}
-    PRIVATE lib/glfw/src
-)
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE glfw
     PRIVATE glad
     PRIVATE glm
+    PRIVATE yaml-cpp
 )

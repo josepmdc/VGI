@@ -10,6 +10,7 @@
 
 #include "shader/shader.h"
 #include "planet/planet.h"
+#include "util/util.h"
 
 unsigned int LoadTexture(std::string path);
 
@@ -100,23 +101,9 @@ int main(void) {
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
 
-    glm::vec3 planetPositions[] = {
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(1.0f, 1.0f, 1.0f),
-        glm::vec3(2.0f, 1.0f, 2.0f),
-        glm::vec3(3.0f, 1.0f, 3.0f),
-        glm::vec3(4.0f, 1.0f, 4.0f),
-        glm::vec3(5.0f, 1.0f, 5.0f),
-        glm::vec3(6.0f, 1.0f, 6.0f),
-    };
-
     Shader shader("shaders/Basic");
 
-    glm::mat4 trans = glm::mat4(1.0f);
-    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
-    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
-
-    Planet planet(0.5f, 36, 18, "assets/textures/planets/earth.jpg");
+    std::vector<Planet*> planets = util::LoadPlanets();
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -141,24 +128,19 @@ int main(void) {
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         int numberOfCubes = 7;
-        for (unsigned int i = 0; i < numberOfCubes; i++) {
+        float i = 0.0f;
+        for (Planet* planet : planets) {
+            const float radius = 5.0f;
+            float camX = sin(glfwGetTime() * (5 - i) / 5) * radius;
+            float camZ = cos(glfwGetTime() * (5 - i) / 5) * radius;
+
             glm::mat4 model = glm::mat4(1.0f);
-
-            // If they are not the central sphere rotate around the central sphere
-            if (i != 0) {
-                const float radius = 2.0f;
-                float camX = sin(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
-                float camZ = cos(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
-                model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planetPositions[i]);
-            } else {
-                model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-            }
-
+            model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planet->GetCoordinates());
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-            planet.Draw();
+            planet->Draw();
+            i++;
         }
 
         glfwSwapBuffers(window);

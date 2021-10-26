@@ -1,0 +1,15 @@
+sun:
+  coordinates: [0.0, 0.0, 0.0]
+  texture: "assets/textures/planets/sun.jpg"
+earth:
+  coordinates: [2.0, 1.0, 2.0]
+  texture: "assets/textures/planets/earth.jpg"
+  speed: 2
+mars:
+  coordinates: [3.0, 1.0, 3.0]
+  texture: "assets/textures/planets/mars.jpg"
+  speed: 4
+jupiter:
+  coordinates: [4.0, 1.0, 4.0]
+  texture: "assets/textures/planets/jupiter.jpg"
+  speed: 6
