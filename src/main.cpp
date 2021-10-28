@@ -49,7 +49,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.3f; // change this value to your liking
+    float sensitivity = 0.2f; // change this value to your liking
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
@@ -80,13 +80,13 @@ int main(void) {
     unsigned int SCR_WIDTH = mode->width;
     unsigned int SCR_HEIGHT = mode->height;
 
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL /*glfwGetPrimaryMonitor()*/, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
     // Lock and hide cursor
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Make the window's context current
     glfwMakeContextCurrent(window);
@@ -106,7 +106,6 @@ int main(void) {
     Shader shader("shaders/Basic");
 
     std::vector<Planet*> planets = util::LoadPlanets();
-
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
@@ -130,9 +129,11 @@ int main(void) {
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         int numberOfCubes = 7;
-        float i = planets.size();
+        float i = planets.size();        
+        float UA = 149597870.7;
         for (Planet* planet : planets) {
-            const float radius = 100.0f;
+            const float radius = (UA*(0.4 + 0.3 * planet->GetK()))/10000;
+            
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 

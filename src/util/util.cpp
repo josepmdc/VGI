@@ -33,10 +33,9 @@ unsigned int LoadTexture(std::string path) {
 std::vector<Planet*> LoadPlanets() {
     std::vector<Planet*> planets;
     auto planetsConfig = YAML::LoadFile("config/planets.yml");
-
+    int c = 0;
     for (auto it = planetsConfig.begin(); it != planetsConfig.end(); it++) {
         std::string texture = it->second["texture"].as<std::string>();
-
         std::vector<float> coordinates = it->second["coordinates"].as<std::vector<float>>();
         glm::vec3 glm_coordinates = glm::vec3(coordinates[0], coordinates[1], coordinates[2]);
         

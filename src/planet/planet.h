@@ -9,6 +9,7 @@ class Planet : public Sphere {
     private:
         glm::vec3 m_Coordinates;
         unsigned int m_Texture;
+        int k;
 
     public:
         Planet(glm::vec3 coordinates, std::string texturePath);
@@ -16,5 +17,6 @@ class Planet : public Sphere {
         Planet::Planet(YAML::Node values);
         glm::vec3 GetCoordinates() { return m_Coordinates; }
         unsigned int GetTexture() { return m_Texture; }
+        int GetK() { return k; }
         void Draw();
 };
