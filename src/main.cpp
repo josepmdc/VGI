@@ -132,7 +132,7 @@ int main(void) {
         int numberOfCubes = 7;
         float i = planets.size();
         for (Planet* planet : planets) {
-            const float radius = 3.0f;
+            const float radius = 100.0f;
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 

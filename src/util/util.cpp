@@ -40,7 +40,7 @@ std::vector<Planet*> LoadPlanets() {
         std::vector<float> coordinates = it->second["coordinates"].as<std::vector<float>>();
         glm::vec3 glm_coordinates = glm::vec3(coordinates[0], coordinates[1], coordinates[2]);
         
-        planets.push_back(new Planet(glm_coordinates, texture));
+        planets.push_back(new Planet(it->second));
     }
 
     return planets;

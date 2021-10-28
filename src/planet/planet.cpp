@@ -13,6 +13,20 @@ Planet::Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::str
     m_Texture = util::LoadTexture(texturePath);
 }
 
+static float computeRadius(YAML::Node values) {
+    float earth_radius = 6378;
+    float radius = values["diameter"].as<float>() / 2;
+    return radius / earth_radius;
+}
+
+Planet::Planet(YAML::Node values) : Sphere(computeRadius(values), 36, 18) {    
+    m_Texture = util::LoadTexture(values["texture"].as<std::string>());
+
+    std::vector<float> coordinates = values["coordinates"].as<std::vector<float>>();
+    glm::vec3 glm_coordinates = glm::vec3(coordinates[0], coordinates[1], coordinates[2]);
+    m_Coordinates = glm_coordinates;
+}
+
 void Planet::Draw() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_Texture);
