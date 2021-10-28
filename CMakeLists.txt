@@ -40,9 +40,25 @@ target_include_directories(${PROJECT_NAME}
 
 include_directories(${CMAKE_SOURCE_DIR}/lib/stb_image)
 
+set(IMGUI_PATH ${CMAKE_SOURCE_DIR}/lib/imgui)
+file(GLOB IMGUI_SOURCES 
+    ${IMGUI_PATH}/*.cpp 
+    ${IMGUI_PATH}/*.h
+    ${IMGUI_PATH}/backends/imgui_impl_glfw.*
+    ${IMGUI_PATH}/backends/imgui_impl_opengl3.*
+)
+add_library("imgui" STATIC ${IMGUI_SOURCES})
+target_include_directories("imgui" PUBLIC 
+    ${IMGUI_PATH} 
+    ${IMGUI_PATH}/backends
+    ${CMAKE_SOURCE_DIR}/lib/glfw/include
+    ${CMAKE_SOURCE_DIR}/lib/glfw/include
+)
+
 target_link_libraries(${PROJECT_NAME}
     PRIVATE glfw
     PRIVATE glad
     PRIVATE glm
     PRIVATE yaml-cpp
+    PRIVATE imgui
 )

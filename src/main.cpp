@@ -7,6 +7,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 #include "shader/shader.h"
 #include "planet/planet.h"
@@ -25,8 +28,11 @@ float pitch = 0.0f;
 float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
 
+bool lockCursor = false;
+bool disableCursorCallback = false;
+
 void processInput(GLFWwindow* window) {
-    const float cameraSpeed = 0.05f; // adjust accordingly
+    const float cameraSpeed = 0.05f;
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -35,6 +41,10 @@ void processInput(GLFWwindow* window) {
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+        lockCursor = !lockCursor;
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+        disableCursorCallback = !disableCursorCallback;
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -80,18 +90,14 @@ int main(void) {
     unsigned int SCR_WIDTH = mode->width;
     unsigned int SCR_HEIGHT = mode->height;
 
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
-    // Lock and hide cursor
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Make the window's context current
     glfwMakeContextCurrent(window);
-
-    glfwSetCursorPosCallback(window, mouse_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
@@ -100,6 +106,13 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
 
@@ -107,9 +120,27 @@ int main(void) {
 
     std::vector<Planet*> planets = util::LoadPlanets();
 
+    float radius = 3.0f;
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
+
+        if (!disableCursorCallback) {
+            glfwSetCursorPosCallback(window, mouse_callback);
+        } else {
+            glfwSetCursorPosCallback(window, NULL);
+        }
+
         processInput(window);
+
+        if (lockCursor) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
         glClearColor(0.114, 0.125, 0.129, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -130,9 +161,8 @@ int main(void) {
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         int numberOfCubes = 7;
-        float i = planets.size();
+        float i = 1;
         for (Planet* planet : planets) {
-            const float radius = 3.0f;
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
@@ -142,14 +172,27 @@ int main(void) {
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
             planet->Draw();
-            i--;
+            i++;
         }
+
+        ImGui::Begin("Properties");
+        ImGui::SliderFloat("Radius", &radius, 1.0f, 10.0f);
+        ImGui::End();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    for (Planet* planet : planets) delete planet;
+    for (Planet* planet : planets) {
+        delete planet;
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwTerminate();
     return 0;
