@@ -49,7 +49,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.5f; // change this value to your liking
+    float sensitivity = 0.3f; // change this value to your liking
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
@@ -85,8 +85,10 @@ int main(void) {
         glfwTerminate();
         return -1;
     }
+    // Lock and hide cursor
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    /* Make the window's context current */
+    // Make the window's context current
     glfwMakeContextCurrent(window);
 
     glfwSetCursorPosCallback(window, mouse_callback);
@@ -128,11 +130,11 @@ int main(void) {
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         int numberOfCubes = 7;
-        float i = 0.0f;
+        float i = planets.size();
         for (Planet* planet : planets) {
-            const float radius = 5.0f;
-            float camX = sin(glfwGetTime() * (5 - i) / 5) * radius;
-            float camZ = cos(glfwGetTime() * (5 - i) / 5) * radius;
+            const float radius = 3.0f;
+            float camX = sin(glfwGetTime() / (5 - i)) * radius;
+            float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planet->GetCoordinates());
@@ -140,12 +142,14 @@ int main(void) {
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
             planet->Draw();
-            i++;
+            i--;
         }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    for (Planet* planet : planets) delete planet;
 
     glfwTerminate();
     return 0;
