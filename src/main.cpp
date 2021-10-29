@@ -26,7 +26,7 @@ float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
 
 void processInput(GLFWwindow* window) {
-    const float cameraSpeed = 0.05f; // adjust accordingly
+    const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
@@ -35,6 +35,13 @@ void processInput(GLFWwindow* window) {
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)//Go up pressing space
+        cameraPos += cameraUp * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) //Go down pressing left shift
+        cameraPos -= cameraUp * cameraSpeed;
+    //prototype for debugging purposes
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed; //get position of earth
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -80,13 +87,13 @@ int main(void) {
     unsigned int SCR_WIDTH = mode->width;
     unsigned int SCR_HEIGHT = mode->height;
 
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL /*glfwGetPrimaryMonitor()*/, NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
     // Lock and hide cursor
-    //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     // Make the window's context current
     glfwMakeContextCurrent(window);
@@ -106,7 +113,9 @@ int main(void) {
     Shader shader("shaders/Basic");
 
     std::vector<Planet*> planets = util::LoadPlanets();
+
     /* Loop until the user closes the window */
+    bool first = true;
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
 
@@ -129,11 +138,15 @@ int main(void) {
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         int numberOfCubes = 7;
-        float i = planets.size();        
+        float i = planets.size();
         float UA = 149597870.7;
         for (Planet* planet : planets) {
-            const float radius = (UA*(0.4 + 0.3 * planet->GetK()))/10000;
-            
+            const float radius = 0.1;// (UA * (0.4 + 0.3 * planet->GetK())) / 10000000;
+
+            if (first) {
+                std::cout << "Radius: " << radius << std::endl;
+            }            
+
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
@@ -145,6 +158,7 @@ int main(void) {
             planet->Draw();
             i--;
         }
+        first = false;
 
         glfwSwapBuffers(window);
         glfwPollEvents();
