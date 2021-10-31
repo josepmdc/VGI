@@ -20,8 +20,9 @@ static float computeRadius(YAML::Node values) {
     return radius/10000000;
 }
 
-Planet::Planet(YAML::Node values) : Sphere(computeRadius(values), 36, 18) {    
+Planet::Planet(YAML::Node values, std::string name) : Sphere(computeRadius(values), 36, 18) {    
     m_Texture = util::LoadTexture(values["texture"].as<std::string>());
+    m_Name = name;
 
     std::vector<float> coordinates = values["coordinates"].as<std::vector<float>>();
     glm::vec3 glm_coordinates = glm::vec3(coordinates[0], coordinates[1], coordinates[2]);

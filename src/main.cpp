@@ -25,6 +25,9 @@ float pitch = 0.0f;
 float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
 
+//testing purposes
+glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
+
 void processInput(GLFWwindow* window) {
     const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -41,7 +44,7 @@ void processInput(GLFWwindow* window) {
         cameraPos -= cameraUp * cameraSpeed;
     //prototype for debugging purposes
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
-        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed; //get position of earth
+        cameraPos = earthPos; //get position of earth
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -140,15 +143,20 @@ int main(void) {
         int numberOfCubes = 7;
         float i = planets.size();
         float UA = 149597870.7;
+
         for (Planet* planet : planets) {
-            const float radius = 0.1;// (UA * (0.4 + 0.3 * planet->GetK())) / 10000000;
+            const float radius = (UA * (0.4 + 0.3 * planet->GetK())) / 10000000;
 
             if (first) {
-                std::cout << "Radius: " << radius << std::endl;
+                std::cout << "Radius of "<<  planet->GetName() << ": " << radius << std::endl;
             }            
 
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
+
+            if (planet->GetName() == "earth") {
+                earthPos = glm::vec3(camX, .0f, camZ) * planet->GetCoordinates();
+            }
 
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planet->GetCoordinates());
