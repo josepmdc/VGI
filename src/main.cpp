@@ -7,6 +7,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 #include "shader/shader.h"
 #include "planet/planet.h"
@@ -24,10 +27,10 @@ float yaw = -90.0f;
 float pitch = 0.0f;
 float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
-
-//testing purposes
 glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
 
+bool lockCursor = false;
+bool disableCursorCallback = false;
 void processInput(GLFWwindow* window) {
     const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -38,6 +41,11 @@ void processInput(GLFWwindow* window) {
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+        lockCursor = !lockCursor;
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+        disableCursorCallback = !disableCursorCallback;
+    
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)//Go up pressing space
         cameraPos += cameraUp * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) //Go down pressing left shift
@@ -97,18 +105,22 @@ int main(void) {
     }
     // Lock and hide cursor
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
     // Make the window's context current
     glfwMakeContextCurrent(window);
-
     glfwSetCursorPosCallback(window, mouse_callback);
-
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
 
     std::cout << glGetString(GL_VERSION) << std::endl;
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
 
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
@@ -117,10 +129,29 @@ int main(void) {
 
     std::vector<Planet*> planets = util::LoadPlanets();
 
-    /* Loop until the user closes the window */
+    float radius = 3.0f;
     bool first = true;
+    bool realistic = true;
+    /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
+
+        if (!disableCursorCallback) {
+            glfwSetCursorPosCallback(window, mouse_callback);
+        } else {
+            glfwSetCursorPosCallback(window, NULL);
+        }
+
         processInput(window);
+
+        if (lockCursor) {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        } else {
+            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
         glClearColor(0.114, 0.125, 0.129, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -164,15 +195,47 @@ int main(void) {
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
             planet->Draw();
-            i--;
+            i++;
         }
         first = false;
+
+        
+        ImGui::Begin("Properties");
+        ImGui::SliderFloat("Radius", &radius, 1.0f, 10.0f);
+        if (ImGui::Button("Change mode")) {
+            realistic = !realistic;
+        }
+        if (realistic) {
+            ImGui::Text("Current mode: realistic");
+        } else {
+            ImGui::Text("Current mode: academic");
+        }
+
+        ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
+        ImGui::BeginChild("Scrolling");
+                ImGui::Text("Move: WASD");
+                ImGui::Text("Up: SPACE");
+                ImGui::Text("Down: Left Shift");
+                ImGui::Text("Lock/Unlock Cursor: C");
+                ImGui::Text("Disable Cursor Callback: Q");
+                ImGui::Text("Go to earth: R");
+        ImGui::EndChild();
+        ImGui::End();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    for (Planet* planet : planets) delete planet;
+    for (Planet* planet : planets) {
+        delete planet;
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     glfwTerminate();
     return 0;

@@ -66,3 +66,8 @@ CMakeDoxy*
 *.sln
 .vs
 Debug
+
+#########
+# ImGui #
+#########
+imgui.ini
