@@ -128,10 +128,21 @@ int main(void) {
     Shader shader("shaders/Basic");
 
     std::vector<Planet*> planets = util::LoadPlanets();
+    std::vector<char*> planetsNames;
+    for (Planet* planet : planets) {
+        char* cstr = new char[planet->GetName().length() + 1];
+        strcpy(cstr, planet->GetName().c_str());
+        planetsNames.push_back(cstr);
+    }
 
     float radius = 3.0f;
     bool first = true;
     bool realistic = true;
+    
+    unsigned int current_planet = 3;
+    std::string currentPlanetName = std::string(planetsNames[current_planet]);
+    static ImGuiComboFlags flags = 0;
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
 
@@ -185,7 +196,7 @@ int main(void) {
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
-            if (planet->GetName() == "earth") {
+            if (planet->GetName() == currentPlanetName) {
                 earthPos = glm::vec3(camX, .0f, camZ) * planet->GetCoordinates();
             }
 
@@ -201,16 +212,31 @@ int main(void) {
 
         
         ImGui::Begin("Properties");
-        ImGui::SliderFloat("Radius", &radius, 1.0f, 10.0f);
+
         if (ImGui::Button("Change mode")) {
             realistic = !realistic;
         }
+
         if (realistic) {
             ImGui::Text("Current mode: realistic");
+            if (ImGui::BeginCombo("Combo Test", planetsNames[current_planet], flags)) {
+                for (int n = 0; n < planetsNames.size(); n++) {
+                    const bool is_selected = (current_planet == n);
+                    if (ImGui::Selectable(planetsNames[n], is_selected)) {
+                        current_planet = n;
+                        currentPlanetName = planetsNames[current_planet];
+                    }
+                    // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+                    if (is_selected)
+                        ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
         } else {
             ImGui::Text("Current mode: academic");
-        }
-
+            ImGui::SliderFloat("Radius", &radius, 1.0f, 10.0f);
+        }    
+             
         ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
         ImGui::BeginChild("Scrolling");
                 ImGui::Text("Move: WASD");
