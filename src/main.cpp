@@ -14,6 +14,9 @@
 #include "shader/shader.h"
 #include "planet/planet.h"
 #include "util/util.h"
+#include "state/state.h"
+
+State state;
 
 unsigned int LoadTexture(std::string path);
 
@@ -29,23 +32,16 @@ float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
 glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
 
-bool lockCursor = false;
-bool disableCursorCallback = false;
 void processInput(GLFWwindow* window) {
     const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
-        lockCursor = !lockCursor;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        disableCursorCallback = !disableCursorCallback;
-    
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)//Go up pressing space
         cameraPos += cameraUp * cameraSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) //Go down pressing left shift
@@ -87,6 +83,10 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     cameraFront = glm::normalize(front);
 }
 
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    state.Modify(key, action);
+}
+
 int main(void) {
     GLFWwindow* window;
 
@@ -114,6 +114,8 @@ int main(void) {
     }
 
     std::cout << glGetString(GL_VERSION) << std::endl;
+
+    glfwSetKeyCallback(window, KeyCallback);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -146,19 +148,13 @@ int main(void) {
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
 
-        if (!disableCursorCallback) {
-            glfwSetCursorPosCallback(window, mouse_callback);
-        } else {
-            glfwSetCursorPosCallback(window, NULL);
-        }
+        glfwSetCursorPosCallback(window,
+                                 state.CursorCallbackEnabled() ? mouse_callback : NULL);
 
         processInput(window);
 
-        if (lockCursor) {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        } else {
-            glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-        }
+        glfwSetInputMode(window, GLFW_CURSOR,
+                         state.CursorEnabled() ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
