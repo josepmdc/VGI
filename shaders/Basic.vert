@@ -7,10 +7,10 @@ uniform mat4 u_Model;
 uniform mat4 u_View;
 uniform mat4 u_Projection;
 
-out vec2 texCoordinates;
+out vec2 textureCoordinates;
 
 void main() {
     gl_Position = u_Projection * u_View * u_Model * vec4(in_Positions, 1.0);
-    texCoordinates = in_TexCoordinates;
+    textureCoordinates = in_TexCoordinates;
 }
 

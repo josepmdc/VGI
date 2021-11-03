@@ -10,6 +10,7 @@
 
 #include "shader/shader.h"
 #include "planet/planet.h"
+#include "util/util.h"
 
 unsigned int LoadTexture(std::string path);
 
@@ -48,7 +49,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.9f; // change this value to your liking
+    float sensitivity = 0.3f; // change this value to your liking
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
@@ -84,8 +85,10 @@ int main(void) {
         glfwTerminate();
         return -1;
     }
+    // Lock and hide cursor
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    /* Make the window's context current */
+    // Make the window's context current
     glfwMakeContextCurrent(window);
 
     glfwSetCursorPosCallback(window, mouse_callback);
@@ -97,26 +100,12 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
-
-    glm::vec3 planetPositions[] = {
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(1.0f, 1.0f, 1.0f),
-        glm::vec3(2.0f, 1.0f, 2.0f),
-        glm::vec3(3.0f, 1.0f, 3.0f),
-        glm::vec3(4.0f, 1.0f, 4.0f),
-        glm::vec3(5.0f, 1.0f, 5.0f),
-        glm::vec3(6.0f, 1.0f, 6.0f),
-    };
 
     Shader shader("shaders/Basic");
 
-    glm::mat4 trans = glm::mat4(1.0f);
-    trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
-    trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
-
-    Planet planet(0.5f, 36, 18, "assets/textures/planets/earth.jpg");
+    std::vector<Planet*> planets = util::LoadPlanets();
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -141,35 +130,26 @@ int main(void) {
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         int numberOfCubes = 7;
-        for (unsigned int i = 0; i < numberOfCubes; i++) {
+        float i = planets.size();
+        for (Planet* planet : planets) {
+            const float radius = 3.0f;
+            float camX = sin(glfwGetTime() / (5 - i)) * radius;
+            float camZ = cos(glfwGetTime() / (5 - i)) * radius;
+
             glm::mat4 model = glm::mat4(1.0f);
-
-            // If they are not the central sphere rotate around the central sphere
-            if (i != 0) {
-                const float radius = 2.0f;
-                float camX = sin(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
-                float camZ = cos(glfwGetTime() * (numberOfCubes - i) / 5) * radius;
-                model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planetPositions[i]);
-            } else {
-                model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-            }
-
+            model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planet->GetCoordinates());
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-            int colorLocation = shader.GetUniformLocation("u_Color");
-            if (i == 0)
-                glUniform4f(colorLocation, 0.98, 0.741, 0.184, 1.0f);
-            else
-                glUniform4f(colorLocation, 0.271, 0.522, 0.533, 1.0f);
-
-            planet.Draw();
+            planet->Draw();
+            i--;
         }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    for (Planet* planet : planets) delete planet;
 
     glfwTerminate();
     return 0;

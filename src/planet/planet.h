@@ -11,7 +11,9 @@ class Planet : public Sphere {
         unsigned int m_Texture;
 
     public:
-        Planet(float r, int sectors, int stacks, std::string texturePath);
+        Planet(glm::vec3 coordinates, std::string texturePath);
+        Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::string texturePath);
         glm::vec3 GetCoordinates() { return m_Coordinates; }
+        unsigned int GetTexture() { return m_Texture; }
         void Draw();
 };
