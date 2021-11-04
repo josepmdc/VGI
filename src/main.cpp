@@ -174,6 +174,10 @@ int main(void) {
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
             planet->Draw();
+
+            glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
+            planet->DrawOrbit();
+
             i++;
         }
 

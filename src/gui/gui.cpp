@@ -25,16 +25,13 @@ void NewFrame() {
 }
 
 void DrawControls(std::vector<Planet*> planets, State& state) {
-    ImGui::Begin("Properties");
+    ImGui::Begin("Controls");
 
-    
     if (ImGui::Button("Change mode")) {
         state.ToggleRealisticMode();
     }
 
-    ImGui::Text(state.RealisticModeEnabled() ? 
-            "Current Mode: Realistic" : 
-            "Current Mode: Academic");
+    ImGui::Text(state.RealisticModeEnabled() ? "Current Mode: Realistic" : "Current Mode: Academic");
 
     int selectedPlanetIndex = state.GetSelectedPlanetIndex();
 
@@ -52,8 +49,12 @@ void DrawControls(std::vector<Planet*> planets, State& state) {
     }
 
     float radius = state.GetOrbitRadius();
-    ImGui::SliderFloat("Radius", &radius, 0.0f, 10.0f);
-    state.SetOrbitRadius(radius);
+    if (ImGui::SliderFloat("Radius", &radius, 0.0f, 10.0f)) {
+        state.SetOrbitRadius(radius);
+        for (Planet* planet : planets) {
+            planet->GenerateOrbit(radius);
+        }
+    }
 
     ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
     ImGui::BeginChild("Scrolling");
