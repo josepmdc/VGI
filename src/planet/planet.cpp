@@ -17,7 +17,7 @@ Planet::Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::str
 static float ComputeSphereRadius(YAML::Node values) {
     float earth_radius = 6378;
     float radius = values["diameter"].as<float>() / 2;
-    return radius / 1000000;
+    return radius / 10000000;
 }
 
 Planet::Planet(YAML::Node values, std::string name) : Sphere(ComputeSphereRadius(values), 36, 18) {
@@ -28,7 +28,7 @@ Planet::Planet(YAML::Node values, std::string name) : Sphere(ComputeSphereRadius
     m_Coordinates = glm::vec3(coordinates[0], coordinates[1], coordinates[2]);
     m_K = values["k"].as<int>();
     float UA = 149597870.7;
-    m_OrbitRadius = (UA * (0.4 + 0.3 * m_K)) / 1000000;
+    m_OrbitRadius = (UA * (0.4 + 0.3 * m_K)) / 10000000;
 
     GenerateOrbit(m_OrbitRadius);
 }

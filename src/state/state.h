@@ -7,7 +7,7 @@
 class State {
   private:
     bool m_DisableCursor = false;
-    bool m_DisableCursorCallback = true;
+    bool m_DisableCursorCallback = false;
     bool m_RealisticMode = false;
     float m_OrbitRadius = 1.0f;
     glm::vec3 m_CurrentPosition;
@@ -17,8 +17,8 @@ class State {
   public:
     State();
     void Modify(int key, int action);
-    bool CursorEnabled() { return m_DisableCursor; }
-    bool CursorCallbackEnabled() { return m_DisableCursorCallback; }
+    bool CursorDisabled() { return m_DisableCursor; }
+    bool CursorCallbackDisabled() { return m_DisableCursorCallback; }
     void SetCurrentPosition(glm::vec3 currentPosition) { m_CurrentPosition = currentPosition; }
     bool RealisticModeEnabled() { return m_RealisticMode; }
     void ToggleRealisticMode() { m_RealisticMode = !m_RealisticMode; }

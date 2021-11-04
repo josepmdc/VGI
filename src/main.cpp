@@ -133,12 +133,12 @@ int main(void) {
     while (!glfwWindowShouldClose(window)) {
 
         glfwSetCursorPosCallback(window,
-                                 state.CursorCallbackEnabled() ? mouse_callback : NULL);
+                                 state.CursorCallbackDisabled() ? NULL : mouse_callback);
 
         processInput(window);
 
         glfwSetInputMode(window, GLFW_CURSOR,
-                         state.CursorEnabled() ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_DISABLED);
+                         state.CursorDisabled() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
 
         GUI::NewFrame();
 

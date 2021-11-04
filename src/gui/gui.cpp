@@ -29,6 +29,11 @@ void DrawControls(std::vector<Planet*> planets, State& state) {
 
     if (ImGui::Button("Change mode")) {
         state.ToggleRealisticMode();
+        for (Planet* planet : planets) {
+            planet->GenerateOrbit(
+                state.RealisticModeEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius() //
+            );
+        }
     }
 
     ImGui::Text(state.RealisticModeEnabled() ? "Current Mode: Realistic" : "Current Mode: Academic");
