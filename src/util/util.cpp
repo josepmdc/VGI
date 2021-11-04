@@ -30,7 +30,7 @@ unsigned int LoadTexture(std::string path) {
     return texture;
 }
 
-std::vector<Planet*> LoadPlanets() {
+std::vector<Planet*> LoadPlanets(bool isAcademic) {
     std::vector<Planet*> planets;
     auto planetsConfig = YAML::LoadFile("config/planets.yml");
     int c = 0;
@@ -39,7 +39,7 @@ std::vector<Planet*> LoadPlanets() {
         std::vector<float> coordinates = it->second["coordinates"].as<std::vector<float>>();
         glm::vec3 glm_coordinates = glm::vec3(coordinates[0], coordinates[1], coordinates[2]);
         
-        planets.push_back(new Planet(it->second, it->first.as<std::string>()));
+        planets.push_back(new Planet(it->second, it->first.as<std::string>(), isAcademic));
     }
 
     return planets;

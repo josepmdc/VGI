@@ -1,5 +1,5 @@
 // https://github.com/1kar/OpenGL-SolarSystem/blob/master/Sphere.h
-
+#define _USE_MATH_DEFINES
 #include <cstdlib>
 #include <iostream>
 #include <string>

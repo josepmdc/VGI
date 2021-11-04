@@ -1,8 +1,12 @@
+#define _USE_MATH_DEFINES
+#include <cmath>
+#include <math.h>
+
 #include "planet.h"
 #include "../util/util.h"
 
 #include <iostream>
-#include <cmath>
+
 
 Planet::Planet(glm::vec3 coordinates, std::string texturePath) : Sphere(0.5f, 36, 18) {
     m_Coordinates = coordinates;
@@ -15,12 +19,20 @@ Planet::Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::str
 }
 
 static float ComputeSphereRadius(YAML::Node values) {
-    float earth_radius = 6378;
     float radius = values["diameter"].as<float>() / 2;
     return radius / 10000000;
 }
 
-Planet::Planet(YAML::Node values, std::string name) : Sphere(ComputeSphereRadius(values), 36, 18) {
+static float ComputeAcademicSphereRadius(YAML::Node values) {
+    float earth_radius = 6378;
+    float radius = values["academic"].as<float>()*earth_radius;
+
+    //std::cout << "Radius: " << ((255 * log10(radius)) / 6) << std::endl;
+
+    return radius / 100000;
+}
+
+Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(isAcademic ? ComputeAcademicSphereRadius(values) : ComputeSphereRadius(values), 36, 18) {
     m_Texture = util::LoadTexture(values["texture"].as<std::string>());
     m_Name = name;
 

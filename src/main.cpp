@@ -1,5 +1,5 @@
 #include <iostream>
-#include <cmath>
+#include <math.h>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -19,6 +19,8 @@
 
 State state;
 
+unsigned int LoadTexture(std::string path);
+
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -32,7 +34,7 @@ float lastY = 600.0 / 2.0;
 glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
 
 void processInput(GLFWwindow* window) {
-    const float cameraSpeed = 0.025f;
+    const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
@@ -97,7 +99,7 @@ int main(void) {
     unsigned int SCR_WIDTH = mode->width;
     unsigned int SCR_HEIGHT = mode->height;
 
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL /* glfwGetPrimaryMonitor()*/, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -121,13 +123,8 @@ int main(void) {
 
     Shader shader("shaders/Basic");
 
-    std::vector<Planet*> planets = util::LoadPlanets();
-
-    if (!state.RealisticModeEnabled()) {
-        for (Planet* planet : planets) {
-            planet->GenerateOrbit(state.GetOrbitRadius());
-        }
-    }
+    std::vector<Planet*> planets = util::LoadPlanets(false);
+    std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -162,8 +159,9 @@ int main(void) {
         float i = planets.size();
 
         int modelLocation = shader.GetUniformLocation("u_Model");
-
-        for (Planet* planet : planets) {
+        std::vector<Planet*> chosenPlanets = state.RealisticModeEnabled() ? planets : academicPlanets;
+        
+        for (Planet* planet : chosenPlanets) {
             float radius = state.RealisticModeEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius();
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
