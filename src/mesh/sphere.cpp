@@ -3,8 +3,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
-#define _USE_MATH_DEFINES
-#include <math.h>
+#include <cmath>
 
 #include "sphere.h"
 

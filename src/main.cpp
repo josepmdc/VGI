@@ -1,5 +1,5 @@
 #include <iostream>
-#include <math.h>
+#include <cmath>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -19,8 +19,6 @@
 
 State state;
 
-unsigned int LoadTexture(std::string path);
-
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
 glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -34,7 +32,7 @@ float lastY = 600.0 / 2.0;
 glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
 
 void processInput(GLFWwindow* window) {
-    const float cameraSpeed = 0.025f; // adjust accordingly
+    const float cameraSpeed = 0.025f;
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
@@ -124,6 +122,12 @@ int main(void) {
     Shader shader("shaders/Basic");
 
     std::vector<Planet*> planets = util::LoadPlanets();
+
+    if (!state.RealisticModeEnabled()) {
+        for (Planet* planet : planets) {
+            planet->GenerateOrbit(state.GetOrbitRadius());
+        }
+    }
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
