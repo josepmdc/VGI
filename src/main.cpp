@@ -1,5 +1,5 @@
 #include <iostream>
-#include <math.h>
+#include <cmath>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -126,6 +126,15 @@ int main(void) {
     std::vector<Planet*> planets = util::LoadPlanets(false);
     std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
 
+    if (!state.RealisticModeOrbitsEnabled()) {
+        for (Planet* planet : planets) {
+            planet->GenerateOrbit(state.GetOrbitRadius());
+        }
+        for (Planet* planet : academicPlanets) {
+            planet->GenerateOrbit(state.GetOrbitRadius());
+        }
+    }
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
 
@@ -159,10 +168,10 @@ int main(void) {
         float i = planets.size();
 
         int modelLocation = shader.GetUniformLocation("u_Model");
-        std::vector<Planet*> chosenPlanets = state.RealisticModeEnabled() ? planets : academicPlanets;
-        
-        for (Planet* planet : chosenPlanets) {
-            float radius = state.RealisticModeEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius();
+
+        std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
+        for (Planet* planet : selectedPlanets) {
+            float radius = state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius();
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
@@ -183,7 +192,7 @@ int main(void) {
             i++;
         }
 
-        GUI::DrawControls(planets, state);
+        GUI::DrawControls(planets, academicPlanets, state);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

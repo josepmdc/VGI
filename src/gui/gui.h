@@ -8,6 +8,6 @@
 namespace GUI {
 void SetUp(GLFWwindow* window);
 void NewFrame();
-void DrawControls(std::vector<Planet*> planets, State& state);
+void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPlanets, State& state);
 void Destroy();
 }; // namespace GUI
