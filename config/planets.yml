@@ -1,0 +1,73 @@
+sun:
+  coordinates: [0.0, 0.0, 0.0]
+  texture: "assets/textures/planets/sun.jpg"
+  diameter: 1392700
+  period: 0.0
+  k: 0
+  academic: 10
+mercury:
+  coordinates: [1.0, 1.0, 1.0]
+  texture: "assets/textures/planets/mercury.jpg"
+  diameter: 4878
+  period: 0.39
+  k: 0
+  academic: 0.33
+venus:
+  coordinates: [2.0, 1.0, 2.0]
+  texture: "assets/textures/planets/venus.jpg"
+  diameter: 12100
+  period: 0.72
+  k: 1
+  academic: 0.9
+earth:
+  coordinates: [3.0, 1.0, 3.0]
+  texture: "assets/textures/planets/earth.jpg"
+  diameter: 12756
+  period: 1.00
+  speed: 2
+  k: 2
+  academic: 1
+mars:
+  coordinates: [4.0, 1.0, 4.0]
+  texture: "assets/textures/planets/mars.jpg"
+  diameter: 6787
+  period: 1.52
+  speed: 4
+  k: 3
+  academic: 0.5
+jupiter:
+  coordinates: [5.0, 1.0, 5.0]
+  texture: "assets/textures/planets/jupiter.jpg"
+  diameter: 142984
+  period: 5.20
+  speed: 6
+  k: 4
+  academic: 7
+saturn:
+  coordinates: [6.0, 1.0, 6.0]
+  texture: "assets/textures/planets/saturn.jpg"
+  diameter: 120536
+  period: 9.54
+  k: 5
+  academic: 6
+uranus:
+  coordinates: [7.0, 1.0, 7.0]
+  texture: "assets/textures/planets/uranus.jpg"
+  diameter: 51108
+  period: 1.19
+  k: 6
+  academic: 4
+neptune:
+  coordinates: [8.0, 1.0, 8.0]
+  texture: "assets/textures/planets/neptune.jpg"
+  diameter: 49538
+  period: 3.06
+  k: 7
+  academic: 4
+pluton:
+  coordinates: [9.0, 1.0, 9.0]
+  texture: "assets/textures/planets/pluton.png"
+  diameter: 2376
+  period: 4.83
+  k: 8
+  academic: 0.25

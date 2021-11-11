@@ -27,6 +27,7 @@ link_directories(${CMAKE_SOURCE_DIR}/lib)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glm)
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/yaml-cpp)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -34,16 +35,30 @@ set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 target_include_directories(${PROJECT_NAME} 
     PUBLIC ${CMAKE_SOURCE_DIR}/lib/glfw/include
+    PUBLIC ${CMAKE_SOURCE_DIR}/lib/yaml-cpp/include
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/lib/stb_image)
 
-target_link_directories(${PROJECT_NAME}
-    PRIVATE lib/glfw/src
+set(IMGUI_PATH ${CMAKE_SOURCE_DIR}/lib/imgui)
+file(GLOB IMGUI_SOURCES 
+    ${IMGUI_PATH}/*.cpp 
+    ${IMGUI_PATH}/*.h
+    ${IMGUI_PATH}/backends/imgui_impl_glfw.*
+    ${IMGUI_PATH}/backends/imgui_impl_opengl3.*
+)
+add_library("imgui" STATIC ${IMGUI_SOURCES})
+target_include_directories("imgui" PUBLIC 
+    ${IMGUI_PATH} 
+    ${IMGUI_PATH}/backends
+    ${CMAKE_SOURCE_DIR}/lib/glfw/include
+    ${CMAKE_SOURCE_DIR}/lib/glfw/include
 )
 
 target_link_libraries(${PROJECT_NAME}
     PRIVATE glfw
     PRIVATE glad
     PRIVATE glm
+    PRIVATE yaml-cpp
+    PRIVATE imgui
 )
