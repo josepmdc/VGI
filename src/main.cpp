@@ -176,7 +176,7 @@ int main(void) {
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
             if (planet->GetName() == state.GetSelectedPlanet()) {
-                state.SetCurrentPosition(glm::vec3(camX, 0.0f, camZ) * planet->GetCoordinates());
+                state.SetCurrentPosition(glm::vec3(camX, planet->GetRadius(), camZ) * planet->GetCoordinates());
             }
 
             glm::mat4 model = glm::mat4(1.0f);
