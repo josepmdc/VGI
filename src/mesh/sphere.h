@@ -1,4 +1,3 @@
-// https://github.com/1kar/OpenGL-SolarSystem/blob/master/Sphere.h
 #pragma once
 
 #include <glad/glad.h>

@@ -1,13 +1,15 @@
+#include <glm/gtc/type_ptr.hpp>
+
 #include "shader.h"
 
 Shader::Shader(const std::string filepath) {
     std::string vertexSrc = ParseShader(filepath, VS_FILE_EXT);
     std::string fragmentSrc = ParseShader(filepath, FS_FILE_EXT);
-    ID = Create(vertexSrc, fragmentSrc);
+    m_ID = Create(vertexSrc, fragmentSrc);
 }
 
 Shader::~Shader() {
-    glDeleteProgram(ID);
+    glDeleteProgram(m_ID);
 }
 
 std::string Shader::ParseShader(const std::string& filepath, const std::string type) {
@@ -80,11 +82,11 @@ unsigned int Shader::Compile(unsigned int type, const std::string& source) {
 }
 
 void Shader::Bind() {
-    glUseProgram(ID);
+    glUseProgram(m_ID);
 }
 
 void Shader::Unbind() {
-    glUseProgram(ID);
+    glUseProgram(m_ID);
 }
 
 int Shader::GetUniformLocation(const std::string& name) {
@@ -92,7 +94,7 @@ int Shader::GetUniformLocation(const std::string& name) {
         return m_UniformCache[name];
     }
     
-    int location = glGetUniformLocation(ID, name.c_str());
+    int location = glGetUniformLocation(m_ID, name.c_str());
     if (location == -1) {
         std::cout << "ERROR: Uniform \"" << name << "\" not found";
         return -1;
@@ -101,3 +103,9 @@ int Shader::GetUniformLocation(const std::string& name) {
     m_UniformCache[name] = location;
     return location;    
 }
+
+void Shader::SetMat4(std::string uniformName, glm::mat4 matrix) {
+    int location = GetUniformLocation(uniformName);
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+}
+
