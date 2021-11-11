@@ -17,6 +17,7 @@ class Shader {
         std::unordered_map<std::string, int> m_UniformCache;
 
     public:
+        Shader();
         Shader(const std::string filepath);
         ~Shader();
         
@@ -26,7 +27,7 @@ class Shader {
         void Unbind();
 
         int GetUniformLocation(const std::string& name);
-        GLuint returnId(){
+        GLuint GetId(){
             return ID;
         }
 

@@ -7,47 +7,57 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include "shader/shaderClass.h"
+
 #include "shader/shader.h"
 #include "planet/planet.h"
-
+#include "skybox/skybox.h"
 #include <stb_image.h>
+//--------------- VGI: Tipus de Polars (per la Visualització Interactiva)
+#define POLARZ 'Z'
+#define POLARY 'Y'
+#define POLARX 'X'
+
+GLuint cubemaptexture = 0;
 
 
-float skyboxVertices[] =
-{
-	//   Coordinates
-	-1.0f, -1.0f,  1.0f,//        7--------6
-	 1.0f, -1.0f,  1.0f,//       /|       /|
-	 1.0f, -1.0f, -1.0f,//      4--------5 |
-	-1.0f, -1.0f, -1.0f,//      | |      | |
-	-1.0f,  1.0f,  1.0f,//      | 3------|-2
-	 1.0f,  1.0f,  1.0f,//      |/       |/
-	 1.0f,  1.0f, -1.0f,//      0--------1
-	-1.0f,  1.0f, -1.0f
-};
 
-unsigned int skyboxIndices[] =
-{
-	// Right
-	1, 2, 6,
-	6, 5, 1,
-	// Left
-	0, 4, 7,
-	7, 3, 0,
-	// Top
-	4, 5, 6,
-	6, 7, 4,
-	// Bottom
-	0, 3, 2,
-	2, 1, 0,
-	// Back
-	0, 1, 5,
-	5, 4, 0,
-	// Front
-	3, 7, 6,
-	6, 2, 3
-};
+char Vis_Polar;		
+
+
+void dibuixa_Skybox(Shader shader, GLuint cmTexture, char eix_Polar, glm::mat4 MatriuProjeccio, glm::mat4 MatriuVista) {
+    glm::mat4 ModelMatrix(1.0);
+
+    glDepthFunc(GL_LEQUAL); // change depth function so depth test passes when values are equal to depth buffer's content
+
+    // Activació shader per a cub skybox
+    shader.Bind();
+    std::cout << "printa------------------------------";
+    // Pas Matrius Projecció i Vista a shader
+    glUniformMatrix4fv(shader.GetUniformLocation( "u_Projection"), 1, GL_FALSE, &MatriuProjeccio[0][0]);
+    glUniformMatrix4fv(shader.GetUniformLocation("u_View"), 1, GL_FALSE, &MatriuVista[0][0]);
+
+    // Rotar skyBox per a orientar sobre eix superior Z o X en Vista Esfèrica (POLARX, POLARY, POLARZ)
+    if (eix_Polar == POLARZ)
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    else if (eix_Polar == POLARX)
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+    // Escalar Cub Skybox a 5000 per encabir objectes escena a l'interior
+    ModelMatrix = glm::scale(ModelMatrix, glm::vec3(5000.0f, 5000.0f, 5000.0f)); //glScaled(5000.0, 5000.0, 5000.0);
+    glUniformMatrix4fv(shader.GetUniformLocation("u_Model"),1, GL_FALSE, &ModelMatrix[0][0]);
+
+    // Activar textura cubemaps del Skybox per encabir objectes escena
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cmTexture);
+
+    // Attribute Locations must be setup before calling glLinkProgram()
+    glBindAttribLocation(shader.GetId(), 0, "in_Vertex"); // Vèrtexs
+
+    //  Dibuix del Skybox
+    drawCubeSkybox();
+
+    glDepthFunc(GL_LESS); // set depth function back to default
+}
 unsigned int LoadTexture(std::string path);
 
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
@@ -122,7 +132,7 @@ int main(void) {
     
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     #endif
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -153,87 +163,22 @@ int main(void) {
         glm::vec3(6.0f, 1.0f, 6.0f),
     };
 
+
+
+
+     Shader shadersky("shaders/Skybox");
     Shader shader("shaders/Basic");
-    Shader skyboxShader("shaders/Skybox");
+  
 
-
-    skyboxShader.Bind();
-	glUniform1i(glGetUniformLocation(skyboxShader.returnId(), "skybox"), 0);
-
+         
+  
     glm::mat4 trans = glm::mat4(1.0f);
     trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(0.0, 0.0, 1.0));
     trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
 
     Planet planet(0.5f, 36, 18, "assets/textures/planets/earth.jpg");
-unsigned int skyboxVAO, skyboxVBO, skyboxEBO;
-	glGenVertexArrays(1, &skyboxVAO);
-	glGenBuffers(1, &skyboxVBO);
-	glGenBuffers(1, &skyboxEBO);
-	glBindVertexArray(skyboxVAO);
-	glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, skyboxEBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(skyboxIndices), &skyboxIndices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+  
 
-
-	// All the faces of the cubemap (make sure they are in this exact order)
-	std::string facesCubemap[6] =
-	{
-		"assets/textures/planets/earth.jpg",
-        "assets/textures/planets/earth.jpg",
-        "assets/textures/planets/earth.jpg"
-        ,"assets/textures/planets/earth.jpg"
-        ,"assets/textures/planets/earth.jpg"
-        ,"assets/textures/planets/earth.jpg"
-        };
-
-	// Creates the cubemap texture object
-	unsigned int cubemapTexture;
-	glGenTextures(1, &cubemapTexture);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	// These are very important to prevent seams
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	// This might help with seams on some systems
-	//glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-
-	// Cycles through all the textures and attaches them to the cubemap object
-	for (unsigned int i = 0; i < 6; i++)
-	{
-        std:: cout << "WE ARE HERE " << std::endl;
-		int width, height, nrChannels;
-		unsigned char* data = stbi_load(facesCubemap[i].c_str(), &width, &height, &nrChannels, 0);
-		if (data)
-		{
-			stbi_set_flip_vertically_on_load(false);
-			glTexImage2D
-			(
-				GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-				0,
-				GL_RGB,
-				width,
-				height,
-				0,
-				GL_RGB,
-				GL_UNSIGNED_BYTE,
-				data
-			);
-			stbi_image_free(data);
-		}
-		else
-		{
-			std::cout << "Failed to load texture: " << facesCubemap[i] << std::endl;
-			stbi_image_free(data);
-		}
-	}
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
@@ -241,8 +186,10 @@ unsigned int skyboxVAO, skyboxVBO, skyboxEBO;
         glClearColor(0.114, 0.125, 0.129, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
         shader.Bind();
 
+      
         glm::mat4 view = glm::mat4(1.0f);
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
@@ -251,12 +198,15 @@ unsigned int skyboxVAO, skyboxVBO, skyboxEBO;
 
         glm::mat4 projection;
         projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
+     
+        
+      
         int projectionLocation = shader.GetUniformLocation("u_Projection");
         glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         int numberOfCubes = 7;
+       
         for (unsigned int i = 0; i < numberOfCubes; i++) {
             glm::mat4 model = glm::mat4(1.0f);
 
@@ -273,32 +223,15 @@ unsigned int skyboxVAO, skyboxVBO, skyboxEBO;
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
-
+            
             planet.Draw();
         }
-        glDepthFunc(GL_LEQUAL);
-
-		skyboxShader.Bind();
-	
-		// We make the mat4 into a mat3 and then a mat4 again in order to get rid of the last row and column
-		// The last row and column affect the translation of the skybox (which we don't want to affect)
-		view = glm::mat4(glm::mat3(glm::lookAt(cameraFront, cameraPos + cameraDown, cameraUp)));
-		projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / SCR_HEIGHT, 0.1f, 100.0f);
-		glUniformMatrix4fv(glGetUniformLocation(skyboxShader.returnId(), "view"), 1, GL_FALSE, glm::value_ptr(view));
-		glUniformMatrix4fv(glGetUniformLocation(skyboxShader.returnId(), "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-	// Draws the cubemap as the last object so we can save a bit of performance by discarding all fragments
-		// where an object is present (a depth of 1.0f will always fail against any object's depth value)
-		glBindVertexArray(skyboxVAO);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-		glBindVertexArray(0);
-
-		// Switch back to the normal depth function
-		glDepthFunc(GL_LESS);
+       
+        dibuixa_Skybox(shadersky, cubemaptexture, Vis_Polar, projection, view);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+
     }
 
     glfwTerminate();

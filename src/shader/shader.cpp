@@ -84,7 +84,7 @@ void Shader::Bind() {
 }
 
 void Shader::Unbind() {
-    glUseProgram(0);
+    glUseProgram(ID);
 }
 
 int Shader::GetUniformLocation(const std::string& name) {
