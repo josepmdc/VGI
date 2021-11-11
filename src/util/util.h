@@ -6,5 +6,5 @@
 
 namespace util {
 unsigned int LoadTexture(std::string path);
-std::vector<Planet*> LoadPlanets();
+std::vector<Planet*> LoadPlanets(bool isAcademic);
 }

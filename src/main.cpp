@@ -1,5 +1,5 @@
 #include <iostream>
-#include <math.h>
+#include <cmath>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -7,10 +7,17 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
 
 #include "shader/shader.h"
 #include "planet/planet.h"
 #include "util/util.h"
+#include "state/state.h"
+#include "gui/gui.h"
+
+State state;
 
 unsigned int LoadTexture(std::string path);
 
@@ -24,17 +31,25 @@ float yaw = -90.0f;
 float pitch = 0.0f;
 float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
+glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
 
 void processInput(GLFWwindow* window) {
-    const float cameraSpeed = 0.05f; // adjust accordingly
+    const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        cameraPos -= cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
         cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        cameraPos -= cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) //Go up pressing space
+        cameraPos += cameraUp * cameraSpeed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) //Go down pressing left shift
+        cameraPos -= cameraUp * cameraSpeed;
+    //prototype for debugging purposes
+    if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
+        cameraPos = state.GetCurrentPosition(); //get position of earth
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -49,7 +64,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     lastX = xpos;
     lastY = ypos;
 
-    float sensitivity = 0.3f; // change this value to your liking
+    float sensitivity = 0.2f; // change this value to your liking
     xoffset *= sensitivity;
     yoffset *= sensitivity;
 
@@ -69,6 +84,10 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     cameraFront = glm::normalize(front);
 }
 
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    state.Modify(key, action);
+}
+
 int main(void) {
     GLFWwindow* window;
 
@@ -80,18 +99,13 @@ int main(void) {
     unsigned int SCR_WIDTH = mode->width;
     unsigned int SCR_HEIGHT = mode->height;
 
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", glfwGetPrimaryMonitor(), NULL);
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL /* glfwGetPrimaryMonitor()*/, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
     }
-    // Lock and hide cursor
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // Make the window's context current
     glfwMakeContextCurrent(window);
-
-    glfwSetCursorPosCallback(window, mouse_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
@@ -100,16 +114,39 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    glfwSetKeyCallback(window, KeyCallback);
+
+    GUI::SetUp(window);
+
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("shaders/Basic");
 
-    std::vector<Planet*> planets = util::LoadPlanets();
+    std::vector<Planet*> planets = util::LoadPlanets(false);
+    std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
+
+    if (!state.RealisticModeOrbitsEnabled()) {
+        for (Planet* planet : planets) {
+            planet->GenerateOrbit(state.GetOrbitRadius());
+        }
+        for (Planet* planet : academicPlanets) {
+            planet->GenerateOrbit(state.GetOrbitRadius());
+        }
+    }
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
+
+        glfwSetCursorPosCallback(window,
+                                 state.CursorCallbackDisabled() ? NULL : mouse_callback);
+
         processInput(window);
+
+        glfwSetInputMode(window, GLFW_CURSOR,
+                         state.CursorDisabled() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+
+        GUI::NewFrame();
 
         glClearColor(0.114, 0.125, 0.129, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -128,13 +165,19 @@ int main(void) {
         int projectionLocation = shader.GetUniformLocation("u_Projection");
         glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
 
-        int modelLocation = shader.GetUniformLocation("u_Model");
-        int numberOfCubes = 7;
         float i = planets.size();
-        for (Planet* planet : planets) {
-            const float radius = 3.0f;
+
+        int modelLocation = shader.GetUniformLocation("u_Model");
+
+        std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
+        for (Planet* planet : selectedPlanets) {
+            float radius = state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius();
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
+
+            if (planet->GetName() == state.GetSelectedPlanet()) {
+                state.SetCurrentPosition(glm::vec3(camX, planet->GetRadius(), camZ) * planet->GetCoordinates());
+            }
 
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planet->GetCoordinates());
@@ -142,15 +185,25 @@ int main(void) {
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
             planet->Draw();
-            i--;
+
+            glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
+            planet->DrawOrbit();
+
+            i++;
         }
+
+        GUI::DrawControls(planets, academicPlanets, state);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    for (Planet* planet : planets) delete planet;
+    for (Planet* planet : planets) {
+        delete planet;
+    }
 
+    GUI::Destroy();
     glfwTerminate();
+
     return 0;
 }

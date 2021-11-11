@@ -15,5 +15,6 @@ class Sphere : public Mesh {
   public:
     ~Sphere();
     Sphere(float r, int sectors, int stacks);
+    float GetRadius() { return m_Radius; }
     void Draw();
 };
