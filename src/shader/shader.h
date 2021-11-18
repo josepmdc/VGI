@@ -6,16 +6,19 @@
 #include <glad/glad.h>
 #include <iostream>
 #include <unordered_map>
+#include <glm/glm.hpp>
 
 const std::string VS_FILE_EXT = ".vert";
 const std::string FS_FILE_EXT = ".frag";
 
 class Shader {
     private:
-        unsigned int ID;
+        
+        GLuint m_ID;
         std::unordered_map<std::string, int> m_UniformCache;
 
     public:
+        Shader();
         Shader(const std::string filepath);
         ~Shader();
         
@@ -25,6 +28,9 @@ class Shader {
         void Unbind();
 
         int GetUniformLocation(const std::string& name);
+        GLuint GetId(){ return m_ID; }
+
+        void SetMat4(std::string uniformName, glm::mat4 matrix);
 
     private:
         unsigned int Create(std::string vertexSrc, std::string fragmentSrc);

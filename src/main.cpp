@@ -13,13 +13,12 @@
 
 #include "shader/shader.h"
 #include "planet/planet.h"
+#include "skybox/skybox.h"
 #include "util/util.h"
 #include "state/state.h"
 #include "gui/gui.h"
 
 State state;
-
-unsigned int LoadTexture(std::string path);
 
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -98,8 +97,15 @@ int main(void) {
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
     unsigned int SCR_WIDTH = mode->width;
     unsigned int SCR_HEIGHT = mode->height;
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL /* glfwGetPrimaryMonitor()*/, NULL);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL, NULL);
     if (!window) {
         glfwTerminate();
         return -1;
@@ -122,6 +128,15 @@ int main(void) {
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("shaders/Basic");
+
+    std::vector<std::string> skyboxFaces = { "assets/textures/skybox/right.png",
+                                             "assets/textures/skybox/left.png",
+                                             "assets/textures/skybox/top.png",
+                                             "assets/textures/skybox/bottom.png",
+                                             "assets/textures/skybox/front.png",
+                                             "assets/textures/skybox/back.png" };
+
+    Skybox skybox("shaders/Skybox", skyboxFaces);
 
     std::vector<Planet*> planets = util::LoadPlanets(false);
     std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
@@ -156,19 +171,15 @@ int main(void) {
         glm::mat4 view = glm::mat4(1.0f);
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
-        int viewLocation = shader.GetUniformLocation("u_View");
-        glUniformMatrix4fv(viewLocation, 1, GL_FALSE, glm::value_ptr(view));
-
         glm::mat4 projection;
-        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 5000.0f);
 
-        int projectionLocation = shader.GetUniformLocation("u_Projection");
-        glUniformMatrix4fv(projectionLocation, 1, GL_FALSE, glm::value_ptr(projection));
+        shader.SetMat4("u_View", view);
+        shader.SetMat4("u_Projection", projection);
 
         float i = planets.size();
 
         int modelLocation = shader.GetUniformLocation("u_Model");
-
         std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
         for (Planet* planet : selectedPlanets) {
             float radius = state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius();
@@ -191,6 +202,8 @@ int main(void) {
 
             i++;
         }
+
+        skybox.Draw(projection, view);
 
         GUI::DrawControls(planets, academicPlanets, state);
 
