@@ -28,6 +28,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glm)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/yaml-cpp)
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/spice)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -61,4 +62,5 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE glm
     PRIVATE yaml-cpp
     PRIVATE imgui
+    PRIVATE spice
 )

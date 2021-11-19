@@ -1,5 +1,9 @@
+#include <chrono>
 #include <iostream>
 #include <cmath>
+#include <string>
+#include <vector>
+#include <thread>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -7,9 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
+#include <SpiceUsr.h>
 
 #include "shader/shader.h"
 #include "planet/planet.h"
@@ -87,6 +89,22 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     state.Modify(key, action);
 }
 
+void GetDate(std::string& date) {
+    int hour = 23;
+    int day = 0;
+    int month = 0;
+    int year = 1999;
+    while (true) {
+        hour = hour == 23 ? hour = 0 : hour + 1;
+        day = hour == 0 ? (day == 28 ? 1 : day + 1) : day;
+        month = day == 1 && hour == 0 ? (month == 12 ? 1 : month + 1) : month;
+        year = month == 1 && day == 1 & hour == 0 ? year + 1 : year;
+        date = std::to_string(year) + "-" + std::to_string(month) + "-" + std::to_string(day) + "T" + std::to_string(hour);
+        std::cout << date << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
 int main(void) {
     GLFWwindow* window;
 
@@ -120,11 +138,14 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
+    // Load spice kernel for planetary data
+    furnsh_c("assets/kernels/de440.bsp");
+    furnsh_c("assets/kernels/naif0012.tls");
+
     glfwSetKeyCallback(window, KeyCallback);
 
     GUI::SetUp(window);
 
-    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("shaders/Basic");
@@ -149,6 +170,12 @@ int main(void) {
             planet->GenerateOrbit(state.GetOrbitRadius());
         }
     }
+
+    glm::dvec3 position = glm::dvec3(0.0);
+    double ephemerisTime = 0.0;
+
+    std::string date;
+    std::thread dateThread(GetDate, std::ref(date));
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -177,7 +204,9 @@ int main(void) {
         shader.SetMat4("u_View", view);
         shader.SetMat4("u_Projection", projection);
 
-        float i = planets.size();
+        str2et_c(date.c_str(), &ephemerisTime);
+
+        int i = planets.size();
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
@@ -186,12 +215,21 @@ int main(void) {
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
+            if (planet->GetName() == "sun") {
+                position = glm::vec3(0.0f, 0.0f, 0.0f);
+            } else {
+                double lt;
+                spkpos_c((planet->GetName() + " barycenter").c_str(), ephemerisTime, "ECLIPJ2000", "None", "Sun", glm::value_ptr(position), &lt);
+            }
+
+            position *= 0.00000003; // scale down the planet position so they are not too far
+
             if (planet->GetName() == state.GetSelectedPlanet()) {
-                state.SetCurrentPosition(glm::vec3(camX, planet->GetRadius(), camZ) * planet->GetCoordinates());
+                state.SetCurrentPosition(glm::vec3(position[0], position[2], position[1]));
             }
 
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planet->GetCoordinates());
+            model = glm::translate(model, glm::vec3(position[0], position[2], position[1]));
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 

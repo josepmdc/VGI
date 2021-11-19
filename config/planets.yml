@@ -64,7 +64,7 @@ neptune:
   period: 3.06
   k: 7
   academic: 4
-pluton:
+pluto:
   coordinates: [9.0, 1.0, 9.0]
   texture: "assets/textures/planets/pluton.png"
   diameter: 2376
