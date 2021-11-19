@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <thread>
+#include <ctime>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -90,17 +91,21 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 }
 
 void GetDate(std::string& date) {
-    int hour = 23;
-    int day = 0;
-    int month = 0;
-    int year = 1999;
+    struct std::tm tm;
+
+    std::time_t rawtime = std::time(0);
+    tm = *localtime(&rawtime);
+    
+    tm.tm_year = 1970;
+    tm.tm_mon = 0;
+    tm.tm_mday = 1;
+    tm.tm_hour = 0;
+
     while (true) {
-        hour = hour == 23 ? hour = 0 : hour + 1;
-        day = hour == 0 ? (day == 28 ? 1 : day + 1) : day;
-        month = day == 1 && hour == 0 ? (month == 12 ? 1 : month + 1) : month;
-        year = month == 1 && day == 1 & hour == 0 ? year + 1 : year;
-        date = std::to_string(year) + "-" + std::to_string(month) + "-" + std::to_string(day) + "T" + std::to_string(hour);
-        std::cout << date << std::endl;
+        tm.tm_hour += 1;
+        std::mktime(&tm);
+        
+        date = std::to_string(tm.tm_year) + "-" + std::to_string(tm.tm_mon + 1) + "-" + std::to_string(tm.tm_mday) + "T" + std::to_string(tm.tm_hour);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
