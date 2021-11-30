@@ -43,12 +43,12 @@ void DrawToggleButton(bool* v) {
     draw_list->AddCircleFilled(ImVec2(p.x + radius + (*v ? 1 : 0) * (width - radius * 2.0f), p.y + radius), radius - 1.5f, IM_COL32(255, 255, 255, 255));
 }
 
-void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPlanets, State& state) { 
+void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPlanets, State& state) {
     ImGui::Begin("Controls");
 
     bool togglePlanets = state.RealisticModePlanetsEnabled();
     bool toggleOrbits = state.RealisticModeOrbitsEnabled();
-    
+
     ImGui::Text("Planet Size Realistic Mode");
     ImGui::SameLine(200);
     DrawToggleButton(&togglePlanets);
@@ -58,20 +58,14 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     if (togglePlanets != state.RealisticModePlanetsEnabled()) {
         state.ToggleRealisticModePlanets();
         selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
-        for (Planet* planet : planets) {
-            planet->GenerateOrbit(state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius());
-        }
     }
 
     ImGui::Text("Orbit Realistic Mode");
     ImGui::SameLine(200);
     DrawToggleButton(&toggleOrbits);
-    
+
     if (toggleOrbits != state.RealisticModeOrbitsEnabled()) {
         state.ToggleRealisticModeOrbits();
-        for (Planet* planet : selectedPlanets) {
-            planet->GenerateOrbit(state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius());
-        }
     }
 
     int selectedPlanetIndex = state.GetSelectedPlanetIndex();
@@ -89,14 +83,12 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
         ImGui::EndCombo();
     }
 
-    if (!state.RealisticModeOrbitsEnabled()) {
-        float radius = state.GetOrbitRadius();
-        if (ImGui::SliderFloat("Radius", &radius, 0.0f, 10.0f)) {
-            state.SetOrbitRadius(radius);
-            for (Planet* planet : selectedPlanets) {
-                planet->GenerateOrbit(radius);
-            }
-        }
+    int speed = state.GetSpeedMode();
+    const char* elems_names[COUNT] = { "1x", "1.5x", "1.75x", "2x" };
+    const char* elem_name = (speed >= 0 && speed < COUNT) ? elems_names[speed] : "Unknown";
+
+    if (ImGui::SliderInt("Speed", &speed, 0, COUNT - 1, elem_name)) {
+        state.SetSpeedMode((SpeedMode)speed);
     }
 
     ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
@@ -107,6 +99,7 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     ImGui::Text("Show/Hide Cursor: C");
     ImGui::Text("Disable Cursor Callback: Q");
     ImGui::Text("Go to selected planet: R");
+    ImGui::Text("Current date (ISO Format): %s", state.GetDate().c_str());
     ImGui::EndChild();
     ImGui::End();
 

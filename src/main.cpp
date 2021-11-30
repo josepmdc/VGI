@@ -45,13 +45,13 @@ void processInput(GLFWwindow* window) {
         cameraPos -= cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) //Go up pressing space
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) // Go up pressing space
         cameraPos += cameraUp * cameraSpeed;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) //Go down pressing left shift
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) // Go down pressing left shift
         cameraPos -= cameraUp * cameraSpeed;
-    //prototype for debugging purposes
+    // prototype for debugging purposes
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
-        cameraPos = state.GetCurrentPosition(); //get position of earth
+        cameraPos = state.GetCurrentPosition(); // get position of earth
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -90,22 +90,45 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     state.Modify(key, action);
 }
 
-void GetDate(std::string& date) {
+void GetDate() {
     struct std::tm tm;
 
     std::time_t rawtime = std::time(0);
     tm = *localtime(&rawtime);
-    
+
     tm.tm_year = 1970;
     tm.tm_mon = 0;
     tm.tm_mday = 1;
     tm.tm_hour = 0;
 
     while (true) {
-        tm.tm_hour += 1;
+        switch (state.GetSpeedMode()) {
+        case SpeedMode::Minutes:
+            tm.tm_min += 1;
+            break;
+        case SpeedMode::Hours:
+            tm.tm_hour += 1;
+            break;
+        case SpeedMode::Days:
+            tm.tm_mday += 1;
+            break;
+        case SpeedMode::Months:
+            tm.tm_mon += 1;
+            break;
+        default:
+            tm.tm_min += 1;
+            break;
+        }
+        std::cout << state.GetSpeedMode() << std::endl;
         std::mktime(&tm);
-        
-        date = std::to_string(tm.tm_year) + "-" + std::to_string(tm.tm_mon + 1) + "-" + std::to_string(tm.tm_mday) + "T" + std::to_string(tm.tm_hour);
+
+        // date in ISO format
+        state.SetDate(
+            std::to_string(tm.tm_year) + "-" +
+            std::to_string(tm.tm_mon + 1) + "-" +
+            std::to_string(tm.tm_mday) + "T" +
+            std::to_string(tm.tm_hour) + ":" +
+            std::to_string(tm.tm_min));
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }
@@ -120,6 +143,7 @@ int main(void) {
     const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
     unsigned int SCR_WIDTH = mode->width;
     unsigned int SCR_HEIGHT = mode->height;
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -142,6 +166,9 @@ int main(void) {
     }
 
     std::cout << glGetString(GL_VERSION) << std::endl;
+
+    erract_c("SET", 0, const_cast<char*>("REPORT"));
+    errprt_c("SET", 0, const_cast<char*>("NONE"));
 
     // Load spice kernel for planetary data
     furnsh_c("assets/kernels/de440.bsp");
@@ -167,20 +194,10 @@ int main(void) {
     std::vector<Planet*> planets = util::LoadPlanets(false);
     std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
 
-    if (!state.RealisticModeOrbitsEnabled()) {
-        for (Planet* planet : planets) {
-            planet->GenerateOrbit(state.GetOrbitRadius());
-        }
-        for (Planet* planet : academicPlanets) {
-            planet->GenerateOrbit(state.GetOrbitRadius());
-        }
-    }
-
     glm::dvec3 position = glm::dvec3(0.0);
     double ephemerisTime = 0.0;
 
-    std::string date;
-    std::thread dateThread(GetDate, std::ref(date));
+    std::thread dateThread(GetDate);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -209,7 +226,11 @@ int main(void) {
         shader.SetMat4("u_View", view);
         shader.SetMat4("u_Projection", projection);
 
-        str2et_c(date.c_str(), &ephemerisTime);
+        str2et_c(state.GetDate().c_str(), &ephemerisTime);
+
+        if (failed_c()) {
+            std::cout << "Error getting Ephemeris Time: " << state.GetDate() << std::endl;
+        }
 
         int i = planets.size();
 
@@ -225,21 +246,25 @@ int main(void) {
             } else {
                 double lt;
                 spkpos_c((planet->GetName() + " barycenter").c_str(), ephemerisTime, "ECLIPJ2000", "None", "Sun", glm::value_ptr(position), &lt);
+                if (failed_c()) {
+                    std::cout << "Error planet coordinates for date: " << state.GetDate() << std::endl;
+                }
             }
 
-            position *= 0.00000003; // scale down the planet position so they are not too far
+            position *= 0.00000003; // scale down the planet's position
 
             if (planet->GetName() == state.GetSelectedPlanet()) {
                 state.SetCurrentPosition(glm::vec3(position[0], position[2], position[1]));
             }
 
             glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(position[0], position[2], position[1]));
+            model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
             model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
             planet->Draw();
 
+            planet->AddNextOrbitVertex(glm::vec3(position[1], position[2], position[0]));
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
             planet->DrawOrbit();
 

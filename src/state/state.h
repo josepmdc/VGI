@@ -4,6 +4,12 @@
 #include <glm/glm.hpp>
 #include <string>
 
+enum SpeedMode { Minutes,
+                  Hours,
+                  Days,
+                  Months,
+                  COUNT };
+
 class State {
   private:
     bool m_DisableCursor = false;
@@ -14,6 +20,8 @@ class State {
     glm::vec3 m_CurrentPosition;
     std::string m_SelectedPlanet = "earth";
     int m_SelectedPlanetIndex = 3;
+    std::string m_Date;
+    SpeedMode m_speedMode = SpeedMode::Minutes;
 
   public:
     State();
@@ -34,4 +42,8 @@ class State {
         m_SelectedPlanet = selectedPlanet;
     }
     int GetSelectedPlanetIndex() { return m_SelectedPlanetIndex; }
+    void SetDate(std::string date) { m_Date = date; }
+    std::string GetDate() { return m_Date; }
+    void SetSpeedMode(SpeedMode mode) { m_speedMode = mode; }
+    SpeedMode GetSpeedMode() { return m_speedMode; }
 };

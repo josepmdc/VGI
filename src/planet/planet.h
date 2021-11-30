@@ -13,6 +13,7 @@ class Planet : public Sphere {
         std::string m_Name;
         float m_OrbitRadius = 0.0f;
         std::vector<float> m_OrbitVertices;
+        int m_OrbitIndex = -1;
         GLuint m_OrbitsVBO, m_OrbitsVAO;
 
     public:
@@ -26,5 +27,6 @@ class Planet : public Sphere {
         std::string GetName() { return m_Name; }
         void Draw();
         void DrawOrbit();
-        void GenerateOrbit(float orbitRadius);
+        void InitOrbit();
+        void AddNextOrbitVertex(glm::vec3 coordinates);
 };
