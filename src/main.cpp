@@ -16,14 +16,15 @@
 #include "skybox/skybox.h"
 #include "util/util.h"
 #include "state/state.h"
+#include "camera/camera.h"
 #include "gui/gui.h"
 
 State state;
-
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-glm::vec3 cameraDown = glm::vec3(0.0f, -1.0f, 0.0f);
+Camera camera;
+//glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
+//glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+//glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+//glm::vec3 cameraDown = glm::vec3(0.0f, -1.0f, 0.0f);
 
 bool firstMouse = true;
 float yaw = -90.0f;
@@ -32,7 +33,7 @@ float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
 glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
 
-void processInput(GLFWwindow* window) {
+/* void processInput(GLFWwindow* window) {
     const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
@@ -49,7 +50,7 @@ void processInput(GLFWwindow* window) {
     //prototype for debugging purposes
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
         cameraPos = state.GetCurrentPosition(); //get position of earth
-}
+}*/
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     if (firstMouse) {
@@ -80,7 +81,8 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     front.y = sin(glm::radians(pitch));
     front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(front);
+    //cameraFront = glm::normalize(front);
+    camera.setCameraFront(glm::normalize(front));
 }
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
@@ -156,7 +158,8 @@ int main(void) {
         glfwSetCursorPosCallback(window,
                                  state.CursorCallbackDisabled() ? NULL : mouse_callback);
 
-        processInput(window);
+        //processInput(window);
+        camera.processInput(window, state);
 
         glfwSetInputMode(window, GLFW_CURSOR,
                          state.CursorDisabled() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
@@ -168,13 +171,14 @@ int main(void) {
 
         shader.Bind();
 
-        glm::mat4 view = glm::mat4(1.0f);
-        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        //glm::mat4 view = glm::mat4(1.0f);
+        //view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        camera.lookAt();
 
         glm::mat4 projection;
         projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 5000.0f);
 
-        shader.SetMat4("u_View", view);
+        shader.SetMat4("u_View", camera.getView());
         shader.SetMat4("u_Projection", projection);
 
         float i = planets.size();
@@ -203,7 +207,7 @@ int main(void) {
             i++;
         }
 
-        skybox.Draw(projection, view);
+        skybox.Draw(projection, camera.getView());
 
         GUI::DrawControls(planets, academicPlanets, state);
 
