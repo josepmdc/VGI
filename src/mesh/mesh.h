@@ -7,6 +7,7 @@ class Mesh {
   protected:
     std::vector<float> m_Vertices;
     std::vector<int> m_Indices;
+    std::vector<int> textures;
     GLuint m_VBO, m_VAO, m_EBO;
 
   public:

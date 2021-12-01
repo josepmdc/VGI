@@ -24,6 +24,7 @@ file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 # Add Libraries
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/assimp)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glm)
@@ -34,13 +35,20 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 target_include_directories(${PROJECT_NAME} 
+    PUBLIC ${CMAKE_SOURCE_DIR}/lib/assimp/include
     PUBLIC ${CMAKE_SOURCE_DIR}/lib/glfw/include
     PUBLIC ${CMAKE_SOURCE_DIR}/lib/yaml-cpp/include
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/lib/stb_image)
 
+target_link_directories(${PROJECT_NAME}
+    PRIVATE lib/assimp/src
+    PRIVATE lib/glfw/src
+)
+
 target_link_libraries(${PROJECT_NAME}
+    PRIVATE assimp
     PRIVATE glfw
     PRIVATE glad
     PRIVATE glm
