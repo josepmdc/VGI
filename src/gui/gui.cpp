@@ -58,14 +58,9 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     if (togglePlanets != state.RealisticModePlanetsEnabled()) {
         state.ToggleRealisticModePlanets();
         selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
-    }
-
-    ImGui::Text("Orbit Realistic Mode");
-    ImGui::SameLine(200);
-    DrawToggleButton(&toggleOrbits);
-
-    if (toggleOrbits != state.RealisticModeOrbitsEnabled()) {
-        state.ToggleRealisticModeOrbits();
+        for (Planet* planet : selectedPlanets) {
+            planet->ClearOrbitBuffer();
+        }
     }
 
     int selectedPlanetIndex = state.GetSelectedPlanetIndex();
@@ -84,12 +79,14 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     }
 
     int speed = state.GetSpeedMode();
-    const char* elems_names[COUNT] = { "1x", "1.5x", "1.75x", "2x" };
+    const char* elems_names[COUNT] = { "1x", "1.5x", "2x" };
     const char* elem_name = (speed >= 0 && speed < COUNT) ? elems_names[speed] : "Unknown";
 
     if (ImGui::SliderInt("Speed", &speed, 0, COUNT - 1, elem_name)) {
         state.SetSpeedMode((SpeedMode)speed);
     }
+
+    ImGui::TextColored(ImVec4(0.961, 0.808, 0.259, 1),"Current date (ISO Format): %s", state.GetDate().c_str());
 
     ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
     ImGui::BeginChild("Scrolling");
@@ -99,8 +96,8 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     ImGui::Text("Show/Hide Cursor: C");
     ImGui::Text("Disable Cursor Callback: Q");
     ImGui::Text("Go to selected planet: R");
-    ImGui::Text("Current date (ISO Format): %s", state.GetDate().c_str());
     ImGui::EndChild();
+
     ImGui::End();
 
     ImGui::Render();

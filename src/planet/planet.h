@@ -29,4 +29,5 @@ class Planet : public Sphere {
         void DrawOrbit();
         void InitOrbit();
         void AddNextOrbitVertex(glm::vec3 coordinates);
+        void ClearOrbitBuffer();
 };

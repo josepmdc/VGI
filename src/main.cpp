@@ -112,14 +112,10 @@ void GetDate() {
         case SpeedMode::Days:
             tm.tm_mday += 1;
             break;
-        case SpeedMode::Months:
-            tm.tm_mon += 1;
-            break;
         default:
-            tm.tm_min += 1;
+            tm.tm_hour += 1;
             break;
         }
-        std::cout << state.GetSpeedMode() << std::endl;
         std::mktime(&tm);
 
         // date in ISO format

@@ -75,6 +75,10 @@ void Planet::AddNextOrbitVertex(glm::vec3 coordinates) {
     glBindVertexArray(0);
 }
 
+void Planet::ClearOrbitBuffer() {
+    m_OrbitVertices.clear();
+}
+
 void Planet::Draw() {
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_Texture);

@@ -7,7 +7,6 @@
 enum SpeedMode { Minutes,
                   Hours,
                   Days,
-                  Months,
                   COUNT };
 
 class State {
@@ -21,7 +20,7 @@ class State {
     std::string m_SelectedPlanet = "earth";
     int m_SelectedPlanetIndex = 3;
     std::string m_Date;
-    SpeedMode m_speedMode = SpeedMode::Minutes;
+    SpeedMode m_speedMode = SpeedMode::Hours;
 
   public:
     State();
