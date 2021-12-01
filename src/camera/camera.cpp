@@ -8,19 +8,17 @@ Camera ::Camera() {
     cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     cameraDown = glm::vec3(0.0f, -1.0f, 0.0f);
+
+    view = glm::mat4(1.0f);
 }
 
 
 
 Camera::~Camera()
     {
-    cameraPos = NULL;
-    cameraFront = NULL;
-    cameraUp = NULL;
-    cameraDown = NULL;
     }
 
-void Camera::processInput(GLFWwindow* window) {
+void Camera::processInput(GLFWwindow* window, State state) {
     //const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
@@ -56,6 +54,9 @@ glm::vec3 Camera::getCameraDown() {
     return cameraDown;
 }
 
+glm::mat4 Camera::getView() {
+    return view;
+}
 
 
 void Camera::setCameraPos(glm::vec3 camPos)
@@ -75,5 +76,13 @@ void Camera::setCameraUp(glm::vec3 camUp)
 
 void Camera::setCameraDown(glm::vec3 camDown)
 {
-    CameraDown = camDown;
+    cameraDown = camDown;
+}
+
+void Camera::setView(glm::mat4 v) {
+    view = v;
+}
+
+void Camera::lookAt() {
+    view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 }
