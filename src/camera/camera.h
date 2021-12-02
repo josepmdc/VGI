@@ -11,17 +11,16 @@
 
 class Camera {
   private:
-    glm::vec3 cameraPos;
-    glm::vec3 cameraFront;
-    glm::vec3 cameraUp;
-    glm::vec3 cameraDown;
+    glm::vec3 m_CameraPos;
+    glm::vec3 m_CameraFront;
+    glm::vec3 m_CameraUp;
+    glm::vec3 m_CameraDown;
 
     float cameraSpeed = 0.025f; // adjust accordingly
 
-    glm::mat4 view;
+    glm::mat4 m_View;
 
   public:
-    ~Camera();
     Camera();
 
     glm::vec3 getCameraPos();
@@ -30,13 +29,13 @@ class Camera {
     glm::vec3 getCameraDown();
     glm::mat4 getView();
 
-    void setCameraPos(glm::vec3 camPos);
-    void setCameraFront(glm::vec3 camFront);
-    void setCameraUp(glm::vec3 camUp);
-    void setCameraDown(glm::vec3 camDown);
-    void setView(glm::mat4 v);
+    void SetCameraPos(glm::vec3 camPos);
+    void SetCameraFront(glm::vec3 camFront);
+    void SetCameraUp(glm::vec3 camUp);
+    void SetCameraDown(glm::vec3 camDown);
+    void SetView(glm::mat4 v);
 
-    void processInput(GLFWwindow* window, State state);
+    void ProcessInput(GLFWwindow* window, State state);
 
-    void lookAt();
+    void LookAt();
 };
