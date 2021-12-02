@@ -24,6 +24,9 @@ file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 # Add Libraries
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
+set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
+set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glm)
