@@ -35,6 +35,7 @@ float lastX = 800.0f / 2.0;
 float lastY = 600.0 / 2.0;
 glm::vec3 earthPos = glm::vec3(.0f, .0f, .0f);
 
+bool followPlanet = false;
 void processInput(GLFWwindow* window) {
     const float cameraSpeed = 0.025f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
@@ -51,7 +52,9 @@ void processInput(GLFWwindow* window) {
         cameraPos -= cameraUp * cameraSpeed;
     // prototype for debugging purposes
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
-        cameraPos = state.GetCurrentPosition(); // get position of earth
+            followPlanet = !followPlanet;
+    if (followPlanet)
+        cameraPos = state.GetCurrentPosition();
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
@@ -263,6 +266,8 @@ int main(void) {
             planet->AddNextOrbitVertex(glm::vec3(position[1], position[2], position[0]));
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
             planet->DrawOrbit();
+
+            
 
             i++;
         }

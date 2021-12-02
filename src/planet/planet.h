@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <yaml-cpp/yaml.h>
 #include "../mesh/sphere.h"
+#include "../satelites/satelite.h"
 
 class Planet : public Sphere {
     private:
@@ -15,6 +16,7 @@ class Planet : public Sphere {
         std::vector<float> m_OrbitVertices;
         int m_OrbitIndex = -1;
         GLuint m_OrbitsVBO, m_OrbitsVAO;
+        std::vector<Satelite> m_satelites;
 
     public:
         Planet(glm::vec3 coordinates, std::string texturePath);
