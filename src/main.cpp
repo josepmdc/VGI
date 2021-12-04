@@ -107,16 +107,16 @@ void GetDate() {
     while (true) {
         switch (state.GetSpeedMode()) {
         case SpeedMode::Minutes:
-            tm.tm_min += 1;
+            util::addMin(tm);
             break;
         case SpeedMode::Hours:
-            tm.tm_hour += 1;
+            util::addHour(tm);
             break;
         case SpeedMode::Days:
-            tm.tm_mday += 1;
+            util::addDay(tm);
             break;
         default:
-            tm.tm_hour += 1;
+            util::addHour(tm);
             break;
         }
         std::mktime(&tm);
@@ -229,6 +229,8 @@ int main(void) {
 
         if (failed_c()) {
             std::cout << "Error getting Ephemeris Time: " << state.GetDate() << std::endl;
+        } else {
+            std::cout << "GOOD: " << state.GetDate() << std::endl;
         }
 
         int i = planets.size();
