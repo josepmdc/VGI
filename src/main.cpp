@@ -71,16 +71,12 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 
 void GetDate() {
     struct std::tm tm;
-
-    std::time_t rawtime = std::time(0);
-    tm = *localtime(&rawtime);
-
-    tm.tm_year = 1970;
-    tm.tm_mon = 0;
-    tm.tm_mday = 1;
-    tm.tm_hour = 0;
-
     while (true) {
+        tm.tm_year = state.GetYear();
+        tm.tm_mon = state.GetMonth();
+        tm.tm_mday = state.GetDay();
+        tm.tm_hour = state.GetHour();
+
         switch (state.GetSpeedMode()) {
         case SpeedMode::Minutes:
             util::addMin(tm);
@@ -95,15 +91,7 @@ void GetDate() {
             util::addHour(tm);
             break;
         }
-        // std::mktime(&tm);
-
-        // date in ISO format
-        state.SetDate(
-            std::to_string(tm.tm_year) + "-" +
-            std::to_string(tm.tm_mon + 1) + "-" +
-            std::to_string(tm.tm_mday) + "T" +
-            std::to_string(tm.tm_hour) + ":" +
-            std::to_string(tm.tm_min));
+        state.SetDate(tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 }

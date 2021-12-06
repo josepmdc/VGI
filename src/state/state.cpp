@@ -14,3 +14,15 @@ void State::Modify(int key, int action) {
         }
     }
 }
+
+void State::SetDate(int year, int month, int day, int hour) {
+    m_Year = year;
+    m_Month = month;
+    m_Day = day;
+    m_Hour = hour;
+
+    m_Date = std::to_string(year) + "-" +
+             std::to_string(month) + "-" +
+             std::to_string(day) + "T" +
+             std::to_string(hour);
+}

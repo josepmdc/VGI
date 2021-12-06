@@ -48,14 +48,14 @@ std::vector<Planet*> LoadPlanets(bool isAcademic) {
 void addMonth(struct std::tm& tm) {
     tm.tm_mon += 1;
     if (tm.tm_mon >= 12) {
-        tm.tm_mon = 0;
+        tm.tm_mon = 1;
         tm.tm_year += 1;
     }
 }
 
 void addDay(struct std::tm& tm) {
     tm.tm_mday += 1;
-    if (tm.tm_mon == 1) { //its february
+    if (tm.tm_mon == 2) { //its february
         if (tm.tm_year % 4 == 0) {
             if (tm.tm_mday >= 29) {
                 tm.tm_mday = 1;
@@ -70,7 +70,7 @@ void addDay(struct std::tm& tm) {
         return;
     }
 
-    if (tm.tm_mon == 0 || tm.tm_mon == 2 || tm.tm_mon == 4 || tm.tm_mon == 6 || tm.tm_mon == 7 || tm.tm_mon == 9 || tm.tm_mon == 11) {
+    if (tm.tm_mon == 1 || tm.tm_mon == 3 || tm.tm_mon == 5 || tm.tm_mon == 7 || tm.tm_mon == 8 || tm.tm_mon == 10 || tm.tm_mon == 12) {
         if (tm.tm_mday >= 31) {
             tm.tm_mday = 1;
             addMonth(tm);

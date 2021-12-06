@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <string>
 
 namespace GUI {
 
@@ -86,7 +87,47 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
         state.SetSpeedMode((SpeedMode)speed);
     }
 
-    ImGui::TextColored(ImVec4(0.961, 0.808, 0.259, 1),"Current date (ISO Format): %s", state.GetDate().c_str());
+    ImGui::TextColored(ImVec4(0.961, 0.808, 0.259, 1), "Current date (ISO Format): %s", state.GetDate().c_str());
+
+    if (ImGui::BeginCombo("Year", std::to_string(state.GetYear()).c_str())) {
+        for (int year = 1550; year < 2649; year++) {
+            const bool isSelected = (state.GetYear() == year);
+            if (ImGui::Selectable(std::to_string(year).c_str(), isSelected)) {
+                state.SetYear(year);
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    if (ImGui::BeginCombo("Month", std::to_string(state.GetMonth()).c_str())) {
+        for (int month = 1; month <= 12; month++) {
+            const bool isSelected = (state.GetMonth() == month);
+            if (ImGui::Selectable(std::to_string(month).c_str(), isSelected)) {
+                state.SetMonth(month);
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    if (ImGui::BeginCombo("Day", std::to_string(state.GetDay()).c_str())) {
+        int maxDay = state.GetMonth() == 2 ? 28 : 30;
+        for (int day = 1; day <= maxDay; day++) {
+            const bool isSelected = (state.GetDay() == day);
+            if (ImGui::Selectable(std::to_string(day).c_str(), isSelected)) {
+                state.SetDay(day);
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
 
     ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
     ImGui::BeginChild("Scrolling");
