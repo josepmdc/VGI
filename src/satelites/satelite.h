@@ -18,5 +18,6 @@ class Satelite : public Sphere {
     //Satelite(glm::vec3 coordinates, std::string texturePath);
     //Satelite(float r, int sectors, int stacks, glm::vec3 coordinates, std::string texturePath);
     Satelite(YAML::Node values, std::string name, bool isAcademic);
-
+    std::string GetName() { return m_Name; }
+    void Satelite::Draw();
 };

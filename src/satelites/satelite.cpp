@@ -21,9 +21,13 @@ static float ComputeAcademicSphereRadius(YAML::Node values) {
 Satelite::Satelite(YAML::Node values, std::string name, bool isAcademic) : Sphere(isAcademic ? ComputeAcademicSphereRadius(values) : ComputeSphereRadius(values), 36, 18) {
     m_Texture = util::LoadTexture(values["texture"].as<std::string>());
     m_Name = name;
-    std::cout << m_Name << " -> " << values["texture"].as<std::string>() << std::endl;
+    //std::cout << m_Name << " -> " << values["texture"].as<std::string>() << std::endl;
     float UA = 149597870.7;
     m_OrbitRadius = 1;
-    //values["planetDistance"] + isAcademic ? ComputeAcademicSphereRadius(values) : ComputeSphereRadius(values);
+}
 
+void Satelite::Draw() {
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_Texture);
+    Sphere::Draw();
 }

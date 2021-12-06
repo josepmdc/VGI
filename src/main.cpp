@@ -52,7 +52,7 @@ void processInput(GLFWwindow* window) {
         cameraPos -= cameraUp * cameraSpeed;
     // prototype for debugging purposes
     if (glfwGetKey(window, GLFW_KEY_R) == GLFW_PRESS)
-            followPlanet = !followPlanet;
+        followPlanet = !followPlanet;
     if (followPlanet)
         cameraPos = state.GetCurrentPosition();
 }
@@ -119,7 +119,7 @@ void GetDate() {
             util::addHour(tm);
             break;
         }
-        std::mktime(&tm);
+        //std::mktime(&tm);
 
         // date in ISO format
         state.SetDate(
@@ -229,8 +229,6 @@ int main(void) {
 
         if (failed_c()) {
             std::cout << "Error getting Ephemeris Time: " << state.GetDate() << std::endl;
-        } else {
-            std::cout << "GOOD: " << state.GetDate() << std::endl;
         }
 
         int i = planets.size();
@@ -238,9 +236,6 @@ int main(void) {
         int modelLocation = shader.GetUniformLocation("u_Model");
         std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
         for (Planet* planet : selectedPlanets) {
-            float radius = state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius();
-            float camX = sin(glfwGetTime() / (5 - i)) * radius;
-            float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
             if (planet->GetName() == "sun") {
                 position = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -248,14 +243,14 @@ int main(void) {
                 double lt;
                 spkpos_c((planet->GetName() + " barycenter").c_str(), ephemerisTime, "ECLIPJ2000", "None", "Sun", glm::value_ptr(position), &lt);
                 if (failed_c()) {
-                    std::cout << "Error planet coordinates for date: " << state.GetDate() << std::endl;
+                    std::cout << "Error planet '" << planet->GetName() <<"' coordinates for date: " << state.GetDate() << std::endl;
                 }
             }
 
             position *= 0.00000003; // scale down the planet's position
 
             if (planet->GetName() == state.GetSelectedPlanet()) {
-                state.SetCurrentPosition(glm::vec3(position[0], position[2], position[1]));
+                state.SetCurrentPosition(glm::vec3(position[0], position[2] /* + planet->GetRadius()*/, position[1])); // TODO: not working properly
             }
 
             glm::mat4 model = glm::mat4(1.0f);
@@ -269,11 +264,31 @@ int main(void) {
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
             planet->DrawOrbit();
 
-            
+            //-------------------------------------------------------------------------------------------------------------------------
+            if (planet->GetName() == "earth") {
+                double satelite_lt;
+                Satelite* moon = planet->GetSatelites()[0];
+                spkpos_c((moon->GetName()).c_str(), ephemerisTime, "ECLIPJ2000", "None", "Sun", glm::value_ptr(position), &satelite_lt);
+                if (failed_c()) {
+                    std::cout << "Error satelite '" << moon->GetName() << "' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA " << state.GetDate() << std::endl;
+                } else {
+                    std::cout << moon->GetName() << " WORKED. Date: " << state.GetDate() << std::endl;
+                }
 
+                position *= 0.00000003;
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
+                model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+                moon->Draw();
+
+            }
+            //-------------------------------------------------------------------------------------------------------------------------
+            
             i++;
         }
-
+        
         skybox.Draw(projection, view);
 
         GUI::DrawControls(planets, academicPlanets, state);

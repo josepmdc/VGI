@@ -40,6 +40,12 @@ Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(is
     m_OrbitRadius = (UA * (0.4 + 0.3 * m_K)) / 10000000;
 
     InitOrbit();
+
+    if (!values["satelites"].IsNull()) {
+        for (auto satelite = values["satelites"].begin(); satelite != values["satelites"].end(); satelite++) {
+            m_satelites.push_back(new Satelite(satelite->second, satelite->first.as<std::string>(), true));
+        }
+    }
 }
 
 void Planet::InitOrbit() {
