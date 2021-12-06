@@ -171,6 +171,9 @@ int main(void) {
 
     // Load spice kernel for planetary data
     furnsh_c("assets/kernels/de440.bsp");
+    furnsh_c("assets/kernels/jup365.bsp");
+    furnsh_c("assets/kernels/sat427l.bsp");
+    furnsh_c("assets/kernels/ura111.bsp");
     furnsh_c("assets/kernels/naif0012.tls");
 
     glfwSetKeyCallback(window, KeyCallback);
@@ -247,10 +250,10 @@ int main(void) {
                 }
             }
 
-            position *= 0.00000003; // scale down the planet's position
+            position *= 0.000000025; // scale down the satelites position
 
             if (planet->GetName() == state.GetSelectedPlanet()) {
-                state.SetCurrentPosition(glm::vec3(position[0], position[2] /* + planet->GetRadius()*/, position[1])); // TODO: not working properly
+                state.SetCurrentPosition(glm::vec3(position[1], position[2] + planet->GetRadius(), position[0])); // TODO: not working properly
             }
 
             glm::mat4 model = glm::mat4(1.0f);
@@ -263,25 +266,26 @@ int main(void) {
             planet->AddNextOrbitVertex(glm::vec3(position[1], position[2], position[0]));
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
             planet->DrawOrbit();
-
+            
             //-------------------------------------------------------------------------------------------------------------------------
-            if (planet->GetName() == "earth") {
-                double satelite_lt;
-                Satelite* moon = planet->GetSatelites()[0];
-                spkpos_c((moon->GetName()).c_str(), ephemerisTime, "ECLIPJ2000", "None", "Sun", glm::value_ptr(position), &satelite_lt);
-                if (failed_c()) {
-                    std::cout << "Error satelite '" << moon->GetName() << "' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA " << state.GetDate() << std::endl;
-                } else {
-                    std::cout << moon->GetName() << " WORKED. Date: " << state.GetDate() << std::endl;
-                }
+            double j = 1;
+            if (!planet->GetSatelites().empty()) {
+                for (Satelite* satelite : planet->GetSatelites()) {
+                    double satelite_lt;
+                    spkpos_c((satelite->GetName()).c_str(), ephemerisTime, "ECLIPJ2000", "None", "Sun", glm::value_ptr(position), &satelite_lt);
+                    if (failed_c()) {
+                        std::cout << "Error satelite '" << satelite->GetName() << "' AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA " << state.GetDate() << std::endl;
+                    }
 
-                position *= 0.00000003;
-                glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
-                model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+                    position *= 0.000000025 * j; //TODO: find out the value
+                    glm::mat4 model = glm::mat4(1.0f);
+                    model = glm::translate(model, glm::vec3(position[1], position[2], position[0] + (planet->GetRadius() * 3)));
+                    model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                    glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
 
-                moon->Draw();
+                    satelite->Draw();
+                    j += 0.05;
+                }          
 
             }
             //-------------------------------------------------------------------------------------------------------------------------

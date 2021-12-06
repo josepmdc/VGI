@@ -145,11 +145,11 @@ neptune:
   k: 7
   academic: 4
   satelites:
-    triton:
-      texture: "assets/textures/satelites/triton.jpg"
-      diameter: 2707
-      period: "-5877 d"
-      academic: 0.35 #(temporal) yet to be determined
+    #triton:
+    #  texture: "assets/textures/satelites/triton.jpg"
+    #  diameter: 2707
+    #  period: "-5877 d"
+    #  academic: 0.35 #(temporal) yet to be determined
 pluto:
   coordinates: [9.0, 1.0, 9.0]
   texture: "assets/textures/planets/pluton.png"
@@ -158,8 +158,8 @@ pluto:
   k: 8
   academic: 0.25
   satelites:
-    charon:
-      texture: "assets/textures/satelites/charon.jpg"
-      diameter: 1207
-      period: "6,387 230 d"
-      academic: 0.15 #(temporal) yet to be determined
+    #charon:
+    #  texture: "assets/textures/satelites/charon.jpg"
+    #  diameter: 1207
+    #  period: "6,387 230 d"
+    #  academic: 0.15 #(temporal) yet to be determined
