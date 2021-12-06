@@ -1,10 +1,12 @@
 #include <algorithm>
 #define _USE_MATH_DEFINES
 #include <cmath>
-#include <math.h>
+#include <ctime>
+#include <date.h>
 
 #include "planet.h"
 #include "../util/util.h"
+#include "../spice/spice.h"
 
 #include <iostream>
 
@@ -38,8 +40,12 @@ Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(is
     m_K = values["k"].as<int>();
     float UA = 149597870.7;
     m_OrbitRadius = (UA * (0.4 + 0.3 * m_K)) / 10000000;
+    m_OrbitalPeriod = values["period"].as<int>();
 
-    InitOrbit();
+    if (m_Name != "sun") {
+        GenerateFullOrbit();
+        InitOrbit();
+    }
 
     if (!values["satelites"].IsNull()) {
         for (auto satelite = values["satelites"].begin(); satelite != values["satelites"].end(); satelite++) {
@@ -51,6 +57,13 @@ Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(is
 void Planet::InitOrbit() {
     glGenVertexArrays(1, &m_OrbitsVAO);
     glGenBuffers(1, &m_OrbitsVBO);
+    glBindVertexArray(m_OrbitsVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_OrbitsVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * m_OrbitVertices.size(), m_OrbitVertices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 }
 
 void Planet::AddNextOrbitVertex(glm::vec3 coordinates) {
@@ -68,7 +81,6 @@ void Planet::AddNextOrbitVertex(glm::vec3 coordinates) {
         // m_OrbitVertices[++m_OrbitIndex % 2001] = coordinates[1];
         // m_OrbitVertices[++m_OrbitIndex % 2001] = coordinates[2];
         // m_OrbitIndex = m_OrbitIndex % 2001;
-
     }
 
     glBindVertexArray(m_OrbitsVAO);
@@ -93,5 +105,31 @@ void Planet::Draw() {
 void Planet::DrawOrbit() {
     glBindVertexArray(m_OrbitsVAO);
     glLineWidth(1.0f);
-    glDrawArrays(GL_LINES, 0, (GLsizei)m_OrbitVertices.size() / 3);
+    glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)m_OrbitVertices.size() / 3);
+}
+
+void Planet::GenerateFullOrbit() {
+    using namespace date;
+
+    int step = std::round(m_OrbitalPeriod / 365.0);
+    if (step == 0) step = 1;
+
+    m_OrbitVertices = std::vector<float>(365 * 3);
+
+    year_month_day date = sys_days{ 1970_y / January / 01 };
+
+    for (int i = 0; i < 365 * 3; i += 3) {
+        date = sys_days{ date } + days{ step };
+
+        std::stringstream date_str;
+        date_str << date;
+
+        double ephemerisTime = spice::GetEphemerisTime(date_str.str());
+        glm::vec3 coordinates = spice::GetCoordinate(ephemerisTime, m_Name + " barycenter");
+        coordinates *= 0.00000003;
+
+        m_OrbitVertices[i] = coordinates[1];
+        m_OrbitVertices[i + 1] = coordinates[2];
+        m_OrbitVertices[i + 2] = coordinates[0];
+    }
 }

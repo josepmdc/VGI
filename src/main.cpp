@@ -201,7 +201,7 @@ int main(void) {
         for (Planet* planet : selectedPlanets) {
             glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
             if (planet->GetName() != "sun") {
-                position = spice::GetCoordinate(ephemerisTime, planet->GetName());
+                position = spice::GetCoordinate(ephemerisTime, planet->GetName() + " barycenter");
                 position *= 0.00000003; // scale down the planet's position
             }
 
@@ -216,7 +216,7 @@ int main(void) {
 
             planet->Draw();
 
-            planet->AddNextOrbitVertex(glm::vec3(position[1], position[2], position[0]));
+            // planet->AddNextOrbitVertex(glm::vec3(position[1], position[2], position[0]));
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
             planet->DrawOrbit();
 

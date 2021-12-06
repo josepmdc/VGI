@@ -17,6 +17,7 @@ class Planet : public Sphere {
     int m_OrbitIndex = -1;
     GLuint m_OrbitsVBO, m_OrbitsVAO;
     std::vector<Satelite*> m_satelites;
+    int m_OrbitalPeriod = 0;
 
   public:
     Planet(glm::vec3 coordinates, std::string texturePath);
@@ -27,10 +28,11 @@ class Planet : public Sphere {
     int GetK() { return m_K; }
     float GetOrbitRadius() { return m_OrbitRadius; }
     std::string GetName() { return m_Name; }
-        std::vector<Satelite*> GetSatelites(){return m_satelites;}
-        void Draw();
-        void DrawOrbit();
-        void InitOrbit();
-        void AddNextOrbitVertex(glm::vec3 coordinates);
-        void ClearOrbitBuffer();
+    std::vector<Satelite*> GetSatelites() { return m_satelites; }
+    void Draw();
+    void DrawOrbit();
+    void InitOrbit();
+    void AddNextOrbitVertex(glm::vec3 coordinates);
+    void ClearOrbitBuffer();
+    void GenerateFullOrbit();
 };
