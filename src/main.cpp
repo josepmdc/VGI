@@ -12,8 +12,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
-#include <SpiceUsr.h>
 
+#include "glm/fwd.hpp"
 #include "shader/shader.h"
 #include "planet/planet.h"
 #include "skybox/skybox.h"
@@ -21,6 +21,7 @@
 #include "state/state.h"
 #include "camera/camera.h"
 #include "gui/gui.h"
+#include "spice/spice.h"
 
 State state;
 Camera camera;
@@ -60,7 +61,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     front.y = sin(glm::radians(pitch));
     front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    //cameraFront = glm::normalize(front);
+    // cameraFront = glm::normalize(front);
     camera.SetCameraFront(glm::normalize(front));
 }
 
@@ -141,15 +142,9 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    erract_c("SET", 0, const_cast<char*>("REPORT"));
-    errprt_c("SET", 0, const_cast<char*>("NONE"));
-
-    // Load spice kernel for planetary data
-    furnsh_c("assets/kernels/de440.bsp");
-    furnsh_c("assets/kernels/naif0012.tls");
-
     glfwSetKeyCallback(window, KeyCallback);
 
+    spice::Init();
     GUI::SetUp(window);
 
     glEnable(GL_DEPTH_TEST);
@@ -168,9 +163,6 @@ int main(void) {
     std::vector<Planet*> planets = util::LoadPlanets(false);
     std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
 
-    glm::dvec3 position = glm::dvec3(0.0);
-    double ephemerisTime = 0.0;
-
     std::thread dateThread(GetDate);
 
     /* Loop until the user closes the window */
@@ -179,7 +171,7 @@ int main(void) {
         glfwSetCursorPosCallback(window,
                                  state.CursorCallbackDisabled() ? NULL : mouse_callback);
 
-        //processInput(window);
+        // processInput(window);
         camera.ProcessInput(window, state);
 
         glfwSetInputMode(window, GLFW_CURSOR,
@@ -200,11 +192,7 @@ int main(void) {
         shader.SetMat4("u_View", camera.getView());
         shader.SetMat4("u_Projection", projection);
 
-        str2et_c(state.GetDate().c_str(), &ephemerisTime);
-
-        if (failed_c()) {
-            std::cout << "Error getting Ephemeris Time: " << state.GetDate() << std::endl;
-        }
+        double ephemerisTime = spice::GetEphemerisTime(state.GetDate());
 
         int i = planets.size();
 
@@ -215,17 +203,11 @@ int main(void) {
             float camX = sin(glfwGetTime() / (5 - i)) * radius;
             float camZ = cos(glfwGetTime() / (5 - i)) * radius;
 
-            if (planet->GetName() == "sun") {
-                position = glm::vec3(0.0f, 0.0f, 0.0f);
-            } else {
-                double lt;
-                spkpos_c((planet->GetName() + " barycenter").c_str(), ephemerisTime, "ECLIPJ2000", "None", "Sun", glm::value_ptr(position), &lt);
-                if (failed_c()) {
-                    std::cout << "Error planet coordinates for date: " << state.GetDate() << std::endl;
-                }
+            glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+            if (planet->GetName() != "sun") {
+                position = spice::GetCoordinate(ephemerisTime, planet->GetName());
+                position *= 0.00000003; // scale down the planet's position
             }
-
-            position *= 0.00000003; // scale down the planet's position
 
             if (planet->GetName() == state.GetSelectedPlanet()) {
                 state.SetCurrentPosition(glm::vec3(position[0], position[2], position[1]));
