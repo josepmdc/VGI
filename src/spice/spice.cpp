@@ -7,6 +7,11 @@
 
 namespace spice {
 
+// The value comes from
+// http://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/cspice/getmsg_c.html
+// as the maximum message length
+constexpr const unsigned SpiceErrorBufferSize = 1841;
+
 void Init() {
     erract_c("SET", 0, const_cast<char*>("REPORT"));
     errprt_c("SET", 0, const_cast<char*>("NONE"));
@@ -16,12 +21,23 @@ void Init() {
     furnsh_c("assets/kernels/naif0012.tls");
 }
 
+void LogError(std::string message) {
+    char buffer[SpiceErrorBufferSize];
+    getmsg_c("LONG", SpiceErrorBufferSize, buffer);
+    std::cout << "[SPICE] " << message << " =>> " << buffer << std::endl;
+    reset_c();
+}
+
 glm::vec3 GetCoordinate(double ephemerisTime, std::string planet) {
     double lt;
     glm::dvec3 position = glm::dvec3(0.0);
 
-    spkpos_c((planet + " barycenter").c_str(), ephemerisTime, "ECLIPJ2000",
+    spkpos_c(planet.c_str(), ephemerisTime, "ECLIPJ2000",
              "None", "Sun", glm::value_ptr(position), &lt);
+
+    if (failed_c()) {
+        LogError("GetCoordinate");
+    }
 
     return glm::vec3(position[0], position[1], position[2]);
 }
@@ -29,10 +45,10 @@ glm::vec3 GetCoordinate(double ephemerisTime, std::string planet) {
 double GetEphemerisTime(std::string date) {
     double ephemerisTime = 0.0;
     str2et_c(date.c_str(), &ephemerisTime);
-
     if (failed_c()) {
-        std::cout << "Error getting Ephemeris Time: " << date << std::endl;
+        LogError("GetEphemerisTime");
     }
     return ephemerisTime;
 }
+
 } // namespace spice
