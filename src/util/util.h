@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <ctime>
 #include "../planet/planet.h"
 
 namespace util {
