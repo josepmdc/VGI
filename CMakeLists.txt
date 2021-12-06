@@ -43,6 +43,7 @@ target_include_directories(${PROJECT_NAME}
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/lib/stb_image)
+include_directories(${CMAKE_SOURCE_DIR}/lib/date)
 
 set(IMGUI_PATH ${CMAKE_SOURCE_DIR}/lib/imgui)
 file(GLOB IMGUI_SOURCES 
