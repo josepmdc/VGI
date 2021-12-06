@@ -5,6 +5,7 @@ sun:
   period: 0
   k: 0
   academic: 10
+  satelites:
 mercury:
   coordinates: [1.0, 1.0, 1.0]
   texture: "assets/textures/planets/mercury.jpg"
@@ -12,6 +13,7 @@ mercury:
   period: 88
   k: 0
   academic: 0.33
+  satelites:
 venus:
   coordinates: [2.0, 1.0, 2.0]
   texture: "assets/textures/planets/venus.jpg"
@@ -19,6 +21,7 @@ venus:
   period: 225 
   k: 1
   academic: 0.9
+  satelites:
 earth:
   coordinates: [3.0, 1.0, 3.0]
   texture: "assets/textures/planets/earth.jpg"
@@ -27,6 +30,12 @@ earth:
   speed: 2
   k: 2
   academic: 1
+  satelites:
+    moon:
+      texture: "assets/textures/satelites/moon.jpg"
+      diameter: 3476
+      period: "27d 7h 43,7m"
+      academic: 0.25
 mars:
   coordinates: [4.0, 1.0, 4.0]
   texture: "assets/textures/planets/mars.jpg"
@@ -35,6 +44,7 @@ mars:
   speed: 4
   k: 3
   academic: 0.5
+  satelites:
 jupiter:
   coordinates: [5.0, 1.0, 5.0]
   texture: "assets/textures/planets/jupiter.jpg"
@@ -43,6 +53,27 @@ jupiter:
   speed: 6
   k: 4
   academic: 7
+  satelites:
+    io:
+      texture: "assets/textures/satelites/io.jpg"
+      diameter: 3643
+      period: "1d 18h 27,6m"
+      academic: 0.5 #(temporal) yet to be determined
+    europa:
+      texture: "assets/textures/satelites/europa.png"
+      diameter: 3122
+      period: "3,551181 d"
+      academic: 0.4 #(temporal) yet to be determined
+    ganymede:
+      texture: "assets/textures/satelites/ganymede.jpg"
+      diameter: 5262
+      period: "7d 3h 42,6m"
+      academic: 0.6 #(temporal) yet to be determined
+    callisto:
+      texture: "assets/textures/satelites/callisto.jpg"
+      diameter: 4821
+      period: "16,6890184 d"
+      academic: 0.55 #(temporal) yet to be determined
 saturn:
   coordinates: [6.0, 1.0, 6.0]
   texture: "assets/textures/planets/saturn.jpg"
@@ -50,6 +81,33 @@ saturn:
   period: 10747
   k: 5
   academic: 6
+  satelites:
+    titan:
+      texture: "assets/textures/satelites/titan.jpg"
+      diameter: 5162
+      period: "15d 22h 41m"
+      academic: 0.5  #(temporal) yet to be determined
+    tethys:
+      texture: "assets/textures/satelites/tethys.jpg"
+      diameter: 1062
+      period: "1,888 d"
+      academic: 0.3  #(temporal) yet to be determined
+    dione:
+      texture: "assets/textures/satelites/dione.jpg"
+      diameter: 1118
+      period: "2,736915 d"
+      academic: 0.3  #(temporal) yet to be determined
+    rhea:
+      texture: "assets/textures/satelites/rhea.jpg"
+      diameter: 1529
+      period: "4,518 d"
+      academic: 0.3  #(temporal) yet to be determined
+    iapetus:
+      texture: "assets/textures/satelites/iapetus.jpg"
+      diameter: 1436
+      period: "79d 19h 17m"
+      academic: 0.3  #(temporal) yet to be determined
+    
 uranus:
   coordinates: [7.0, 1.0, 7.0]
   texture: "assets/textures/planets/uranus.jpg"
@@ -57,6 +115,28 @@ uranus:
   period: 30589
   k: 6
   academic: 4
+  satelites:
+    ariel:
+      texture: "assets/textures/satelites/ariel.jpg"
+      diameter: 1162
+      period: "2,52 d"
+      academic: 0.3  #(temporal) yet to be determined
+    umbriel:
+      texture: "assets/textures/satelites/umbriel.png"
+      diameter: 1172
+      period: "4,144 d"
+      academic: 0.3  #(temporal) yet to be determined
+    titania:
+      texture: "assets/textures/satelites/titania.jpg"
+      diameter: 1577
+      period: "8,706 d"
+      academic: 0.3  #(temporal) yet to be determined
+    oberon:
+      texture: "assets/textures/satelites/oberon.png"
+      diameter: 1523
+      period: "13,46 d"
+      academic: 0.3  #(temporal) yet to be determined
+    
 neptune:
   coordinates: [8.0, 1.0, 8.0]
   texture: "assets/textures/planets/neptune.jpg"
@@ -64,6 +144,12 @@ neptune:
   period: 59800
   k: 7
   academic: 4
+  satelites:
+    triton:
+      texture: "assets/textures/satelites/triton.jpg"
+      diameter: 2707
+      period: "-5877 d"
+      academic: 0.35 #(temporal) yet to be determined
 pluto:
   coordinates: [9.0, 1.0, 9.0]
   texture: "assets/textures/planets/pluton.png"
@@ -71,3 +157,9 @@ pluto:
   period: 90560
   k: 8
   academic: 0.25
+  satelites:
+    charon:
+      texture: "assets/textures/satelites/charon.jpg"
+      diameter: 1207
+      period: "6,387 230 d"
+      academic: 0.15 #(temporal) yet to be determined

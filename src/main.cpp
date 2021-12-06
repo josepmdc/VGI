@@ -83,19 +83,19 @@ void GetDate() {
     while (true) {
         switch (state.GetSpeedMode()) {
         case SpeedMode::Minutes:
-            tm.tm_min += 1;
+            util::addMin(tm);
             break;
         case SpeedMode::Hours:
-            tm.tm_hour += 1;
+            util::addHour(tm);
             break;
         case SpeedMode::Days:
-            tm.tm_mday += 1;
+            util::addDay(tm);
             break;
         default:
-            tm.tm_hour += 1;
+            util::addHour(tm);
             break;
         }
-        std::mktime(&tm);
+        // std::mktime(&tm);
 
         // date in ISO format
         state.SetDate(
@@ -199,10 +199,6 @@ int main(void) {
         int modelLocation = shader.GetUniformLocation("u_Model");
         std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
         for (Planet* planet : selectedPlanets) {
-            float radius = state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius();
-            float camX = sin(glfwGetTime() / (5 - i)) * radius;
-            float camZ = cos(glfwGetTime() / (5 - i)) * radius;
-
             glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
             if (planet->GetName() != "sun") {
                 position = spice::GetCoordinate(ephemerisTime, planet->GetName());
@@ -210,7 +206,7 @@ int main(void) {
             }
 
             if (planet->GetName() == state.GetSelectedPlanet()) {
-                state.SetCurrentPosition(glm::vec3(position[0], position[2], position[1]));
+                state.SetCurrentPosition(glm::vec3(position[0], position[2] /* + planet->GetRadius()*/, position[1])); // TODO: not working properly
             }
 
             glm::mat4 model = glm::mat4(1.0f);
@@ -223,6 +219,21 @@ int main(void) {
             planet->AddNextOrbitVertex(glm::vec3(position[1], position[2], position[0]));
             glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
             planet->DrawOrbit();
+
+            //-------------------------------------------------------------------------------------------------------------------------
+            if (planet->GetName() == "earth") {
+                double satelite_lt;
+                Satelite* moon = planet->GetSatelites()[0];
+                position = spice::GetCoordinate(ephemerisTime, moon->GetName());
+                position *= 0.00000003;
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
+                model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
+
+                moon->Draw();
+            }
+            //-------------------------------------------------------------------------------------------------------------------------
 
             i++;
         }
