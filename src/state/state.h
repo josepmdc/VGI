@@ -13,17 +13,22 @@ class State {
   private:
     bool m_DisableCursor = false;
     bool m_DisableCursorCallback = false;
+
     bool m_RealisticModePlanets = false;
     bool m_RealisticModeOrbits = false;
+
     float m_OrbitRadius = 1.0f;
-    glm::vec3 m_CurrentPosition;
+
     std::string m_SelectedPlanet = "earth";
     int m_SelectedPlanetIndex = 3;
+    bool m_FocusedOnPlanet = false;
+
     int m_Year = 1970;
     int m_Month = 1;
     int m_Day = 1;
     int m_Hour = 1;
     std::string m_Date;
+
     SpeedMode m_speedMode = SpeedMode::Hours;
 
   public:
@@ -32,9 +37,8 @@ class State {
 
     bool CursorDisabled() { return m_DisableCursor; }
     bool CursorCallbackDisabled() { return m_DisableCursorCallback; }
-
-    void SetCurrentPosition(glm::vec3 currentPosition) { m_CurrentPosition = currentPosition; }
-    glm::vec3 GetCurrentPosition() { return m_CurrentPosition; }
+    void DisableCursorCallback() { m_DisableCursorCallback = true; }
+    void EnableCursorCallback() { m_DisableCursorCallback = false; }
 
     bool RealisticModePlanetsEnabled() { return m_RealisticModePlanets; }
     bool RealisticModeOrbitsEnabled() { return m_RealisticModeOrbits; }
@@ -65,4 +69,8 @@ class State {
 
     void SetSpeedMode(SpeedMode mode) { m_speedMode = mode; }
     SpeedMode GetSpeedMode() { return m_speedMode; }
+
+    bool IsFocusedOnPlanet() { return m_FocusedOnPlanet; }
+    void FocusOnPlanet() { m_FocusedOnPlanet = true; }
+    void UnfocusFromPlanet() { m_FocusedOnPlanet = false; }
 };

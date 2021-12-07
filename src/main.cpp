@@ -193,8 +193,10 @@ int main(void) {
                 position *= 0.00000003; // scale down the planet's position
             }
 
-            if (planet->GetName() == state.GetSelectedPlanet()) {
-                state.SetCurrentPosition(glm::vec3(position[0], position[2] /* + planet->GetRadius()*/, position[1])); // TODO: not working properly
+            if (planet->GetName() == state.GetSelectedPlanet() && state.IsFocusedOnPlanet()) {
+                glm::vec3 pos = glm::vec3(position[1] * 1.5, position[2] + planet->GetRadius() + 5, position[0] * 1.5);
+                camera.SetCameraPos(pos);
+                camera.SetCameraFront(-pos); // look at the origin
             }
 
             glm::mat4 model = glm::mat4(1.0f);
@@ -213,7 +215,7 @@ int main(void) {
                 double satelite_lt;
                 Satelite* moon = planet->GetSatelites()[0];
                 position = spice::GetCoordinate(ephemerisTime, moon->GetName());
-                position *= 0.00000003;
+                position *= 0.000000025;
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
                 model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));

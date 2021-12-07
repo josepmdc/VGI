@@ -9,7 +9,9 @@ void State::Modify(int key, int action) {
             m_DisableCursor = !m_DisableCursor;
             break;
         case GLFW_KEY_Q:
-            m_DisableCursorCallback = !m_DisableCursorCallback;
+            if (!m_FocusedOnPlanet) {
+                m_DisableCursorCallback = !m_DisableCursorCallback;
+            }
             break;
         }
     }

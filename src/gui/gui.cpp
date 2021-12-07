@@ -71,10 +71,12 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
             const bool isSelected = (selectedPlanetIndex == i);
             if (ImGui::Selectable(planets[i]->GetName().c_str(), isSelected)) {
                 state.SetSelectedPlanet(i, planets[i]->GetName());
-                std::cout << planets[i]->GetName() << std::endl;
+                state.FocusOnPlanet();
+                state.DisableCursorCallback();
             }
-            if (isSelected)
+            if (isSelected) {
                 ImGui::SetItemDefaultFocus();
+            }
         }
         ImGui::EndCombo();
     }

@@ -35,7 +35,7 @@ class Camera {
     void SetCameraDown(glm::vec3 camDown);
     void SetView(glm::mat4 v);
 
-    void ProcessInput(GLFWwindow* window, State state);
+    void ProcessInput(GLFWwindow* window, State& state);
 
     void LookAt();
 };
