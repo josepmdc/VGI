@@ -5,6 +5,9 @@
 #include <yaml-cpp/yaml.h>
 #include "../mesh/sphere.h"
 #include "../satelites/satelite.h"
+#include "../state/state.h"
+#include "../camera/camera.h"
+#include "../shader/shader.h"
 
 class Planet : public Sphere {
   private:
@@ -36,3 +39,5 @@ class Planet : public Sphere {
     void ClearOrbitBuffer();
     void GenerateFullOrbit();
 };
+
+void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, Shader& shader);

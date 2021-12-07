@@ -22,52 +22,10 @@
 #include "camera/camera.h"
 #include "gui/gui.h"
 #include "spice/spice.h"
+#include "window/window.h"
 
 State state;
 Camera camera;
-
-bool firstMouse = true;
-float yaw = -90.0f;
-float pitch = 0.0f;
-float lastX = 800.0f / 2.0;
-float lastY = 600.0 / 2.0;
-
-void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-    if (firstMouse) {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-    lastX = xpos;
-    lastY = ypos;
-
-    float sensitivity = 0.2f; // change this value to your liking
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    // make sure that when pitch is out of bounds, screen doesn't get flipped
-    if (pitch > 89.0f)
-        pitch = 89.0f;
-    if (pitch < -89.0f)
-        pitch = -89.0f;
-
-    glm::vec3 front;
-    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    front.y = sin(glm::radians(pitch));
-    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    // cameraFront = glm::normalize(front);
-    camera.SetCameraFront(glm::normalize(front));
-}
-
-void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    state.Modify(key, action);
-}
 
 void GetDate() {
     struct std::tm tm;
@@ -97,31 +55,10 @@ void GetDate() {
 }
 
 int main(void) {
-    GLFWwindow* window;
-
-    /* Initialize the library */
-    if (!glfwInit())
-        return -1;
-
-    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-    unsigned int SCR_WIDTH = mode->width;
-    unsigned int SCR_HEIGHT = mode->height;
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#endif
-
-    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL, NULL);
-    if (!window) {
-        glfwTerminate();
+    window::Window window = window::InitWindow(&state, &camera);
+    if (window.glfwWindow == nullptr) {
         return -1;
     }
-
-    glfwMakeContextCurrent(window);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
@@ -130,23 +67,19 @@ int main(void) {
 
     std::cout << glGetString(GL_VERSION) << std::endl;
 
-    glfwSetKeyCallback(window, KeyCallback);
-
     spice::Init();
-    GUI::SetUp(window);
+    GUI::SetUp(window.glfwWindow);
 
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("shaders/Basic");
 
-    std::vector<std::string> skyboxFaces = { "assets/textures/skybox/right.png",
-                                             "assets/textures/skybox/left.png",
-                                             "assets/textures/skybox/top.png",
-                                             "assets/textures/skybox/bottom.png",
-                                             "assets/textures/skybox/front.png",
-                                             "assets/textures/skybox/back.png" };
-
-    Skybox skybox("shaders/Skybox", skyboxFaces);
+    Skybox skybox("shaders/Skybox", { "assets/textures/skybox/right.png",
+                                      "assets/textures/skybox/left.png",
+                                      "assets/textures/skybox/top.png",
+                                      "assets/textures/skybox/bottom.png",
+                                      "assets/textures/skybox/front.png",
+                                      "assets/textures/skybox/back.png" });
 
     std::vector<Planet*> planets = util::LoadPlanets(false);
     std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
@@ -154,85 +87,32 @@ int main(void) {
     std::thread dateThread(GetDate);
 
     /* Loop until the user closes the window */
-    while (!glfwWindowShouldClose(window)) {
-
-        glfwSetCursorPosCallback(window,
-                                 state.CursorCallbackDisabled() ? NULL : mouse_callback);
-
-        // processInput(window);
-        camera.ProcessInput(window, state);
-
-        glfwSetInputMode(window, GLFW_CURSOR,
-                         state.CursorDisabled() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-
-        GUI::NewFrame();
-
+    while (!glfwWindowShouldClose(window.glfwWindow)) {
         glClearColor(0.114, 0.125, 0.129, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        glfwSetCursorPosCallback(window.glfwWindow, state.CursorCallbackDisabled() ? NULL : window::MouseCallback);
+        glfwSetInputMode(window.glfwWindow, GLFW_CURSOR, state.CursorDisabled() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+
+        GUI::NewFrame();
+
         shader.Bind();
 
+        camera.ProcessInput(window.glfwWindow, state);
         camera.LookAt();
 
-        glm::mat4 projection;
-        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 5000.0f);
-
-        shader.SetMat4("u_View", camera.getView());
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)window.ScreenWidth / (float)window.ScreenHeight, 0.1f, 5000.0f);
         shader.SetMat4("u_Projection", projection);
+        shader.SetMat4("u_View", camera.GetViewMatrix());
 
-        double ephemerisTime = spice::GetEphemerisTime(state.GetDate());
-
-        int i = planets.size();
-
-        int modelLocation = shader.GetUniformLocation("u_Model");
         std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
-        for (Planet* planet : selectedPlanets) {
-            glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
-            if (planet->GetName() != "sun") {
-                position = spice::GetCoordinate(ephemerisTime, planet->GetName() + " barycenter");
-                position *= 0.00000003; // scale down the planet's position
-            }
+        RenderPlanets(selectedPlanets, state, camera, shader);
 
-            if (planet->GetName() == state.GetSelectedPlanet() && state.IsFocusedOnPlanet()) {
-                glm::vec3 pos = glm::vec3(position[1] * 1.5, position[2] + planet->GetRadius() + 5, position[0] * 1.5);
-                camera.SetCameraPos(pos);
-                camera.SetCameraFront(-pos); // look at the origin
-            }
-
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
-            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
-
-            planet->Draw();
-
-            // planet->AddNextOrbitVertex(glm::vec3(position[1], position[2], position[0]));
-            glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
-            planet->DrawOrbit();
-
-            //-------------------------------------------------------------------------------------------------------------------------
-            if (planet->GetName() == "earth") {
-                double satelite_lt;
-                Satelite* moon = planet->GetSatelites()[0];
-                position = spice::GetCoordinate(ephemerisTime, moon->GetName());
-                position *= 0.000000025;
-                glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
-                model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-                glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));
-
-                moon->Draw();
-            }
-            //-------------------------------------------------------------------------------------------------------------------------
-
-            i++;
-        }
-
-        skybox.Draw(projection, camera.getView());
+        skybox.Draw(projection, camera.GetViewMatrix());
 
         GUI::DrawControls(planets, academicPlanets, state);
 
-        glfwSwapBuffers(window);
+        glfwSwapBuffers(window.glfwWindow);
         glfwPollEvents();
     }
 

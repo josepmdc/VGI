@@ -43,23 +43,23 @@ void Camera::ProcessInput(GLFWwindow* window, State& state) {
     }
 }
 
-glm::vec3 Camera::getCameraPos() {
+glm::vec3 Camera::GetCameraPos() {
     return m_CameraPos;
 }
 
-glm::vec3 Camera::getCameraFront() {
+glm::vec3 Camera::GetCameraFront() {
     return m_CameraFront;
 }
 
-glm::vec3 Camera::getCameraUp() {
+glm::vec3 Camera::GetCameraUp() {
     return m_CameraUp;
 }
 
-glm::vec3 Camera::getCameraDown() {
+glm::vec3 Camera::GetCameraDown() {
     return m_CameraDown;
 }
 
-glm::mat4 Camera::getView() {
+glm::mat4 Camera::GetViewMatrix() {
     return m_View;
 }
 

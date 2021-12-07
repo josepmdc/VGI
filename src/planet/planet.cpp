@@ -8,7 +8,10 @@
 #include "../util/util.h"
 #include "../spice/spice.h"
 
-#include <iostream>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 Planet::Planet(glm::vec3 coordinates, std::string texturePath) : Sphere(0.5f, 36, 18) {
     m_Coordinates = coordinates;
@@ -112,7 +115,8 @@ void Planet::GenerateFullOrbit() {
     using namespace date;
 
     int step = std::round(m_OrbitalPeriod / 365.0);
-    if (step == 0) step = 1;
+    if (step == 0)
+        step = 1;
 
     m_OrbitVertices = std::vector<float>(365 * 3);
 
@@ -131,5 +135,49 @@ void Planet::GenerateFullOrbit() {
         m_OrbitVertices[i] = coordinates[1];
         m_OrbitVertices[i + 1] = coordinates[2];
         m_OrbitVertices[i + 2] = coordinates[0];
+    }
+}
+
+void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, Shader& shader) {
+    double ephemerisTime = spice::GetEphemerisTime(state.GetDate());
+    for (Planet* planet : planets) {
+        glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+        if (planet->GetName() != "sun") {
+            position = spice::GetCoordinate(ephemerisTime, planet->GetName() + " barycenter");
+            position *= 0.00000003; // scale down the planet's position
+        }
+
+        if (planet->GetName() == state.GetSelectedPlanet() && state.IsFocusedOnPlanet()) {
+            glm::vec3 pos = glm::vec3(position[1] * 1.5, position[2] + planet->GetRadius() + 5, position[0] * 1.5);
+            camera.SetCameraPos(pos);
+            camera.SetCameraFront(-pos); // look at the origin
+        }
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
+        model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        shader.SetMat4("u_Model", model);
+
+        planet->Draw();
+
+        shader.SetMat4("u_Model", glm::mat4(1.0f));
+        planet->DrawOrbit();
+
+        //-------------------------------------------------------------------------------------------------------------------------
+        if (planet->GetName() == "earth") {
+            Satelite* moon = planet->GetSatelites()[0];
+
+            position = spice::GetCoordinate(ephemerisTime, moon->GetName());
+            position *= 0.000000025;
+
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
+            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            shader.SetMat4("u_Model", model);
+
+            moon->Draw();
+        }
+        //-------------------------------------------------------------------------------------------------------------------------
     }
 }
