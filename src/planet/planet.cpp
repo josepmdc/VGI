@@ -165,18 +165,21 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
         planet->DrawOrbit();
 
         //-------------------------------------------------------------------------------------------------------------------------
-        if (planet->GetName() == "earth") {
-            Satelite* moon = planet->GetSatelites()[0];
+        double j = 1;
+        if (!planet->GetSatelites().empty()) {
+            for (Satelite* satellite : planet->GetSatelites()) {
+                double satelite_lt;
 
-            position = spice::GetCoordinate(ephemerisTime, moon->GetName());
-            position *= 0.000000025;
+                position = spice::GetCoordinate(ephemerisTime, satellite->GetName());
+                position *= 0.000000025 * j; // TODO: find out the value
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, glm::vec3(position[1], position[2], position[0] + (planet->GetRadius() * 3)));
+                model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+                shader.SetMat4("u_Model", model);
 
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
-            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            shader.SetMat4("u_Model", model);
-
-            moon->Draw();
+                satellite->Draw();
+                j += 0.05;
+            }
         }
         //-------------------------------------------------------------------------------------------------------------------------
     }
