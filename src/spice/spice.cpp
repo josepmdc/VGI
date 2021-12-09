@@ -18,9 +18,9 @@ void Init() {
 
     // Load spice kernel for planetary data
     furnsh_c("assets/kernels/de440.bsp");
-    furnsh_c("assets/kernels/jup365.bsp");
-    furnsh_c("assets/kernels/sat427l.bsp");
-    furnsh_c("assets/kernels/ura111.bsp");
+    // furnsh_c("assets/kernels/jup365.bsp");
+    // furnsh_c("assets/kernels/sat427l.bsp");
+    // furnsh_c("assets/kernels/ura111.bsp");
     furnsh_c("assets/kernels/naif0012.tls");
 }
 
@@ -42,7 +42,7 @@ glm::vec3 GetCoordinate(double ephemerisTime, std::string planet) {
         LogError("GetCoordinate");
     }
 
-    return glm::vec3(position[0], position[1], position[2]);
+    return glm::vec3(position[1], position[2], position[0]);
 }
 
 double GetEphemerisTime(std::string date) {
