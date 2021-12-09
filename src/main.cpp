@@ -13,6 +13,7 @@
 
 #include "shader/shader.h"
 #include "planet/planet.h"
+#include "pyramid/pyramid.h"
 #include "skybox/skybox.h"
 #include "util/util.h"
 #include "state/state.h"
@@ -155,6 +156,8 @@ int main(void) {
         shader.SetMat4("u_Projection", projection);
 
         float i = planets.size();
+        Pyramid pyramid;
+        pyramid.DrawingPyramid();
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
