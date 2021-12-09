@@ -12,6 +12,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+ 
+const float SCALE = 0.00000025;
 
 Planet::Planet(glm::vec3 coordinates, std::string texturePath) : Sphere(0.5f, 36, 18) {
     m_Coordinates = coordinates;
@@ -25,7 +27,7 @@ Planet::Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::str
 
 static float ComputeSphereRadius(YAML::Node values) {
     float radius = values["diameter"].as<float>() / 2;
-    return radius / 10000000;
+    return radius * SCALE;
 }
 
 static float ComputeAcademicSphereRadius(YAML::Node values) {
@@ -74,16 +76,11 @@ void Planet::AddNextOrbitVertex(glm::vec3 coordinates) {
         m_OrbitVertices.push_back(coordinates[0]);
         m_OrbitVertices.push_back(coordinates[1]);
         m_OrbitVertices.push_back(coordinates[2]);
-        // m_OrbitIndex += 3;
     } else {
         std::rotate(m_OrbitVertices.begin(), m_OrbitVertices.begin() + 3, m_OrbitVertices.end());
         m_OrbitVertices[1998] = coordinates[0];
         m_OrbitVertices[1999] = coordinates[1];
         m_OrbitVertices[2000] = coordinates[2];
-        // m_OrbitVertices[++m_OrbitIndex % 2001] = coordinates[0];
-        // m_OrbitVertices[++m_OrbitIndex % 2001] = coordinates[1];
-        // m_OrbitVertices[++m_OrbitIndex % 2001] = coordinates[2];
-        // m_OrbitIndex = m_OrbitIndex % 2001;
     }
 
     glBindVertexArray(m_OrbitsVAO);
@@ -115,8 +112,7 @@ void Planet::GenerateFullOrbit() {
     using namespace date;
 
     int step = std::round(m_OrbitalPeriod / 365.0);
-    if (step == 0)
-        step = 1;
+    if (step == 0) step = 1;
 
     m_OrbitVertices = std::vector<float>(365 * 3);
 
@@ -130,11 +126,11 @@ void Planet::GenerateFullOrbit() {
 
         double ephemerisTime = spice::GetEphemerisTime(date_str.str());
         glm::vec3 coordinates = spice::GetCoordinate(ephemerisTime, m_Name + " barycenter");
-        coordinates *= 0.00000003;
+        coordinates *= SCALE;
 
-        m_OrbitVertices[i] = coordinates[1];
-        m_OrbitVertices[i + 1] = coordinates[2];
-        m_OrbitVertices[i + 2] = coordinates[0];
+        m_OrbitVertices[i] = coordinates[0];
+        m_OrbitVertices[i + 1] = coordinates[1];
+        m_OrbitVertices[i + 2] = coordinates[2];
     }
 }
 
@@ -144,17 +140,17 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
         glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
         if (planet->GetName() != "sun") {
             position = spice::GetCoordinate(ephemerisTime, planet->GetName() + " barycenter");
-            position *= 0.00000003; // scale down the planet's position
+            position *= SCALE; // scale down the planet's position
         }
 
         if (planet->GetName() == state.GetSelectedPlanet() && state.IsFocusedOnPlanet()) {
-            glm::vec3 pos = glm::vec3(position[1] * 1.5, position[2] + planet->GetRadius() + 5, position[0] * 1.5);
+            glm::vec3 pos = glm::vec3(position[0] * 1.5, position[1] + planet->GetRadius() + 5, position[2] * 1.5);
             camera.SetCameraPos(pos);
             camera.SetCameraFront(-pos); // look at the origin
         }
 
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(position[1], position[2], position[0]));
+        model = glm::translate(model, position);
         model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
         shader.SetMat4("u_Model", model);
@@ -166,14 +162,14 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
 
         //-------------------------------------------------------------------------------------------------------------------------
         double j = 1;
-        if (!planet->GetSatelites().empty()) {
+        if (planet->GetName() == "earth") {
             for (Satelite* satellite : planet->GetSatelites()) {
                 double satelite_lt;
 
                 position = spice::GetCoordinate(ephemerisTime, satellite->GetName());
-                position *= 0.000000025 * j; // TODO: find out the value
+                position *= SCALE * j; // TODO: find out the value
                 glm::mat4 model = glm::mat4(1.0f);
-                model = glm::translate(model, glm::vec3(position[1], position[2], position[0] + (planet->GetRadius() * 3)));
+                model = glm::translate(model, position);
                 model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.SetMat4("u_Model", model);
 
