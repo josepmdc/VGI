@@ -27,13 +27,13 @@ Planet::Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::str
 
 static float ComputeSphereRadius(YAML::Node values) {
     float radius = values["diameter"].as<float>() / 2;
-    return radius * SCALE;
+    return radius / 15000;
 }
 
 static float ComputeAcademicSphereRadius(YAML::Node values) {
     float earth_radius = 6378;
     float radius = values["academic"].as<float>() * earth_radius;
-    return radius / 100000;
+    return radius / 15000;
 }
 
 Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(isAcademic ? ComputeAcademicSphereRadius(values) : ComputeSphereRadius(values), 36, 18) {
@@ -105,7 +105,7 @@ void Planet::Draw() {
 void Planet::DrawOrbit() {
     glBindVertexArray(m_OrbitsVAO);
     glLineWidth(1.0f);
-    glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)m_OrbitVertices.size() / 3);
+    glDrawArrays(GL_LINE_STRIP, 0, (GLsizei)m_OrbitVertices.size() / 3);
 }
 
 void Planet::GenerateFullOrbit() {
@@ -114,11 +114,11 @@ void Planet::GenerateFullOrbit() {
     int step = std::round(m_OrbitalPeriod / 365.0);
     if (step == 0) step = 1;
 
-    m_OrbitVertices = std::vector<float>(365 * 3);
+    m_OrbitVertices = std::vector<float>(373 * 3);
 
     year_month_day date = sys_days{ 1970_y / January / 01 };
 
-    for (int i = 0; i < 365 * 3; i += 3) {
+    for (int i = 0; i < 373 * 3; i += 3) {
         date = sys_days{ date } + days{ step };
 
         std::stringstream date_str;
@@ -161,20 +161,19 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
         planet->DrawOrbit();
 
         //-------------------------------------------------------------------------------------------------------------------------
-        double j = 1;
         if (planet->GetName() == "earth") {
             for (Satelite* satellite : planet->GetSatelites()) {
                 double satelite_lt;
 
                 position = spice::GetCoordinate(ephemerisTime, satellite->GetName());
-                position *= SCALE * j; // TODO: find out the value
+                position *= SCALE;
+                position *= 1.05; // TODO: find out the value
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::translate(model, position);
                 model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.SetMat4("u_Model", model);
 
                 satellite->Draw();
-                j += 0.05;
             }
         }
         //-------------------------------------------------------------------------------------------------------------------------

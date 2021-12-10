@@ -4,9 +4,9 @@
 #include <glm/glm.hpp>
 #include <string>
 
-enum SpeedMode { Minutes,
-                 Hours,
-                 Days,
+enum SpeedMode { Slow,
+                 Normal,
+                 Fast,
                  COUNT };
 
 class State {
@@ -24,12 +24,13 @@ class State {
     bool m_FocusedOnPlanet = false;
 
     int m_Year = 1970;
-    int m_Month = 1;
-    int m_Day = 1;
-    int m_Hour = 1;
+    unsigned int m_Month = 1;
+    unsigned int m_Day = 1;
+    unsigned int m_Hour = 1;
+    unsigned int m_Minute = 1;
     std::string m_Date;
 
-    SpeedMode m_speedMode = SpeedMode::Hours;
+    SpeedMode m_speedMode = SpeedMode::Normal;
 
   public:
     State();
@@ -56,16 +57,19 @@ class State {
 
     int GetSelectedPlanetIndex() { return m_SelectedPlanetIndex; }
 
-    std::string GetDate() { return m_Date; }
-    void SetDate(int year, int month, int day, int hour);
+    void SetDate(int year, unsigned int month, unsigned int day, unsigned int hour, unsigned int minute, std::string date_str);
     void SetYear(int year) { m_Year = year; }
-    void SetMonth(int month) { m_Month = month; }
-    void SetDay(int day) { m_Day = day; }
-    void SetHour(int hour) { m_Hour = hour; }
+    void SetMonth(unsigned int month) { m_Month = month; }
+    void SetDay(unsigned int day) { m_Day = day; }
+    void SetHour(unsigned int hour) { m_Hour = hour; }
+    void SetMinute(unsigned int minute) { m_Minute = minute; }
+
+    std::string GetDate() { return m_Date; }
     int GetYear() { return m_Year; }
-    int GetMonth() { return m_Month; }
-    int GetDay() { return m_Day; }
-    int GetHour() { return m_Hour; }
+    unsigned int GetMonth() { return m_Month; }
+    unsigned int GetDay() { return m_Day; }
+    unsigned int GetHour() { return m_Hour; }
+    unsigned int GetMinute() { return m_Minute; }
 
     void SetSpeedMode(SpeedMode mode) { m_speedMode = mode; }
     SpeedMode GetSpeedMode() { return m_speedMode; }

@@ -15,7 +15,7 @@ static float ComputeSphereRadius(YAML::Node values) {
 static float ComputeAcademicSphereRadius(YAML::Node values) {
     float earth_radius = 6378;
     float radius = values["academic"].as<float>() * earth_radius;
-    return radius / 100000;
+    return radius / 15000;
 }
 
 Satelite::Satelite(YAML::Node values, std::string name, bool isAcademic) : Sphere(isAcademic ? ComputeAcademicSphereRadius(values) : ComputeSphereRadius(values), 36, 18) {

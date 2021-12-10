@@ -17,14 +17,11 @@ void State::Modify(int key, int action) {
     }
 }
 
-void State::SetDate(int year, int month, int day, int hour) {
+void State::SetDate(int year, unsigned int month, unsigned int day, unsigned int hour, unsigned int minute, std::string date_str) {
     m_Year = year;
     m_Month = month;
     m_Day = day;
     m_Hour = hour;
-
-    m_Date = std::to_string(year) + "-" +
-             std::to_string(month) + "-" +
-             std::to_string(day) + "T" +
-             std::to_string(hour);
+    m_Minute = minute;
+    m_Date = date_str;
 }

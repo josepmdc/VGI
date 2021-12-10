@@ -10,7 +10,7 @@ Camera ::Camera() {
 }
 
 void Camera::ProcessInput(GLFWwindow* window, State& state) {
-    // const float cameraSpeed = 0.025f; // adjust accordingly
+    const float cameraSpeed = 0.25f; // adjust accordingly
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         m_CameraPos += cameraSpeed * m_CameraFront;
         state.UnfocusFromPlanet();

@@ -12,6 +12,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <date.h>
+#include <mutex>
 
 #include "glm/fwd.hpp"
 #include "shader/shader.h"
@@ -26,31 +28,47 @@
 
 State state;
 Camera camera;
+std::mutex mtx; // TODO
 
 void GetDate() {
-    struct std::tm tm;
-    while (true) {
-        tm.tm_year = state.GetYear();
-        tm.tm_mon = state.GetMonth();
-        tm.tm_mday = state.GetDay();
-        tm.tm_hour = state.GetHour();
+    using namespace date;
+    using namespace std::chrono;
 
+    auto date = sys_days{ year{ state.GetYear() } / month{ state.GetMonth() } / day{ state.GetDay() } } + hours{ state.GetHour() } + minutes{ state.GetMinute() };
+
+    while (true) {
+        date = sys_days{ year{ state.GetYear() } / month{ state.GetMonth() } / day{ state.GetDay() } } + hours{ state.GetHour() } + minutes{ state.GetMinute() };
+
+        int sleepDuration = 0;
         switch (state.GetSpeedMode()) {
-        case SpeedMode::Minutes:
-            util::addMin(tm);
+        case SpeedMode::Slow:
+            sleepDuration = 100;
             break;
-        case SpeedMode::Hours:
-            util::addHour(tm);
-            break;
-        case SpeedMode::Days:
-            util::addDay(tm);
+        case SpeedMode::Normal:
+            sleepDuration = 10;
             break;
         default:
-            util::addHour(tm);
+            sleepDuration = 0;
             break;
         }
-        state.SetDate(tm.tm_year, tm.tm_mon, tm.tm_mday, tm.tm_hour);
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        date += 1min;
+
+        std::stringstream date_str;
+        date_str << date;
+
+        auto dp = floor<days>(date);
+        auto ymd = year_month_day{ dp };
+        auto time = make_time(duration_cast<milliseconds>(date - dp));
+        state.SetDate(
+            static_cast<int>(ymd.year()),
+            static_cast<unsigned int>(ymd.month()),
+            static_cast<unsigned int>(ymd.day()),
+            time.hours().count(),
+            time.minutes().count(),
+            date_str.str());
+
+        std::this_thread::sleep_for(std::chrono::microseconds(sleepDuration));
     }
 }
 

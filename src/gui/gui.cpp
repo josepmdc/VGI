@@ -82,7 +82,7 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     }
 
     int speed = state.GetSpeedMode();
-    const char* elems_names[COUNT] = { "1x", "1.5x", "2x" };
+    const char* elems_names[COUNT] = { "0.5x", "1x", "1.5x" };
     const char* elem_name = (speed >= 0 && speed < COUNT) ? elems_names[speed] : "Unknown";
 
     if (ImGui::SliderInt("Speed", &speed, 0, COUNT - 1, elem_name)) {
