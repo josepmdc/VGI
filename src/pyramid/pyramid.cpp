@@ -19,7 +19,7 @@
 
 GLuint p_VBO = 0;
 
-Pyramid::Pyramid(std::string shader) : m_Shader(shader) {
+Pyramid::Pyramid() {
     LoadPyramidVAO();
 
 }
@@ -30,28 +30,15 @@ void Pyramid::LoadPyramidVAO() {
 
     std::vector<double> vertices = {
 
-        2.5f,
-        -2.5f,
-        0.0f,
-        -2.5f,
-        2.5f,
-        0.0f, //base triangle one
-        -2.5f,
-        -2.5f,
-        0.0f,
+        2.5f,-2.5f,0.0f,
+        -2.5f,2.5f,0.0f, //base triangle one
+        -2.5f,-2.5f,0.0f,
 
-        -2.5f,
-        2.5f,
-        0.0f,
-        2.5f,
-        2.5f,
-        0.0f, //base triangle two
-        2.5f,
-        -2.5f,
-        0.0f,
+        -2.5f,2.5f,0.0f,
+        2.5f,2.5f,0.0f, //base triangle two
+        2.5f,-2.5f,0.0f,
 
-        2.5f,
-        -2.5f,
+        2.5f,-2.5f,
         0.0f,
         2.5f,
         2.5f,
@@ -101,8 +88,13 @@ void Pyramid::LoadPyramidVAO() {
     // Atribut de color dels v�rtexs. Copia del vector de color darrera el vector de v�rtexs
 
     glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(GLdouble), (GLvoid*)0); // Definir color en array VBO
-    glDrawArrays(GL_TRIANGLES, 0, 36);                                                  // Dibuixar el cub
+    //glDrawArrays(GL_TRIANGLES, 0, 36);                                                  // Dibuixar el cub
     glBindBuffer(GL_ARRAY_BUFFER, 0);                                                   // Desactivar l�objecte VBO
     glDeleteBuffers(1, &p_VBO);
+}
+void Pyramid::Draw() {
+    glBindVertexArray(m_VAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36); 
+    glBindVertexArray(0);
 }
 
