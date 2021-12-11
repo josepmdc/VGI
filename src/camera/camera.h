@@ -7,7 +7,8 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-#include "..\state\state.h"
+#include "../state/state.h"
+
 
 class Camera {
   private:

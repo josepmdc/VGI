@@ -7,7 +7,7 @@
 #include <math.h>
 
 #include "pyramid.h"
-#include <gl/GL.h>
+
 #include <cstdlib>
 #include <iostream>
 #include <math.h>
@@ -18,11 +18,14 @@
 #include <backends/imgui_impl_opengl3_loader.h>
 
 GLuint p_VBO = 0;
-void Pyramid::DrawingPyramid() {
 
-    Camera pos_side;
-    pos_side.getCameraUp();
+Pyramid::Pyramid(std::string shader) : m_Shader(shader) {
+    LoadPyramidVAO();
 
+}
+void Pyramid::LoadPyramidVAO() {
+
+   
     //Just have to fix position of the pyramid and call it in the main function
 
     std::vector<double> vertices = {
@@ -89,16 +92,17 @@ void Pyramid::DrawingPyramid() {
     };
 
     glGenBuffers(1, &p_VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, p_VBO); // Activar l’objecte VBO
-    // Reservar buffer per a l’objecte VBO
+    glBindBuffer(GL_ARRAY_BUFFER, p_VBO); // Activar lï¿½objecte VBO
+    // Reservar buffer per a lï¿½objecte VBO
     glBufferData(GL_ARRAY_BUFFER, (vertices.size()) * sizeof(double), 0, GL_STATIC_DRAW);
     // Position Vertex atributes. Copy geometry data to VBO starting from 0 offset
 
-    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(GLdouble), (GLvoid*)0); // Definir vèrtex en array VBO
-    // Atribut de color dels vèrtexs. Copia del vector de color darrera el vector de vèrtexs
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(GLdouble), (GLvoid*)0); // Definir vï¿½rtex en array VBO
+    // Atribut de color dels vï¿½rtexs. Copia del vector de color darrera el vector de vï¿½rtexs
 
     glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(GLdouble), (GLvoid*)0); // Definir color en array VBO
     glDrawArrays(GL_TRIANGLES, 0, 36);                                                  // Dibuixar el cub
-    glBindBuffer(GL_ARRAY_BUFFER, 0);                                                   // Desactivar l’objecte VBO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);                                                   // Desactivar lï¿½objecte VBO
     glDeleteBuffers(1, &p_VBO);
 }
+

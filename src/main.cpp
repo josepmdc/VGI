@@ -106,6 +106,7 @@ int main(void) {
     glEnable(GL_DEPTH_TEST);
 
     Shader shader("shaders/Basic");
+    Pyramid Pyramid("shaders/Pyramid");
 
     std::vector<std::string> skyboxFaces = { "assets/textures/skybox/right.png",
                                              "assets/textures/skybox/left.png",
@@ -156,8 +157,12 @@ int main(void) {
         shader.SetMat4("u_Projection", projection);
 
         float i = planets.size();
-        Pyramid pyramid;
-        pyramid.DrawingPyramid();
+  
+        glm::mat4 modelPy = glm::mat4(1.0f);
+        
+        modelPy = glm::translate(modelPy, camera.getCameraPos());
+        Pyramid.LoadPyramidVAO();
+
 
         int modelLocation = shader.GetUniformLocation("u_Model");
         std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
@@ -182,7 +187,7 @@ int main(void) {
 
             i++;
         }
-
+      
         skybox.Draw(projection, camera.getView());
 
         GUI::DrawControls(planets, academicPlanets, state);

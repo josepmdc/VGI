@@ -2,12 +2,16 @@
 #include <glm/glm.hpp>
 #include <yaml-cpp/yaml.h>
 #include "../mesh/mesh.h"
-
+#include "../shader/shader.h"
 class Pyramid {
   private:
-    glm::vec3 m_Coordinates;
-    unsigned int m_Texture;
 
+    unsigned int m_Texture;
+    Shader m_Shader;
+    GLuint m_VAO;
   public:
-    void DrawingPyramid();
+    Pyramid(std::string shader);
+    void LoadPyramidVAO();
+    void Draw();
+
 };
