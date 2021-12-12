@@ -1,0 +1,329 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>exceptions.h</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#ifndef EXCEPTIONS_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+#define EXCEPTIONS_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+
+#if defined(_MSC_VER) ||                                            \
+    (defined(__GNUC__) &amp;&amp; (__GNUC__ == 3 &amp;&amp; __GNUC_MINOR__ &gt;= 4) || \
+     (__GNUC__ &gt;= 4))  // GCC supports "pragma once" correctly since 3.4
+#pragma once
+#endif
+
+#include "yaml-cpp/mark.h"
+#include "yaml-cpp/noexcept.h"
+#include "yaml-cpp/traits.h"
+#include &lt;sstream&gt;
+#include &lt;stdexcept&gt;
+#include &lt;string&gt;
+
+namespace YAML {
+// error messages
+namespace ErrorMsg {
+const char* const YAML_DIRECTIVE_ARGS =
+    "YAML directives must have exactly one argument";
+const char* const YAML_VERSION = "bad YAML version: ";
+const char* const YAML_MAJOR_VERSION = "YAML major version too large";
+const char* const REPEATED_YAML_DIRECTIVE = "repeated YAML directive";
+const char* const TAG_DIRECTIVE_ARGS =
+    "TAG directives must have exactly two arguments";
+const char* const REPEATED_TAG_DIRECTIVE = "repeated TAG directive";
+const char* const CHAR_IN_TAG_HANDLE =
+    "illegal character found while scanning tag handle";
+const char* const TAG_WITH_NO_SUFFIX = "tag handle with no suffix";
+const char* const END_OF_VERBATIM_TAG = "end of verbatim tag not found";
+const char* const END_OF_MAP = "end of map not found";
+const char* const END_OF_MAP_FLOW = "end of map flow not found";
+const char* const END_OF_SEQ = "end of sequence not found";
+const char* const END_OF_SEQ_FLOW = "end of sequence flow not found";
+const char* const MULTIPLE_TAGS =
+    "cannot assign multiple tags to the same node";
+const char* const MULTIPLE_ANCHORS =
+    "cannot assign multiple anchors to the same node";
+const char* const MULTIPLE_ALIASES =
+    "cannot assign multiple aliases to the same node";
+const char* const ALIAS_CONTENT =
+    "aliases can't have any content, *including* tags";
+const char* const INVALID_HEX = "bad character found while scanning hex number";
+const char* const INVALID_UNICODE = "invalid unicode: ";
+const char* const INVALID_ESCAPE = "unknown escape character: ";
+const char* const UNKNOWN_TOKEN = "unknown token";
+const char* const DOC_IN_SCALAR = "illegal document indicator in scalar";
+const char* const EOF_IN_SCALAR = "illegal EOF in scalar";
+const char* const CHAR_IN_SCALAR = "illegal character in scalar";
+const char* const TAB_IN_INDENTATION =
+    "illegal tab when looking for indentation";
+const char* const FLOW_END = "illegal flow end";
+const char* const BLOCK_ENTRY = "illegal block entry";
+const char* const MAP_KEY = "illegal map key";
+const char* const MAP_VALUE = "illegal map value";
+const char* const ALIAS_NOT_FOUND = "alias not found after *";
+const char* const ANCHOR_NOT_FOUND = "anchor not found after &amp;";
+const char* const CHAR_IN_ALIAS =
+    "illegal character found while scanning alias";
+const char* const CHAR_IN_ANCHOR =
+    "illegal character found while scanning anchor";
+const char* const ZERO_INDENT_IN_BLOCK =
+    "cannot set zero indentation for a block scalar";
+const char* const CHAR_IN_BLOCK = "unexpected character in block scalar";
+const char* const AMBIGUOUS_ANCHOR =
+    "cannot assign the same alias to multiple nodes";
+const char* const UNKNOWN_ANCHOR = "the referenced anchor is not defined: ";
+
+const char* const INVALID_NODE =
+    "invalid node; this may result from using a map iterator as a sequence "
+    "iterator, or vice-versa";
+const char* const INVALID_SCALAR = "invalid scalar";
+const char* const KEY_NOT_FOUND = "key not found";
+const char* const BAD_CONVERSION = "bad conversion";
+const char* const BAD_DEREFERENCE = "bad dereference";
+const char* const BAD_SUBSCRIPT = "operator[] call on a scalar";
+const char* const BAD_PUSHBACK = "appending to a non-sequence";
+const char* const BAD_INSERT = "inserting in a non-convertible-to-map";
+
+const char* const UNMATCHED_GROUP_TAG = "unmatched group tag";
+const char* const UNEXPECTED_END_SEQ = "unexpected end sequence token";
+const char* const UNEXPECTED_END_MAP = "unexpected end map token";
+const char* const SINGLE_QUOTED_CHAR =
+    "invalid character in single-quoted string";
+const char* const INVALID_ANCHOR = "invalid anchor";
+const char* const INVALID_ALIAS = "invalid alias";
+const char* const INVALID_TAG = "invalid tag";
+const char* const BAD_FILE = "bad file";
+
+template &lt;typename T&gt;
+inline const std::string KEY_NOT_FOUND_WITH_KEY(
+    const T&amp;, typename disable_if&lt;is_numeric&lt;T&gt;&gt;::type* = 0) {
+  return KEY_NOT_FOUND;
+}
+
+inline const std::string KEY_NOT_FOUND_WITH_KEY(const std::string&amp; key) {
+  std::stringstream stream;
+  stream &lt;&lt; KEY_NOT_FOUND &lt;&lt; ": " &lt;&lt; key;
+  return stream.str();
+}
+
+inline const std::string KEY_NOT_FOUND_WITH_KEY(const char* key) {
+  std::stringstream stream;
+  stream &lt;&lt; KEY_NOT_FOUND &lt;&lt; ": " &lt;&lt; key;
+  return stream.str();
+}
+
+template &lt;typename T&gt;
+inline const std::string KEY_NOT_FOUND_WITH_KEY(
+    const T&amp; key, typename enable_if&lt;is_numeric&lt;T&gt;&gt;::type* = 0) {
+  std::stringstream stream;
+  stream &lt;&lt; KEY_NOT_FOUND &lt;&lt; ": " &lt;&lt; key;
+  return stream.str();
+}
+
+template &lt;typename T&gt;
+inline const std::string BAD_SUBSCRIPT_WITH_KEY(
+<span style = "background-color:#fdd">    const T&amp;, typename disable_if&lt;is_numeric&lt;T&gt;&gt;::type* = nullptr) {
+  return BAD_SUBSCRIPT;
+}</span>
+
+inline const std::string BAD_SUBSCRIPT_WITH_KEY(const std::string&amp; key) {
+  std::stringstream stream;
+  stream &lt;&lt; BAD_SUBSCRIPT &lt;&lt; " (key: \"" &lt;&lt; key &lt;&lt; "\")";
+  return stream.str();
+}
+
+<span style = "background-color:#fdd">inline const std::string BAD_SUBSCRIPT_WITH_KEY(const char* key) {
+  std::stringstream stream;
+  stream &lt;&lt; BAD_SUBSCRIPT &lt;&lt; " (key: \"" &lt;&lt; key &lt;&lt; "\")";
+  return stream.str();
+}</span>
+
+template &lt;typename T&gt;
+inline const std::string BAD_SUBSCRIPT_WITH_KEY(
+    const T&amp; key, typename enable_if&lt;is_numeric&lt;T&gt;&gt;::type* = nullptr) {
+  std::stringstream stream;
+  stream &lt;&lt; BAD_SUBSCRIPT &lt;&lt; " (key: \"" &lt;&lt; key &lt;&lt; "\")";
+  return stream.str();
+}
+
+<span style = "background-color:#fdd">inline const std::string INVALID_NODE_WITH_KEY(const std::string&amp; key) {
+  std::stringstream stream;
+  if (key.empty()) {
+    return INVALID_NODE;</span>
+  }
+<span style = "background-color:#fdd">  stream &lt;&lt; "invalid node; first invalid key: \"" &lt;&lt; key &lt;&lt; "\"";
+  return stream.str();
+}</span>
+}  // namespace ErrorMsg
+
+class YAML_CPP_API Exception : public std::runtime_error {
+ public:
+<span style = "background-color:#fdd">  Exception(const Mark&amp; mark_, const std::string&amp; msg_)
+      : std::runtime_error(build_what(mark_, msg_)), mark(mark_), msg(msg_) {}</span>
+  ~Exception() YAML_CPP_NOEXCEPT override;
+
+<span style = "background-color:#fdd">  Exception(const Exception&amp;) = default;</span>
+
+  Mark mark;
+  std::string msg;
+
+ private:
+  static const std::string build_what(const Mark&amp; mark,
+<span style = "background-color:#fdd">                                      const std::string&amp; msg) {
+    if (mark.is_null()) {
+      return msg;</span>
+    }
+
+<span style = "background-color:#fdd">    std::stringstream output;
+    output &lt;&lt; "yaml-cpp: error at line " &lt;&lt; mark.line + 1 &lt;&lt; ", column "</span>
+           &lt;&lt; mark.column + 1 &lt;&lt; ": " &lt;&lt; msg;
+<span style = "background-color:#fdd">    return output.str();
+  }</span>
+};
+
+class YAML_CPP_API ParserException : public Exception {
+ public:
+<span style = "background-color:#fdd">  ParserException(const Mark&amp; mark_, const std::string&amp; msg_)
+      : Exception(mark_, msg_) {}
+  ParserException(const ParserException&amp;) = default;</span>
+  ~ParserException() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API RepresentationException : public Exception {
+ public:
+<span style = "background-color:#fdd">  RepresentationException(const Mark&amp; mark_, const std::string&amp; msg_)
+      : Exception(mark_, msg_) {}
+  RepresentationException(const RepresentationException&amp;) = default;</span>
+  ~RepresentationException() YAML_CPP_NOEXCEPT override;
+};
+
+// representation exceptions
+class YAML_CPP_API InvalidScalar : public RepresentationException {
+ public:
+  InvalidScalar(const Mark&amp; mark_)
+      : RepresentationException(mark_, ErrorMsg::INVALID_SCALAR) {}
+  InvalidScalar(const InvalidScalar&amp;) = default;
+  ~InvalidScalar() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API KeyNotFound : public RepresentationException {
+ public:
+  template &lt;typename T&gt;
+  KeyNotFound(const Mark&amp; mark_, const T&amp; key_)
+      : RepresentationException(mark_, ErrorMsg::KEY_NOT_FOUND_WITH_KEY(key_)) {
+  }
+  KeyNotFound(const KeyNotFound&amp;) = default;
+  ~KeyNotFound() YAML_CPP_NOEXCEPT override;
+};
+
+template &lt;typename T&gt;
+class YAML_CPP_API TypedKeyNotFound : public KeyNotFound {
+ public:
+  TypedKeyNotFound(const Mark&amp; mark_, const T&amp; key_)
+      : KeyNotFound(mark_, key_), key(key_) {}
+  ~TypedKeyNotFound() YAML_CPP_NOEXCEPT override = default;
+
+  T key;
+};
+
+template &lt;typename T&gt;
+inline TypedKeyNotFound&lt;T&gt; MakeTypedKeyNotFound(const Mark&amp; mark,
+                                                const T&amp; key) {
+  return TypedKeyNotFound&lt;T&gt;(mark, key);
+}
+
+class YAML_CPP_API InvalidNode : public RepresentationException {
+ public:
+  InvalidNode(const std::string&amp; key)
+<span style = "background-color:#fdd">      : RepresentationException(Mark::null_mark(),
+                                ErrorMsg::INVALID_NODE_WITH_KEY(key)) {}
+  InvalidNode(const InvalidNode&amp;) = default;</span>
+  ~InvalidNode() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API BadConversion : public RepresentationException {
+ public:
+<span style = "background-color:#fdd">  explicit BadConversion(const Mark&amp; mark_)
+      : RepresentationException(mark_, ErrorMsg::BAD_CONVERSION) {}
+  BadConversion(const BadConversion&amp;) = default;</span>
+  ~BadConversion() YAML_CPP_NOEXCEPT override;
+};
+
+template &lt;typename T&gt;
+class TypedBadConversion : public BadConversion {
+ public:
+<span style = "background-color:#fdd">  explicit TypedBadConversion(const Mark&amp; mark_) : BadConversion(mark_) {}</span>
+};
+
+class YAML_CPP_API BadDereference : public RepresentationException {
+ public:
+  BadDereference()
+      : RepresentationException(Mark::null_mark(), ErrorMsg::BAD_DEREFERENCE) {}
+  BadDereference(const BadDereference&amp;) = default;
+  ~BadDereference() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API BadSubscript : public RepresentationException {
+ public:
+  template &lt;typename Key&gt;
+  BadSubscript(const Mark&amp; mark_, const Key&amp; key)
+<span style = "background-color:#fdd">      : RepresentationException(mark_, ErrorMsg::BAD_SUBSCRIPT_WITH_KEY(key)) {}
+  BadSubscript(const BadSubscript&amp;) = default;</span>
+  ~BadSubscript() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API BadPushback : public RepresentationException {
+ public:
+<span style = "background-color:#fdd">  BadPushback()
+      : RepresentationException(Mark::null_mark(), ErrorMsg::BAD_PUSHBACK) {}
+  BadPushback(const BadPushback&amp;) = default;</span>
+  ~BadPushback() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API BadInsert : public RepresentationException {
+ public:
+  BadInsert()
+      : RepresentationException(Mark::null_mark(), ErrorMsg::BAD_INSERT) {}
+  BadInsert(const BadInsert&amp;) = default;
+  ~BadInsert() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API EmitterException : public Exception {
+ public:
+  EmitterException(const std::string&amp; msg_)
+      : Exception(Mark::null_mark(), msg_) {}
+  EmitterException(const EmitterException&amp;) = default;
+  ~EmitterException() YAML_CPP_NOEXCEPT override;
+};
+
+class YAML_CPP_API BadFile : public Exception {
+ public:
+  explicit BadFile(const std::string&amp; filename)
+<span style = "background-color:#fdd">      : Exception(Mark::null_mark(),
+                  std::string(ErrorMsg::BAD_FILE) + ": " + filename) {}
+  BadFile(const BadFile&amp;) = default;</span>
+  ~BadFile() YAML_CPP_NOEXCEPT override;
+};
+}  // namespace YAML
+
+#endif  // EXCEPTIONS_H_62B23520_7C8E_11DE_8A39_0800200C9A66</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,562 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>win32_monitor.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 Win32 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2019 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;limits.h&gt;
+#include &lt;wchar.h&gt;
+
+
+// Callback for EnumDisplayMonitors in createMonitor
+//
+static BOOL CALLBACK monitorCallback(HMONITOR handle,
+                                     HDC dc,
+                                     RECT* rect,
+                                     LPARAM data)
+<span style = "background-color:#dfd">{</span>
+    MONITORINFOEXW mi;
+<span style = "background-color:#dfd">    ZeroMemory(&amp;mi, sizeof(mi));
+    mi.cbSize = sizeof(mi);</span>
+
+<span style = "background-color:#dfd">    if (GetMonitorInfoW(handle, (MONITORINFO*) &amp;mi))</span>
+    {
+<span style = "background-color:#dfd">        _GLFWmonitor* monitor = (_GLFWmonitor*) data;
+        if (wcscmp(mi.szDevice, monitor-&gt;win32.adapterName) == 0)
+            monitor-&gt;win32.handle = handle;</span>
+    }
+
+<span style = "background-color:#dfd">    return TRUE;
+}</span>
+
+// Create monitor from an adapter and (optionally) a display
+//
+static _GLFWmonitor* createMonitor(DISPLAY_DEVICEW* adapter,
+                                   DISPLAY_DEVICEW* display)
+<span style = "background-color:#dfd">{</span>
+    _GLFWmonitor* monitor;
+    int widthMM, heightMM;
+    char* name;
+    HDC dc;
+    DEVMODEW dm;
+    RECT rect;
+
+<span style = "background-color:#dfd">    if (display)
+        name = _glfwCreateUTF8FromWideStringWin32(display-&gt;DeviceString);</span>
+    else
+<span style = "background-color:#fdd">        name = _glfwCreateUTF8FromWideStringWin32(adapter-&gt;DeviceString);</span>
+<span style = "background-color:#dfd">    if (!name)</span>
+<span style = "background-color:#fdd">        return NULL;</span>
+
+<span style = "background-color:#dfd">    ZeroMemory(&amp;dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    EnumDisplaySettingsW(adapter-&gt;DeviceName, ENUM_CURRENT_SETTINGS, &amp;dm);</span>
+
+<span style = "background-color:#dfd">    dc = CreateDCW(L"DISPLAY", adapter-&gt;DeviceName, NULL, NULL);</span>
+
+<span style = "background-color:#dfd">    if (IsWindows8Point1OrGreater())</span>
+    {
+<span style = "background-color:#dfd">        widthMM  = GetDeviceCaps(dc, HORZSIZE);
+        heightMM = GetDeviceCaps(dc, VERTSIZE);
+    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        widthMM  = (int) (dm.dmPelsWidth * 25.4f / GetDeviceCaps(dc, LOGPIXELSX));
+        heightMM = (int) (dm.dmPelsHeight * 25.4f / GetDeviceCaps(dc, LOGPIXELSY));</span>
+    }
+
+<span style = "background-color:#dfd">    DeleteDC(dc);</span>
+
+<span style = "background-color:#dfd">    monitor = _glfwAllocMonitor(name, widthMM, heightMM);
+    _glfw_free(name);</span>
+
+<span style = "background-color:#dfd">    if (adapter-&gt;StateFlags &amp; DISPLAY_DEVICE_MODESPRUNED)</span>
+<span style = "background-color:#fdd">        monitor-&gt;win32.modesPruned = GLFW_TRUE;</span>
+
+<span style = "background-color:#dfd">    wcscpy(monitor-&gt;win32.adapterName, adapter-&gt;DeviceName);
+    WideCharToMultiByte(CP_UTF8, 0,</span>
+                        adapter-&gt;DeviceName, -1,
+                        monitor-&gt;win32.publicAdapterName,
+                        sizeof(monitor-&gt;win32.publicAdapterName),
+                        NULL, NULL);
+
+<span style = "background-color:#dfd">    if (display)</span>
+    {
+<span style = "background-color:#dfd">        wcscpy(monitor-&gt;win32.displayName, display-&gt;DeviceName);
+        WideCharToMultiByte(CP_UTF8, 0,</span>
+                            display-&gt;DeviceName, -1,
+                            monitor-&gt;win32.publicDisplayName,
+                            sizeof(monitor-&gt;win32.publicDisplayName),
+                            NULL, NULL);
+    }
+
+<span style = "background-color:#dfd">    rect.left   = dm.dmPosition.x;
+    rect.top    = dm.dmPosition.y;
+    rect.right  = dm.dmPosition.x + dm.dmPelsWidth;
+    rect.bottom = dm.dmPosition.y + dm.dmPelsHeight;</span>
+
+<span style = "background-color:#dfd">    EnumDisplayMonitors(NULL, &amp;rect, monitorCallback, (LPARAM) monitor);
+    return monitor;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+// Poll for changes in the set of connected monitors
+//
+void _glfwPollMonitorsWin32(void)
+<span style = "background-color:#dfd">{</span>
+    int i, disconnectedCount;
+<span style = "background-color:#dfd">    _GLFWmonitor** disconnected = NULL;</span>
+    DWORD adapterIndex, displayIndex;
+    DISPLAY_DEVICEW adapter, display;
+    _GLFWmonitor* monitor;
+
+<span style = "background-color:#dfd">    disconnectedCount = _glfw.monitorCount;
+    if (disconnectedCount)</span>
+    {
+<span style = "background-color:#fdd">        disconnected = _glfw_calloc(_glfw.monitorCount, sizeof(_GLFWmonitor*));
+        memcpy(disconnected,</span>
+               _glfw.monitors,
+               _glfw.monitorCount * sizeof(_GLFWmonitor*));
+    }
+
+<span style = "background-color:#dfd">    for (adapterIndex = 0;  ;  adapterIndex++)</span>
+    {
+<span style = "background-color:#dfd">        int type = _GLFW_INSERT_LAST;</span>
+
+<span style = "background-color:#dfd">        ZeroMemory(&amp;adapter, sizeof(adapter));
+        adapter.cb = sizeof(adapter);</span>
+
+<span style = "background-color:#dfd">        if (!EnumDisplayDevicesW(NULL, adapterIndex, &amp;adapter, 0))
+            break;</span>
+
+<span style = "background-color:#dfd">        if (!(adapter.StateFlags &amp; DISPLAY_DEVICE_ACTIVE))
+            continue;</span>
+
+<span style = "background-color:#dfd">        if (adapter.StateFlags &amp; DISPLAY_DEVICE_PRIMARY_DEVICE)
+            type = _GLFW_INSERT_FIRST;</span>
+
+<span style = "background-color:#dfd">        for (displayIndex = 0;  ;  displayIndex++)</span>
+        {
+<span style = "background-color:#dfd">            ZeroMemory(&amp;display, sizeof(display));
+            display.cb = sizeof(display);</span>
+
+<span style = "background-color:#dfd">            if (!EnumDisplayDevicesW(adapter.DeviceName, displayIndex, &amp;display, 0))
+                break;</span>
+
+<span style = "background-color:#dfd">            if (!(display.StateFlags &amp; DISPLAY_DEVICE_ACTIVE))</span>
+<span style = "background-color:#fdd">                continue;</span>
+
+<span style = "background-color:#dfd">            for (i = 0;  i &lt; disconnectedCount;  i++)</span>
+            {
+<span style = "background-color:#fdd">                if (disconnected[i] &amp;&amp;</span>
+                    wcscmp(disconnected[i]-&gt;win32.displayName,
+                           display.DeviceName) == 0)
+                {
+<span style = "background-color:#fdd">                    disconnected[i] = NULL;</span>
+                    // handle may have changed, update
+<span style = "background-color:#fdd">                    EnumDisplayMonitors(NULL, NULL, monitorCallback, (LPARAM) _glfw.monitors[i]);
+                    break;</span>
+                }
+<span style = "background-color:#fdd">            }</span>
+
+<span style = "background-color:#dfd">            if (i &lt; disconnectedCount)</span>
+<span style = "background-color:#fdd">                continue;</span>
+
+<span style = "background-color:#dfd">            monitor = createMonitor(&amp;adapter, &amp;display);
+            if (!monitor)</span>
+            {
+<span style = "background-color:#fdd">                _glfw_free(disconnected);
+                return;</span>
+            }
+
+<span style = "background-color:#dfd">            _glfwInputMonitor(monitor, GLFW_CONNECTED, type);</span>
+
+<span style = "background-color:#dfd">            type = _GLFW_INSERT_LAST;
+        }</span>
+
+        // HACK: If an active adapter does not have any display devices
+        //       (as sometimes happens), add it directly as a monitor
+<span style = "background-color:#dfd">        if (displayIndex == 0)</span>
+        {
+<span style = "background-color:#fdd">            for (i = 0;  i &lt; disconnectedCount;  i++)</span>
+            {
+<span style = "background-color:#fdd">                if (disconnected[i] &amp;&amp;</span>
+                    wcscmp(disconnected[i]-&gt;win32.adapterName,
+                           adapter.DeviceName) == 0)
+                {
+<span style = "background-color:#fdd">                    disconnected[i] = NULL;
+                    break;</span>
+                }
+<span style = "background-color:#fdd">            }</span>
+
+<span style = "background-color:#fdd">            if (i &lt; disconnectedCount)
+                continue;</span>
+
+<span style = "background-color:#fdd">            monitor = createMonitor(&amp;adapter, NULL);
+            if (!monitor)</span>
+            {
+<span style = "background-color:#fdd">                _glfw_free(disconnected);
+                return;</span>
+            }
+
+<span style = "background-color:#fdd">            _glfwInputMonitor(monitor, GLFW_CONNECTED, type);</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+
+<span style = "background-color:#dfd">    for (i = 0;  i &lt; disconnectedCount;  i++)</span>
+    {
+<span style = "background-color:#fdd">        if (disconnected[i])
+            _glfwInputMonitor(disconnected[i], GLFW_DISCONNECTED, 0);
+    }</span>
+
+<span style = "background-color:#dfd">    _glfw_free(disconnected);
+}</span>
+
+// Change the current video mode
+//
+void _glfwSetVideoModeWin32(_GLFWmonitor* monitor, const GLFWvidmode* desired)
+<span style = "background-color:#fdd">{</span>
+    GLFWvidmode current;
+    const GLFWvidmode* best;
+    DEVMODEW dm;
+    LONG result;
+
+<span style = "background-color:#fdd">    best = _glfwChooseVideoMode(monitor, desired);
+    _glfwPlatformGetVideoMode(monitor, &amp;current);
+    if (_glfwCompareVideoModes(&amp;current, best) == 0)
+        return;</span>
+
+<span style = "background-color:#fdd">    ZeroMemory(&amp;dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+    dm.dmFields           = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL |</span>
+                            DM_DISPLAYFREQUENCY;
+<span style = "background-color:#fdd">    dm.dmPelsWidth        = best-&gt;width;
+    dm.dmPelsHeight       = best-&gt;height;
+    dm.dmBitsPerPel       = best-&gt;redBits + best-&gt;greenBits + best-&gt;blueBits;
+    dm.dmDisplayFrequency = best-&gt;refreshRate;</span>
+
+<span style = "background-color:#fdd">    if (dm.dmBitsPerPel &lt; 15 || dm.dmBitsPerPel &gt;= 24)
+        dm.dmBitsPerPel = 32;</span>
+
+<span style = "background-color:#fdd">    result = ChangeDisplaySettingsExW(monitor-&gt;win32.adapterName,</span>
+                                      &amp;dm,
+                                      NULL,
+                                      CDS_FULLSCREEN,
+                                      NULL);
+<span style = "background-color:#fdd">    if (result == DISP_CHANGE_SUCCESSFUL)
+        monitor-&gt;win32.modeChanged = GLFW_TRUE;</span>
+    else
+    {
+<span style = "background-color:#fdd">        const char* description = "Unknown error";</span>
+
+<span style = "background-color:#fdd">        if (result == DISP_CHANGE_BADDUALVIEW)
+            description = "The system uses DualView";
+        else if (result == DISP_CHANGE_BADFLAGS)
+            description = "Invalid flags";
+        else if (result == DISP_CHANGE_BADMODE)
+            description = "Graphics mode not supported";
+        else if (result == DISP_CHANGE_BADPARAM)
+            description = "Invalid parameter";
+        else if (result == DISP_CHANGE_FAILED)
+            description = "Graphics mode failed";
+        else if (result == DISP_CHANGE_NOTUPDATED)
+            description = "Failed to write to registry";
+        else if (result == DISP_CHANGE_RESTART)
+            description = "Computer restart required";</span>
+
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                        "Win32: Failed to set video mode: %s",
+                        description);
+    }
+<span style = "background-color:#fdd">}</span>
+
+// Restore the previously saved (original) video mode
+//
+void _glfwRestoreVideoModeWin32(_GLFWmonitor* monitor)
+<span style = "background-color:#fdd">{
+    if (monitor-&gt;win32.modeChanged)</span>
+    {
+<span style = "background-color:#fdd">        ChangeDisplaySettingsExW(monitor-&gt;win32.adapterName,</span>
+                                 NULL, NULL, CDS_FULLSCREEN, NULL);
+<span style = "background-color:#fdd">        monitor-&gt;win32.modeChanged = GLFW_FALSE;</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+void _glfwGetMonitorContentScaleWin32(HMONITOR handle, float* xscale, float* yscale)
+<span style = "background-color:#fdd">{</span>
+    UINT xdpi, ydpi;
+
+<span style = "background-color:#fdd">    if (IsWindows8Point1OrGreater())
+        GetDpiForMonitor(handle, MDT_EFFECTIVE_DPI, &amp;xdpi, &amp;ydpi);</span>
+    else
+    {
+<span style = "background-color:#fdd">        const HDC dc = GetDC(NULL);
+        xdpi = GetDeviceCaps(dc, LOGPIXELSX);
+        ydpi = GetDeviceCaps(dc, LOGPIXELSY);
+        ReleaseDC(NULL, dc);</span>
+    }
+
+<span style = "background-color:#fdd">    if (xscale)
+        *xscale = xdpi / (float) USER_DEFAULT_SCREEN_DPI;
+    if (yscale)
+        *yscale = ydpi / (float) USER_DEFAULT_SCREEN_DPI;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW platform API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+void _glfwPlatformFreeMonitor(_GLFWmonitor* monitor)
+<span style = "background-color:#dfd">{
+}</span>
+
+void _glfwPlatformGetMonitorPos(_GLFWmonitor* monitor, int* xpos, int* ypos)
+<span style = "background-color:#fdd">{</span>
+    DEVMODEW dm;
+<span style = "background-color:#fdd">    ZeroMemory(&amp;dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);</span>
+
+<span style = "background-color:#fdd">    EnumDisplaySettingsExW(monitor-&gt;win32.adapterName,</span>
+                           ENUM_CURRENT_SETTINGS,
+                           &amp;dm,
+                           EDS_ROTATEDMODE);
+
+<span style = "background-color:#fdd">    if (xpos)
+        *xpos = dm.dmPosition.x;
+    if (ypos)
+        *ypos = dm.dmPosition.y;
+}</span>
+
+void _glfwPlatformGetMonitorContentScale(_GLFWmonitor* monitor,
+                                         float* xscale, float* yscale)
+<span style = "background-color:#fdd">{
+    _glfwGetMonitorContentScaleWin32(monitor-&gt;win32.handle, xscale, yscale);
+}</span>
+
+void _glfwPlatformGetMonitorWorkarea(_GLFWmonitor* monitor,
+                                     int* xpos, int* ypos,
+                                     int* width, int* height)
+<span style = "background-color:#fdd">{
+    MONITORINFO mi = { sizeof(mi) };
+    GetMonitorInfo(monitor-&gt;win32.handle, &amp;mi);</span>
+
+<span style = "background-color:#fdd">    if (xpos)
+        *xpos = mi.rcWork.left;
+    if (ypos)
+        *ypos = mi.rcWork.top;
+    if (width)
+        *width = mi.rcWork.right - mi.rcWork.left;
+    if (height)
+        *height = mi.rcWork.bottom - mi.rcWork.top;
+}</span>
+
+GLFWvidmode* _glfwPlatformGetVideoModes(_GLFWmonitor* monitor, int* count)
+<span style = "background-color:#fdd">{
+    int modeIndex = 0, size = 0;
+    GLFWvidmode* result = NULL;</span>
+
+<span style = "background-color:#fdd">    *count = 0;</span>
+
+    for (;;)
+    {
+        int i;
+        GLFWvidmode mode;
+        DEVMODEW dm;
+
+<span style = "background-color:#fdd">        ZeroMemory(&amp;dm, sizeof(dm));
+        dm.dmSize = sizeof(dm);</span>
+
+<span style = "background-color:#fdd">        if (!EnumDisplaySettingsW(monitor-&gt;win32.adapterName, modeIndex, &amp;dm))
+            break;</span>
+
+<span style = "background-color:#fdd">        modeIndex++;</span>
+
+        // Skip modes with less than 15 BPP
+<span style = "background-color:#fdd">        if (dm.dmBitsPerPel &lt; 15)
+            continue;</span>
+
+<span style = "background-color:#fdd">        mode.width  = dm.dmPelsWidth;
+        mode.height = dm.dmPelsHeight;
+        mode.refreshRate = dm.dmDisplayFrequency;
+        _glfwSplitBPP(dm.dmBitsPerPel,</span>
+                      &amp;mode.redBits,
+                      &amp;mode.greenBits,
+                      &amp;mode.blueBits);
+
+<span style = "background-color:#fdd">        for (i = 0;  i &lt; *count;  i++)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfwCompareVideoModes(result + i, &amp;mode) == 0)
+                break;
+        }</span>
+
+        // Skip duplicate modes
+<span style = "background-color:#fdd">        if (i &lt; *count)
+            continue;</span>
+
+<span style = "background-color:#fdd">        if (monitor-&gt;win32.modesPruned)</span>
+        {
+            // Skip modes not supported by the connected displays
+            if (ChangeDisplaySettingsExW(monitor-&gt;win32.adapterName,
+                                         &amp;dm,
+                                         NULL,
+                                         CDS_TEST,
+<span style = "background-color:#fdd">                                         NULL) != DISP_CHANGE_SUCCESSFUL)</span>
+            {
+<span style = "background-color:#fdd">                continue;</span>
+            }
+        }
+
+<span style = "background-color:#fdd">        if (*count == size)</span>
+        {
+<span style = "background-color:#fdd">            size += 128;
+            result = (GLFWvidmode*) _glfw_realloc(result, size * sizeof(GLFWvidmode));</span>
+        }
+
+<span style = "background-color:#fdd">        (*count)++;
+        result[*count - 1] = mode;
+    }</span>
+
+<span style = "background-color:#fdd">    if (!*count)</span>
+    {
+        // HACK: Report the current mode if no valid modes were found
+<span style = "background-color:#fdd">        result = _glfw_calloc(1, sizeof(GLFWvidmode));
+        _glfwPlatformGetVideoMode(monitor, result);
+        *count = 1;</span>
+    }
+
+<span style = "background-color:#fdd">    return result;
+}</span>
+
+void _glfwPlatformGetVideoMode(_GLFWmonitor* monitor, GLFWvidmode* mode)
+<span style = "background-color:#dfd">{</span>
+    DEVMODEW dm;
+<span style = "background-color:#dfd">    ZeroMemory(&amp;dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);</span>
+
+<span style = "background-color:#dfd">    EnumDisplaySettingsW(monitor-&gt;win32.adapterName, ENUM_CURRENT_SETTINGS, &amp;dm);</span>
+
+<span style = "background-color:#dfd">    mode-&gt;width  = dm.dmPelsWidth;
+    mode-&gt;height = dm.dmPelsHeight;
+    mode-&gt;refreshRate = dm.dmDisplayFrequency;
+    _glfwSplitBPP(dm.dmBitsPerPel,</span>
+                  &amp;mode-&gt;redBits,
+                  &amp;mode-&gt;greenBits,
+                  &amp;mode-&gt;blueBits);
+<span style = "background-color:#dfd">}</span>
+
+GLFWbool _glfwPlatformGetGammaRamp(_GLFWmonitor* monitor, GLFWgammaramp* ramp)
+<span style = "background-color:#fdd">{</span>
+    HDC dc;
+    WORD values[3][256];
+
+<span style = "background-color:#fdd">    dc = CreateDCW(L"DISPLAY", monitor-&gt;win32.adapterName, NULL, NULL);
+    GetDeviceGammaRamp(dc, values);
+    DeleteDC(dc);</span>
+
+<span style = "background-color:#fdd">    _glfwAllocGammaArrays(ramp, 256);</span>
+
+<span style = "background-color:#fdd">    memcpy(ramp-&gt;red,   values[0], sizeof(values[0]));
+    memcpy(ramp-&gt;green, values[1], sizeof(values[1]));
+    memcpy(ramp-&gt;blue,  values[2], sizeof(values[2]));</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+void _glfwPlatformSetGammaRamp(_GLFWmonitor* monitor, const GLFWgammaramp* ramp)
+<span style = "background-color:#fdd">{</span>
+    HDC dc;
+    WORD values[3][256];
+
+<span style = "background-color:#fdd">    if (ramp-&gt;size != 256)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                        "Win32: Gamma ramp size must be 256");
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    memcpy(values[0], ramp-&gt;red,   sizeof(values[0]));
+    memcpy(values[1], ramp-&gt;green, sizeof(values[1]));
+    memcpy(values[2], ramp-&gt;blue,  sizeof(values[2]));</span>
+
+<span style = "background-color:#fdd">    dc = CreateDCW(L"DISPLAY", monitor-&gt;win32.adapterName, NULL, NULL);
+    SetDeviceGammaRamp(dc, values);
+    DeleteDC(dc);
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW native API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI const char* glfwGetWin32Adapter(GLFWmonitor* handle)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return monitor-&gt;win32.publicAdapterName;
+}</span>
+
+GLFWAPI const char* glfwGetWin32Monitor(GLFWmonitor* handle)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return monitor-&gt;win32.publicDisplayName;
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

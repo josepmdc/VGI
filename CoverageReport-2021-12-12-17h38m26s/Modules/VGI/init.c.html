@@ -1,0 +1,466 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>init.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2018 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+#include &lt;assert.h&gt;
+
+
+// The global variables below comprise all mutable global data in GLFW
+//
+// Any other global variable is a bug
+
+// Global state shared between compilation units of GLFW
+//
+_GLFWlibrary _glfw = { GLFW_FALSE };
+
+// These are outside of _glfw so they can be used before initialization and
+// after termination
+//
+static _GLFWerror _glfwMainThreadError;
+static GLFWerrorfun _glfwErrorCallback;
+static GLFWallocator _glfwInitAllocator;
+static _GLFWinitconfig _glfwInitHints =
+{
+    GLFW_TRUE,      // hat buttons
+    GLFW_ANGLE_PLATFORM_TYPE_NONE, // ANGLE backend
+    {
+        GLFW_TRUE,  // macOS menu bar
+        GLFW_TRUE   // macOS bundle chdir
+    },
+    {
+        GLFW_TRUE,  // X11 XCB Vulkan surface
+    },
+};
+
+// The allocation function used when no custom allocator is set
+//
+static void* defaultAllocate(size_t size, void* user)
+<span style = "background-color:#dfd">{
+    return malloc(size);
+}</span>
+
+// The deallocation function used when no custom allocator is set
+//
+static void defaultDeallocate(void* block, void* user)
+<span style = "background-color:#dfd">{
+    free(block);
+}</span>
+
+// The reallocation function used when no custom allocator is set
+//
+static void* defaultReallocate(void* block, size_t size, void* user)
+<span style = "background-color:#fdd">{
+    return realloc(block, size);
+}</span>
+
+// Terminate the library
+//
+static void terminate(void)
+<span style = "background-color:#dfd">{</span>
+    int i;
+
+<span style = "background-color:#dfd">    memset(&amp;_glfw.callbacks, 0, sizeof(_glfw.callbacks));</span>
+
+<span style = "background-color:#dfd">    while (_glfw.windowListHead)
+        glfwDestroyWindow((GLFWwindow*) _glfw.windowListHead);</span>
+
+<span style = "background-color:#dfd">    while (_glfw.cursorListHead)</span>
+<span style = "background-color:#fdd">        glfwDestroyCursor((GLFWcursor*) _glfw.cursorListHead);</span>
+
+<span style = "background-color:#dfd">    for (i = 0;  i &lt; _glfw.monitorCount;  i++)</span>
+    {
+<span style = "background-color:#dfd">        _GLFWmonitor* monitor = _glfw.monitors[i];
+        if (monitor-&gt;originalRamp.size)</span>
+<span style = "background-color:#fdd">            _glfwPlatformSetGammaRamp(monitor, &amp;monitor-&gt;originalRamp);</span>
+<span style = "background-color:#dfd">        _glfwFreeMonitor(monitor);
+    }</span>
+
+<span style = "background-color:#dfd">    _glfw_free(_glfw.monitors);
+    _glfw.monitors = NULL;
+    _glfw.monitorCount = 0;</span>
+
+<span style = "background-color:#dfd">    _glfw_free(_glfw.mappings);
+    _glfw.mappings = NULL;
+    _glfw.mappingCount = 0;</span>
+
+<span style = "background-color:#dfd">    _glfwTerminateVulkan();
+    _glfwPlatformTerminateJoysticks();
+    _glfwPlatformTerminate();</span>
+
+<span style = "background-color:#dfd">    _glfw.initialized = GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">    while (_glfw.errorListHead)</span>
+    {
+<span style = "background-color:#fdd">        _GLFWerror* error = _glfw.errorListHead;
+        _glfw.errorListHead = error-&gt;next;
+        _glfw_free(error);
+    }</span>
+
+<span style = "background-color:#dfd">    _glfwPlatformDestroyTls(&amp;_glfw.contextSlot);
+    _glfwPlatformDestroyTls(&amp;_glfw.errorSlot);
+    _glfwPlatformDestroyMutex(&amp;_glfw.errorLock);</span>
+
+<span style = "background-color:#dfd">    memset(&amp;_glfw, 0, sizeof(_glfw));
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+char* _glfw_strdup(const char* source)
+<span style = "background-color:#fdd">{
+    const size_t length = strlen(source);
+    char* result = _glfw_calloc(length + 1, 1);
+    strcpy(result, source);
+    return result;
+}</span>
+
+float _glfw_fminf(float a, float b)
+<span style = "background-color:#fdd">{
+    if (a != a)
+        return b;
+    else if (b != b)
+        return a;
+    else if (a &lt; b)
+        return a;</span>
+    else
+<span style = "background-color:#fdd">        return b;
+}</span>
+
+float _glfw_fmaxf(float a, float b)
+<span style = "background-color:#fdd">{
+    if (a != a)
+        return b;
+    else if (b != b)
+        return a;
+    else if (a &gt; b)
+        return a;</span>
+    else
+<span style = "background-color:#fdd">        return b;
+}</span>
+
+void* _glfw_calloc(size_t count, size_t size)
+<span style = "background-color:#dfd">{
+    if (count &amp;&amp; size)</span>
+    {
+        void* block;
+
+<span style = "background-color:#dfd">        if (count &gt; SIZE_MAX / size)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE, "Allocation size overflow");
+            return NULL;</span>
+        }
+
+<span style = "background-color:#dfd">        block = _glfw.allocator.allocate(count * size, _glfw.allocator.user);
+        if (block)
+            return memset(block, 0, count * size);</span>
+        else
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_OUT_OF_MEMORY, NULL);
+            return NULL;</span>
+        }
+<span style = "background-color:#fdd">    }</span>
+    else
+<span style = "background-color:#fdd">        return NULL;</span>
+<span style = "background-color:#dfd">}</span>
+
+void* _glfw_realloc(void* block, size_t size)
+<span style = "background-color:#dfd">{
+    if (block &amp;&amp; size)</span>
+    {
+<span style = "background-color:#fdd">        void* resized = _glfw.allocator.reallocate(block, size, _glfw.allocator.user);
+        if (resized)
+            return resized;</span>
+        else
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_OUT_OF_MEMORY, NULL);
+            return NULL;</span>
+        }
+<span style = "background-color:#fdd">    }</span>
+<span style = "background-color:#dfd">    else if (block)</span>
+    {
+<span style = "background-color:#fdd">        _glfw_free(block);
+        return NULL;
+    }</span>
+    else
+<span style = "background-color:#dfd">        return _glfw_calloc(1, size);
+}</span>
+
+void _glfw_free(void* block)
+<span style = "background-color:#dfd">{
+    if (block)
+        _glfw.allocator.deallocate(block, _glfw.allocator.user);
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                         GLFW event API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+// Notifies shared code of an error
+//
+void _glfwInputError(int code, const char* format, ...)
+<span style = "background-color:#fdd">{</span>
+    _GLFWerror* error;
+    char description[_GLFW_MESSAGE_SIZE];
+
+<span style = "background-color:#fdd">    if (format)</span>
+    {
+        va_list vl;
+
+<span style = "background-color:#fdd">        va_start(vl, format);
+        vsnprintf(description, sizeof(description), format, vl);
+        va_end(vl);</span>
+
+<span style = "background-color:#fdd">        description[sizeof(description) - 1] = '\0';
+    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        if (code == GLFW_NOT_INITIALIZED)
+            strcpy(description, "The GLFW library is not initialized");
+        else if (code == GLFW_NO_CURRENT_CONTEXT)
+            strcpy(description, "There is no current context");
+        else if (code == GLFW_INVALID_ENUM)
+            strcpy(description, "Invalid argument for enum parameter");
+        else if (code == GLFW_INVALID_VALUE)
+            strcpy(description, "Invalid value for parameter");
+        else if (code == GLFW_OUT_OF_MEMORY)
+            strcpy(description, "Out of memory");
+        else if (code == GLFW_API_UNAVAILABLE)
+            strcpy(description, "The requested API is unavailable");
+        else if (code == GLFW_VERSION_UNAVAILABLE)
+            strcpy(description, "The requested API version is unavailable");
+        else if (code == GLFW_PLATFORM_ERROR)
+            strcpy(description, "A platform-specific error occurred");
+        else if (code == GLFW_FORMAT_UNAVAILABLE)
+            strcpy(description, "The requested format is unavailable");
+        else if (code == GLFW_NO_WINDOW_CONTEXT)
+            strcpy(description, "The specified window has no context");
+        else if (code == GLFW_CURSOR_UNAVAILABLE)
+            strcpy(description, "The specified cursor shape is unavailable");
+        else if (code == GLFW_FEATURE_UNAVAILABLE)
+            strcpy(description, "The requested feature cannot be implemented for this platform");
+        else if (code == GLFW_FEATURE_UNIMPLEMENTED)
+            strcpy(description, "The requested feature has not yet been implemented for this platform");</span>
+        else
+<span style = "background-color:#fdd">            strcpy(description, "ERROR: UNKNOWN GLFW ERROR");</span>
+    }
+
+<span style = "background-color:#fdd">    if (_glfw.initialized)</span>
+    {
+<span style = "background-color:#fdd">        error = _glfwPlatformGetTls(&amp;_glfw.errorSlot);
+        if (!error)</span>
+        {
+<span style = "background-color:#fdd">            error = _glfw_calloc(1, sizeof(_GLFWerror));
+            _glfwPlatformSetTls(&amp;_glfw.errorSlot, error);
+            _glfwPlatformLockMutex(&amp;_glfw.errorLock);
+            error-&gt;next = _glfw.errorListHead;
+            _glfw.errorListHead = error;
+            _glfwPlatformUnlockMutex(&amp;_glfw.errorLock);</span>
+        }
+<span style = "background-color:#fdd">    }</span>
+    else
+<span style = "background-color:#fdd">        error = &amp;_glfwMainThreadError;</span>
+
+<span style = "background-color:#fdd">    error-&gt;code = code;
+    strcpy(error-&gt;description, description);</span>
+
+<span style = "background-color:#fdd">    if (_glfwErrorCallback)
+        _glfwErrorCallback(code, description);
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW public API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI int glfwInit(void)
+<span style = "background-color:#dfd">{
+    if (_glfw.initialized)</span>
+<span style = "background-color:#fdd">        return GLFW_TRUE;</span>
+
+<span style = "background-color:#dfd">    memset(&amp;_glfw, 0, sizeof(_glfw));
+    _glfw.hints.init = _glfwInitHints;</span>
+
+<span style = "background-color:#dfd">    _glfw.allocator = _glfwInitAllocator;
+    if (!_glfw.allocator.allocate)</span>
+    {
+<span style = "background-color:#dfd">        _glfw.allocator.allocate   = defaultAllocate;
+        _glfw.allocator.reallocate = defaultReallocate;
+        _glfw.allocator.deallocate = defaultDeallocate;</span>
+    }
+
+<span style = "background-color:#dfd">    if (!_glfwPlatformInit())</span>
+    {
+<span style = "background-color:#fdd">        terminate();
+        return GLFW_FALSE;</span>
+    }
+
+    if (!_glfwPlatformCreateMutex(&amp;_glfw.errorLock) ||
+<span style = "background-color:#dfd">        !_glfwPlatformCreateTls(&amp;_glfw.errorSlot) ||</span>
+        !_glfwPlatformCreateTls(&amp;_glfw.contextSlot))
+    {
+<span style = "background-color:#fdd">        terminate();
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    _glfwPlatformSetTls(&amp;_glfw.errorSlot, &amp;_glfwMainThreadError);</span>
+
+<span style = "background-color:#dfd">    _glfwInitGamepadMappings();</span>
+
+<span style = "background-color:#dfd">    _glfw.initialized = GLFW_TRUE;
+    _glfw.timer.offset = _glfwPlatformGetTimerValue();</span>
+
+<span style = "background-color:#dfd">    glfwDefaultWindowHints();
+    return GLFW_TRUE;
+}</span>
+
+GLFWAPI void glfwTerminate(void)
+<span style = "background-color:#dfd">{
+    if (!_glfw.initialized)</span>
+<span style = "background-color:#fdd">        return;</span>
+
+<span style = "background-color:#dfd">    terminate();
+}</span>
+
+GLFWAPI void glfwInitHint(int hint, int value)
+<span style = "background-color:#fdd">{
+    switch (hint)</span>
+    {
+        case GLFW_JOYSTICK_HAT_BUTTONS:
+<span style = "background-color:#fdd">            _glfwInitHints.hatButtons = value;
+            return;</span>
+        case GLFW_ANGLE_PLATFORM_TYPE:
+<span style = "background-color:#fdd">            _glfwInitHints.angleType = value;
+            return;</span>
+        case GLFW_COCOA_CHDIR_RESOURCES:
+<span style = "background-color:#fdd">            _glfwInitHints.ns.chdir = value;
+            return;</span>
+        case GLFW_COCOA_MENUBAR:
+<span style = "background-color:#fdd">            _glfwInitHints.ns.menubar = value;
+            return;</span>
+        case GLFW_X11_XCB_VULKAN_SURFACE:
+<span style = "background-color:#fdd">            _glfwInitHints.x11.xcbVulkanSurface = value;
+            return;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwInputError(GLFW_INVALID_ENUM,</span>
+                    "Invalid init hint 0x%08X", hint);
+<span style = "background-color:#fdd">}</span>
+
+GLFWAPI void glfwInitAllocator(const GLFWallocator* allocator)
+<span style = "background-color:#fdd">{
+    if (allocator)</span>
+    {
+<span style = "background-color:#fdd">        if (allocator-&gt;allocate &amp;&amp; allocator-&gt;reallocate &amp;&amp; allocator-&gt;deallocate)
+            _glfwInitAllocator = *allocator;</span>
+        else
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE, "Missing function in allocator");
+    }</span>
+    else
+<span style = "background-color:#fdd">        memset(&amp;_glfwInitAllocator, 0, sizeof(GLFWallocator));
+}</span>
+
+GLFWAPI void glfwGetVersion(int* major, int* minor, int* rev)
+<span style = "background-color:#fdd">{
+    if (major != NULL)
+        *major = GLFW_VERSION_MAJOR;
+    if (minor != NULL)
+        *minor = GLFW_VERSION_MINOR;
+    if (rev != NULL)
+        *rev = GLFW_VERSION_REVISION;
+}</span>
+
+GLFWAPI const char* glfwGetVersionString(void)
+<span style = "background-color:#fdd">{
+    return _glfwPlatformGetVersionString();
+}</span>
+
+GLFWAPI int glfwGetError(const char** description)
+<span style = "background-color:#fdd">{</span>
+    _GLFWerror* error;
+<span style = "background-color:#fdd">    int code = GLFW_NO_ERROR;</span>
+
+<span style = "background-color:#fdd">    if (description)
+        *description = NULL;</span>
+
+<span style = "background-color:#fdd">    if (_glfw.initialized)
+        error = _glfwPlatformGetTls(&amp;_glfw.errorSlot);</span>
+    else
+<span style = "background-color:#fdd">        error = &amp;_glfwMainThreadError;</span>
+
+<span style = "background-color:#fdd">    if (error)</span>
+    {
+<span style = "background-color:#fdd">        code = error-&gt;code;
+        error-&gt;code = GLFW_NO_ERROR;
+        if (description &amp;&amp; code)
+            *description = error-&gt;description;</span>
+    }
+
+<span style = "background-color:#fdd">    return code;
+}</span>
+
+GLFWAPI GLFWerrorfun glfwSetErrorCallback(GLFWerrorfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFW_SWAP_POINTERS(_glfwErrorCallback, cbfun);
+    return cbfun;
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

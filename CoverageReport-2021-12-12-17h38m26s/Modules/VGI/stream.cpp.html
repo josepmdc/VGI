@@ -1,0 +1,472 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>stream.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include &lt;iostream&gt;
+
+#include "stream.h"
+
+#ifndef YAML_PREFETCH_SIZE
+#define YAML_PREFETCH_SIZE 2048
+#endif
+
+#define S_ARRAY_SIZE(A) (sizeof(A) / sizeof(*(A)))
+#define S_ARRAY_END(A) ((A) + S_ARRAY_SIZE(A))
+
+#define CP_REPLACEMENT_CHARACTER (0xFFFD)
+
+namespace YAML {
+enum UtfIntroState {
+  uis_start,
+  uis_utfbe_b1,
+  uis_utf32be_b2,
+  uis_utf32be_bom3,
+  uis_utf32be,
+  uis_utf16be,
+  uis_utf16be_bom1,
+  uis_utfle_bom1,
+  uis_utf16le_bom2,
+  uis_utf32le_bom3,
+  uis_utf16le,
+  uis_utf32le,
+  uis_utf8_imp,
+  uis_utf16le_imp,
+  uis_utf32le_imp3,
+  uis_utf8_bom1,
+  uis_utf8_bom2,
+  uis_utf8,
+  uis_error
+};
+
+enum UtfIntroCharType {
+  uict00,
+  uictBB,
+  uictBF,
+  uictEF,
+  uictFE,
+  uictFF,
+  uictAscii,
+  uictOther,
+  uictMax
+};
+
+static bool s_introFinalState[] = {
+    false,  // uis_start
+    false,  // uis_utfbe_b1
+    false,  // uis_utf32be_b2
+    false,  // uis_utf32be_bom3
+    true,   // uis_utf32be
+    true,   // uis_utf16be
+    false,  // uis_utf16be_bom1
+    false,  // uis_utfle_bom1
+    false,  // uis_utf16le_bom2
+    false,  // uis_utf32le_bom3
+    true,   // uis_utf16le
+    true,   // uis_utf32le
+    false,  // uis_utf8_imp
+    false,  // uis_utf16le_imp
+    false,  // uis_utf32le_imp3
+    false,  // uis_utf8_bom1
+    false,  // uis_utf8_bom2
+    true,   // uis_utf8
+    true,   // uis_error
+};
+
+static UtfIntroState s_introTransitions[][uictMax] = {
+    // uict00,           uictBB,           uictBF,           uictEF,
+    // uictFE,           uictFF,           uictAscii,        uictOther
+    {uis_utfbe_b1, uis_utf8, uis_utf8, uis_utf8_bom1, uis_utf16be_bom1,
+     uis_utfle_bom1, uis_utf8_imp, uis_utf8},
+    {uis_utf32be_b2, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8,
+     uis_utf16be, uis_utf8},
+    {uis_utf32be, uis_utf8, uis_utf8, uis_utf8, uis_utf32be_bom3, uis_utf8,
+     uis_utf8, uis_utf8},
+    {uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf32be, uis_utf8,
+     uis_utf8},
+    {uis_utf32be, uis_utf32be, uis_utf32be, uis_utf32be, uis_utf32be,
+     uis_utf32be, uis_utf32be, uis_utf32be},
+    {uis_utf16be, uis_utf16be, uis_utf16be, uis_utf16be, uis_utf16be,
+     uis_utf16be, uis_utf16be, uis_utf16be},
+    {uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf16be, uis_utf8,
+     uis_utf8},
+    {uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf16le_bom2, uis_utf8,
+     uis_utf8, uis_utf8},
+    {uis_utf32le_bom3, uis_utf16le, uis_utf16le, uis_utf16le, uis_utf16le,
+     uis_utf16le, uis_utf16le, uis_utf16le},
+    {uis_utf32le, uis_utf16le, uis_utf16le, uis_utf16le, uis_utf16le,
+     uis_utf16le, uis_utf16le, uis_utf16le},
+    {uis_utf16le, uis_utf16le, uis_utf16le, uis_utf16le, uis_utf16le,
+     uis_utf16le, uis_utf16le, uis_utf16le},
+    {uis_utf32le, uis_utf32le, uis_utf32le, uis_utf32le, uis_utf32le,
+     uis_utf32le, uis_utf32le, uis_utf32le},
+    {uis_utf16le_imp, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8,
+     uis_utf8, uis_utf8},
+    {uis_utf32le_imp3, uis_utf16le, uis_utf16le, uis_utf16le, uis_utf16le,
+     uis_utf16le, uis_utf16le, uis_utf16le},
+    {uis_utf32le, uis_utf16le, uis_utf16le, uis_utf16le, uis_utf16le,
+     uis_utf16le, uis_utf16le, uis_utf16le},
+    {uis_utf8, uis_utf8_bom2, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8,
+     uis_utf8},
+    {uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8,
+     uis_utf8},
+    {uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8, uis_utf8,
+     uis_utf8},
+};
+
+static char s_introUngetCount[][uictMax] = {
+    // uict00, uictBB, uictBF, uictEF, uictFE, uictFF, uictAscii, uictOther
+    {0, 1, 1, 0, 0, 0, 0, 1}, {0, 2, 2, 2, 2, 2, 2, 2},
+    {3, 3, 3, 3, 0, 3, 3, 3}, {4, 4, 4, 4, 4, 0, 4, 4},
+    {1, 1, 1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1, 1, 1},
+    {2, 2, 2, 2, 2, 0, 2, 2}, {2, 2, 2, 2, 0, 2, 2, 2},
+    {0, 1, 1, 1, 1, 1, 1, 1}, {0, 2, 2, 2, 2, 2, 2, 2},
+    {1, 1, 1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1, 1, 1},
+    {0, 2, 2, 2, 2, 2, 2, 2}, {0, 3, 3, 3, 3, 3, 3, 3},
+    {4, 4, 4, 4, 4, 4, 4, 4}, {2, 0, 2, 2, 2, 2, 2, 2},
+    {3, 3, 0, 3, 3, 3, 3, 3}, {1, 1, 1, 1, 1, 1, 1, 1},
+};
+
+<span style = "background-color:#dfd">inline UtfIntroCharType IntroCharTypeOf(std::istream::int_type ch) {
+  if (std::istream::traits_type::eof() == ch) {</span>
+<span style = "background-color:#fdd">    return uictOther;</span>
+  }
+
+<span style = "background-color:#dfd">  switch (ch) {</span>
+    case 0:
+<span style = "background-color:#fdd">      return uict00;</span>
+    case 0xBB:
+<span style = "background-color:#fdd">      return uictBB;</span>
+    case 0xBF:
+<span style = "background-color:#fdd">      return uictBF;</span>
+    case 0xEF:
+<span style = "background-color:#fdd">      return uictEF;</span>
+    case 0xFE:
+<span style = "background-color:#fdd">      return uictFE;</span>
+    case 0xFF:
+<span style = "background-color:#fdd">      return uictFF;</span>
+  }
+
+<span style = "background-color:#dfd">  if ((ch &gt; 0) &amp;&amp; (ch &lt; 0xFF)) {
+    return uictAscii;</span>
+  }
+
+<span style = "background-color:#fdd">  return uictOther;</span>
+<span style = "background-color:#dfd">}</span>
+
+inline char Utf8Adjust(unsigned long ch, unsigned char lead_bits,
+<span style = "background-color:#fdd">                       unsigned char rshift) {
+  const unsigned char header =</span>
+      static_cast&lt;unsigned char&gt;(((1 &lt;&lt; lead_bits) - 1) &lt;&lt; (8 - lead_bits));
+<span style = "background-color:#fdd">  const unsigned char mask = (0xFF &gt;&gt; (lead_bits + 1));
+  return static_cast&lt;char&gt;(</span>
+      static_cast&lt;unsigned char&gt;(header | ((ch &gt;&gt; rshift) &amp; mask)));
+<span style = "background-color:#fdd">}</span>
+
+<span style = "background-color:#fdd">inline void QueueUnicodeCodepoint(std::deque&lt;char&gt;&amp; q, unsigned long ch) {</span>
+  // We are not allowed to queue the Stream::eof() codepoint, so
+  // replace it with CP_REPLACEMENT_CHARACTER
+<span style = "background-color:#fdd">  if (static_cast&lt;unsigned long&gt;(Stream::eof()) == ch) {
+    ch = CP_REPLACEMENT_CHARACTER;</span>
+  }
+
+<span style = "background-color:#fdd">  if (ch &lt; 0x80) {
+    q.push_back(Utf8Adjust(ch, 0, 0));
+  } else if (ch &lt; 0x800) {
+    q.push_back(Utf8Adjust(ch, 2, 6));
+    q.push_back(Utf8Adjust(ch, 1, 0));
+  } else if (ch &lt; 0x10000) {
+    q.push_back(Utf8Adjust(ch, 3, 12));
+    q.push_back(Utf8Adjust(ch, 1, 6));
+    q.push_back(Utf8Adjust(ch, 1, 0));
+  } else {
+    q.push_back(Utf8Adjust(ch, 4, 18));
+    q.push_back(Utf8Adjust(ch, 1, 12));
+    q.push_back(Utf8Adjust(ch, 1, 6));
+    q.push_back(Utf8Adjust(ch, 1, 0));</span>
+  }
+<span style = "background-color:#fdd">}</span>
+
+Stream::Stream(std::istream&amp; input)
+<span style = "background-color:#dfd">    : m_input(input),
+      m_mark{},
+      m_charSet{},
+      m_readahead{},
+      m_pPrefetched(new unsigned char[YAML_PREFETCH_SIZE]),
+      m_nPrefetchedAvailable(0),
+      m_nPrefetchedUsed(0) {</span>
+  using char_traits = std::istream::traits_type;
+
+<span style = "background-color:#dfd">  if (!input)</span>
+<span style = "background-color:#fdd">    return;</span>
+
+  // Determine (or guess) the character-set by reading the BOM, if any.  See
+  // the YAML specification for the determination algorithm.
+<span style = "background-color:#dfd">  char_traits::int_type intro[4]{};
+  int nIntroUsed = 0;
+  UtfIntroState state = uis_start;
+  for (; !s_introFinalState[state];) {
+    std::istream::int_type ch = input.get();
+    intro[nIntroUsed++] = ch;
+    UtfIntroCharType charType = IntroCharTypeOf(ch);
+    UtfIntroState newState = s_introTransitions[state][charType];
+    int nUngets = s_introUngetCount[state][charType];
+    if (nUngets &gt; 0) {
+      input.clear();
+      for (; nUngets &gt; 0; --nUngets) {
+        if (char_traits::eof() != intro[--nIntroUsed])
+          input.putback(char_traits::to_char_type(intro[nIntroUsed]));
+      }</span>
+    }
+<span style = "background-color:#dfd">    state = newState;
+  }</span>
+
+<span style = "background-color:#dfd">  switch (state) {</span>
+    case uis_utf8:
+<span style = "background-color:#dfd">      m_charSet = utf8;
+      break;</span>
+    case uis_utf16le:
+<span style = "background-color:#fdd">      m_charSet = utf16le;
+      break;</span>
+    case uis_utf16be:
+<span style = "background-color:#fdd">      m_charSet = utf16be;
+      break;</span>
+    case uis_utf32le:
+<span style = "background-color:#fdd">      m_charSet = utf32le;
+      break;</span>
+    case uis_utf32be:
+<span style = "background-color:#fdd">      m_charSet = utf32be;
+      break;</span>
+    default:
+<span style = "background-color:#fdd">      m_charSet = utf8;</span>
+      break;
+  }
+
+<span style = "background-color:#dfd">  ReadAheadTo(0);
+}</span>
+
+<span style = "background-color:#dfd">Stream::~Stream() { delete[] m_pPrefetched; }</span>
+
+<span style = "background-color:#dfd">char Stream::peek() const {
+  if (m_readahead.empty()) {</span>
+<span style = "background-color:#fdd">    return Stream::eof();</span>
+  }
+
+<span style = "background-color:#dfd">  return m_readahead[0];
+}</span>
+
+<span style = "background-color:#dfd">Stream::operator bool() const {
+  return m_input.good() ||</span>
+         (!m_readahead.empty() &amp;&amp; m_readahead[0] != Stream::eof());
+<span style = "background-color:#dfd">}</span>
+
+// get
+// . Extracts a character from the stream and updates our position
+<span style = "background-color:#dfd">char Stream::get() {
+  char ch = peek();
+  AdvanceCurrent();
+  m_mark.column++;</span>
+
+<span style = "background-color:#dfd">  if (ch == '\n') {
+    m_mark.column = 0;
+    m_mark.line++;</span>
+  }
+
+<span style = "background-color:#dfd">  return ch;
+}</span>
+
+// get
+// . Extracts 'n' characters from the stream and updates our position
+<span style = "background-color:#fdd">std::string Stream::get(int n) {
+  std::string ret;
+  if (n &gt; 0) {
+    ret.reserve(static_cast&lt;std::string::size_type&gt;(n));
+    for (int i = 0; i &lt; n; i++)
+      ret += get();</span>
+  }
+<span style = "background-color:#fdd">  return ret;
+}</span>
+
+// eat
+// . Eats 'n' characters and updates our position.
+<span style = "background-color:#dfd">void Stream::eat(int n) {
+  for (int i = 0; i &lt; n; i++)
+    get();
+}</span>
+
+<span style = "background-color:#dfd">void Stream::AdvanceCurrent() {
+  if (!m_readahead.empty()) {
+    m_readahead.pop_front();
+    m_mark.pos++;</span>
+  }
+
+<span style = "background-color:#dfd">  ReadAheadTo(0);
+}</span>
+
+<span style = "background-color:#dfd">bool Stream::_ReadAheadTo(size_t i) const {
+  while (m_input.good() &amp;&amp; (m_readahead.size() &lt;= i)) {
+    switch (m_charSet) {</span>
+      case utf8:
+<span style = "background-color:#dfd">        StreamInUtf8();
+        break;</span>
+      case utf16le:
+<span style = "background-color:#fdd">        StreamInUtf16();
+        break;</span>
+      case utf16be:
+<span style = "background-color:#fdd">        StreamInUtf16();
+        break;</span>
+      case utf32le:
+<span style = "background-color:#fdd">        StreamInUtf32();
+        break;</span>
+      case utf32be:
+<span style = "background-color:#fdd">        StreamInUtf32();</span>
+        break;
+    }
+<span style = "background-color:#dfd">  }</span>
+
+  // signal end of stream
+<span style = "background-color:#dfd">  if (!m_input.good())
+    m_readahead.push_back(Stream::eof());</span>
+
+<span style = "background-color:#dfd">  return m_readahead.size() &gt; i;
+}</span>
+
+<span style = "background-color:#dfd">void Stream::StreamInUtf8() const {
+  unsigned char b = GetNextByte();
+  if (m_input.good()) {
+    m_readahead.push_back(static_cast&lt;char&gt;(b));</span>
+  }
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#fdd">void Stream::StreamInUtf16() const {
+  unsigned long ch = 0;</span>
+  unsigned char bytes[2];
+<span style = "background-color:#fdd">  int nBigEnd = (m_charSet == utf16be) ? 0 : 1;</span>
+
+<span style = "background-color:#fdd">  bytes[0] = GetNextByte();
+  bytes[1] = GetNextByte();
+  if (!m_input.good()) {
+    return;</span>
+  }
+<span style = "background-color:#fdd">  ch = (static_cast&lt;unsigned long&gt;(bytes[nBigEnd]) &lt;&lt; 8) |</span>
+       static_cast&lt;unsigned long&gt;(bytes[1 ^ nBigEnd]);
+
+<span style = "background-color:#fdd">  if (ch &gt;= 0xDC00 &amp;&amp; ch &lt; 0xE000) {</span>
+    // Trailing (low) surrogate...ugh, wrong order
+<span style = "background-color:#fdd">    QueueUnicodeCodepoint(m_readahead, CP_REPLACEMENT_CHARACTER);
+    return;</span>
+  }
+
+<span style = "background-color:#fdd">  if (ch &gt;= 0xD800 &amp;&amp; ch &lt; 0xDC00) {</span>
+    // ch is a leading (high) surrogate
+
+    // Four byte UTF-8 code point
+
+    // Read the trailing (low) surrogate
+    for (;;) {
+<span style = "background-color:#fdd">      bytes[0] = GetNextByte();
+      bytes[1] = GetNextByte();
+      if (!m_input.good()) {
+        QueueUnicodeCodepoint(m_readahead, CP_REPLACEMENT_CHARACTER);
+        return;</span>
+      }
+<span style = "background-color:#fdd">      unsigned long chLow = (static_cast&lt;unsigned long&gt;(bytes[nBigEnd]) &lt;&lt; 8) |</span>
+                            static_cast&lt;unsigned long&gt;(bytes[1 ^ nBigEnd]);
+<span style = "background-color:#fdd">      if (chLow &lt; 0xDC00 || chLow &gt;= 0xE000) {</span>
+        // Trouble...not a low surrogate.  Dump a REPLACEMENT CHARACTER into the
+        // stream.
+<span style = "background-color:#fdd">        QueueUnicodeCodepoint(m_readahead, CP_REPLACEMENT_CHARACTER);</span>
+
+        // Deal with the next UTF-16 unit
+<span style = "background-color:#fdd">        if (chLow &lt; 0xD800 || chLow &gt;= 0xE000) {</span>
+          // Easiest case: queue the codepoint and return
+<span style = "background-color:#fdd">          QueueUnicodeCodepoint(m_readahead, ch);
+          return;</span>
+        }
+        // Start the loop over with the new high surrogate
+<span style = "background-color:#fdd">        ch = chLow;
+        continue;</span>
+      }
+
+      // Select the payload bits from the high surrogate
+<span style = "background-color:#fdd">      ch &amp;= 0x3FF;
+      ch &lt;&lt;= 10;</span>
+
+      // Include bits from low surrogate
+<span style = "background-color:#fdd">      ch |= (chLow &amp; 0x3FF);</span>
+
+      // Add the surrogacy offset
+<span style = "background-color:#fdd">      ch += 0x10000;
+      break;
+    }</span>
+  }
+
+<span style = "background-color:#fdd">  QueueUnicodeCodepoint(m_readahead, ch);
+}</span>
+
+<span style = "background-color:#dfd">inline char* ReadBuffer(unsigned char* pBuffer) {
+  return reinterpret_cast&lt;char*&gt;(pBuffer);
+}</span>
+
+<span style = "background-color:#dfd">unsigned char Stream::GetNextByte() const {
+  if (m_nPrefetchedUsed &gt;= m_nPrefetchedAvailable) {
+    std::streambuf* pBuf = m_input.rdbuf();
+    m_nPrefetchedAvailable = static_cast&lt;std::size_t&gt;(</span>
+        pBuf-&gt;sgetn(ReadBuffer(m_pPrefetched), YAML_PREFETCH_SIZE));
+<span style = "background-color:#dfd">    m_nPrefetchedUsed = 0;
+    if (!m_nPrefetchedAvailable) {
+      m_input.setstate(std::ios_base::eofbit);</span>
+    }
+
+<span style = "background-color:#dfd">    if (0 == m_nPrefetchedAvailable) {
+      return 0;</span>
+    }
+  }
+
+<span style = "background-color:#dfd">  return m_pPrefetched[m_nPrefetchedUsed++];
+}</span>
+
+<span style = "background-color:#fdd">void Stream::StreamInUtf32() const {</span>
+  static int indexes[2][4] = {{3, 2, 1, 0}, {0, 1, 2, 3}};
+
+<span style = "background-color:#fdd">  unsigned long ch = 0;</span>
+  unsigned char bytes[4];
+<span style = "background-color:#fdd">  int* pIndexes = (m_charSet == utf32be) ? indexes[1] : indexes[0];</span>
+
+<span style = "background-color:#fdd">  bytes[0] = GetNextByte();
+  bytes[1] = GetNextByte();
+  bytes[2] = GetNextByte();
+  bytes[3] = GetNextByte();
+  if (!m_input.good()) {
+    return;</span>
+  }
+
+<span style = "background-color:#fdd">  for (int i = 0; i &lt; 4; ++i) {
+    ch &lt;&lt;= 8;
+    ch |= bytes[pIndexes[i]];
+  }</span>
+
+<span style = "background-color:#fdd">  QueueUnicodeCodepoint(m_readahead, ch);
+}</span>
+}  // namespace YAML</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

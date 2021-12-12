@@ -1,0 +1,2430 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>win32_window.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 Win32 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2019 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;limits.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;windowsx.h&gt;
+#include &lt;shellapi.h&gt;
+
+// Returns the window style for the specified window
+//
+static DWORD getWindowStyle(const _GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    DWORD style = WS_CLIPSIBLINGS | WS_CLIPCHILDREN;</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;monitor)</span>
+<span style = "background-color:#fdd">        style |= WS_POPUP;</span>
+    else
+    {
+<span style = "background-color:#dfd">        style |= WS_SYSMENU | WS_MINIMIZEBOX;</span>
+
+<span style = "background-color:#dfd">        if (window-&gt;decorated)</span>
+        {
+<span style = "background-color:#dfd">            style |= WS_CAPTION;</span>
+
+<span style = "background-color:#dfd">            if (window-&gt;resizable)
+                style |= WS_MAXIMIZEBOX | WS_THICKFRAME;
+        }</span>
+        else
+<span style = "background-color:#fdd">            style |= WS_POPUP;</span>
+    }
+
+<span style = "background-color:#dfd">    return style;
+}</span>
+
+// Returns the extended window style for the specified window
+//
+static DWORD getWindowExStyle(const _GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    DWORD style = WS_EX_APPWINDOW;</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;monitor || window-&gt;floating)</span>
+<span style = "background-color:#fdd">        style |= WS_EX_TOPMOST;</span>
+
+<span style = "background-color:#dfd">    return style;
+}</span>
+
+// Returns the image whose area most closely matches the desired one
+//
+static const GLFWimage* chooseImage(int count, const GLFWimage* images,
+                                    int width, int height)
+<span style = "background-color:#fdd">{
+    int i, leastDiff = INT_MAX;
+    const GLFWimage* closest = NULL;</span>
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt; count;  i++)</span>
+    {
+<span style = "background-color:#fdd">        const int currDiff = abs(images[i].width * images[i].height -</span>
+                                 width * height);
+<span style = "background-color:#fdd">        if (currDiff &lt; leastDiff)</span>
+        {
+<span style = "background-color:#fdd">            closest = images + i;
+            leastDiff = currDiff;</span>
+        }
+<span style = "background-color:#fdd">    }</span>
+
+<span style = "background-color:#fdd">    return closest;
+}</span>
+
+// Creates an RGBA icon or cursor
+//
+static HICON createIcon(const GLFWimage* image,
+                        int xhot, int yhot, GLFWbool icon)
+<span style = "background-color:#fdd">{</span>
+    int i;
+    HDC dc;
+    HICON handle;
+    HBITMAP color, mask;
+    BITMAPV5HEADER bi;
+    ICONINFO ii;
+<span style = "background-color:#fdd">    unsigned char* target = NULL;
+    unsigned char* source = image-&gt;pixels;</span>
+
+<span style = "background-color:#fdd">    ZeroMemory(&amp;bi, sizeof(bi));
+    bi.bV5Size        = sizeof(bi);
+    bi.bV5Width       = image-&gt;width;
+    bi.bV5Height      = -image-&gt;height;
+    bi.bV5Planes      = 1;
+    bi.bV5BitCount    = 32;
+    bi.bV5Compression = BI_BITFIELDS;
+    bi.bV5RedMask     = 0x00ff0000;
+    bi.bV5GreenMask   = 0x0000ff00;
+    bi.bV5BlueMask    = 0x000000ff;
+    bi.bV5AlphaMask   = 0xff000000;</span>
+
+<span style = "background-color:#fdd">    dc = GetDC(NULL);
+    color = CreateDIBSection(dc,</span>
+                             (BITMAPINFO*) &amp;bi,
+                             DIB_RGB_COLORS,
+                             (void**) &amp;target,
+                             NULL,
+                             (DWORD) 0);
+<span style = "background-color:#fdd">    ReleaseDC(NULL, dc);</span>
+
+<span style = "background-color:#fdd">    if (!color)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to create RGBA bitmap");
+<span style = "background-color:#fdd">        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    mask = CreateBitmap(image-&gt;width, image-&gt;height, 1, 1, NULL);
+    if (!mask)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to create mask bitmap");
+<span style = "background-color:#fdd">        DeleteObject(color);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt; image-&gt;width * image-&gt;height;  i++)</span>
+    {
+<span style = "background-color:#fdd">        target[0] = source[2];
+        target[1] = source[1];
+        target[2] = source[0];
+        target[3] = source[3];
+        target += 4;
+        source += 4;
+    }</span>
+
+<span style = "background-color:#fdd">    ZeroMemory(&amp;ii, sizeof(ii));
+    ii.fIcon    = icon;
+    ii.xHotspot = xhot;
+    ii.yHotspot = yhot;
+    ii.hbmMask  = mask;
+    ii.hbmColor = color;</span>
+
+<span style = "background-color:#fdd">    handle = CreateIconIndirect(&amp;ii);</span>
+
+<span style = "background-color:#fdd">    DeleteObject(color);
+    DeleteObject(mask);</span>
+
+<span style = "background-color:#fdd">    if (!handle)</span>
+    {
+<span style = "background-color:#fdd">        if (icon)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                 "Win32: Failed to create icon");
+<span style = "background-color:#fdd">        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                 "Win32: Failed to create cursor");
+        }
+    }
+
+<span style = "background-color:#fdd">    return handle;
+}</span>
+
+// Translate content area size to full window size according to styles and DPI
+//
+static void getFullWindowSize(DWORD style, DWORD exStyle,
+                              int contentWidth, int contentHeight,
+                              int* fullWidth, int* fullHeight,
+                              UINT dpi)
+<span style = "background-color:#dfd">{
+    RECT rect = { 0, 0, contentWidth, contentHeight };</span>
+
+<span style = "background-color:#dfd">    if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())
+        AdjustWindowRectExForDpi(&amp;rect, style, FALSE, exStyle, dpi);</span>
+    else
+<span style = "background-color:#fdd">        AdjustWindowRectEx(&amp;rect, style, FALSE, exStyle);</span>
+
+<span style = "background-color:#dfd">    *fullWidth = rect.right - rect.left;
+    *fullHeight = rect.bottom - rect.top;
+}</span>
+
+// Enforce the content area aspect ratio based on which edge is being dragged
+//
+static void applyAspectRatio(_GLFWwindow* window, int edge, RECT* area)
+<span style = "background-color:#fdd">{</span>
+    int xoff, yoff;
+<span style = "background-color:#fdd">    UINT dpi = USER_DEFAULT_SCREEN_DPI;
+    const float ratio = (float) window-&gt;numer / (float) window-&gt;denom;</span>
+
+<span style = "background-color:#fdd">    if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())
+        dpi = GetDpiForWindow(window-&gt;win32.handle);</span>
+
+<span style = "background-color:#fdd">    getFullWindowSize(getWindowStyle(window), getWindowExStyle(window),</span>
+                      0, 0, &amp;xoff, &amp;yoff, dpi);
+
+    if (edge == WMSZ_LEFT  || edge == WMSZ_BOTTOMLEFT ||
+<span style = "background-color:#fdd">        edge == WMSZ_RIGHT || edge == WMSZ_BOTTOMRIGHT)</span>
+    {
+<span style = "background-color:#fdd">        area-&gt;bottom = area-&gt;top + yoff +</span>
+            (int) ((area-&gt;right - area-&gt;left - xoff) / ratio);
+<span style = "background-color:#fdd">    }
+    else if (edge == WMSZ_TOPLEFT || edge == WMSZ_TOPRIGHT)</span>
+    {
+<span style = "background-color:#fdd">        area-&gt;top = area-&gt;bottom - yoff -</span>
+            (int) ((area-&gt;right - area-&gt;left - xoff) / ratio);
+<span style = "background-color:#fdd">    }
+    else if (edge == WMSZ_TOP || edge == WMSZ_BOTTOM)</span>
+    {
+<span style = "background-color:#fdd">        area-&gt;right = area-&gt;left + xoff +</span>
+            (int) ((area-&gt;bottom - area-&gt;top - yoff) * ratio);
+    }
+<span style = "background-color:#fdd">}</span>
+
+// Updates the cursor image according to its cursor mode
+//
+static void updateCursorImage(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (window-&gt;cursorMode == GLFW_CURSOR_NORMAL)</span>
+    {
+<span style = "background-color:#dfd">        if (window-&gt;cursor)
+            SetCursor(window-&gt;cursor-&gt;win32.handle);</span>
+        else
+<span style = "background-color:#fdd">            SetCursor(LoadCursorW(NULL, IDC_ARROW));</span>
+<span style = "background-color:#dfd">    }</span>
+    else
+<span style = "background-color:#dfd">        SetCursor(NULL);
+}</span>
+
+// Updates the cursor clip rect
+//
+static void updateClipRect(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (window)</span>
+    {
+        RECT clipRect;
+<span style = "background-color:#dfd">        GetClientRect(window-&gt;win32.handle, &amp;clipRect);
+        ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;clipRect.left);
+        ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;clipRect.right);
+        ClipCursor(&amp;clipRect);
+    }</span>
+    else
+<span style = "background-color:#dfd">        ClipCursor(NULL);
+}</span>
+
+// Enables WM_INPUT messages for the mouse for the specified window
+//
+static void enableRawMouseMotion(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    const RAWINPUTDEVICE rid = { 0x01, 0x02, 0, window-&gt;win32.handle };</span>
+
+<span style = "background-color:#fdd">    if (!RegisterRawInputDevices(&amp;rid, 1, sizeof(rid)))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to register raw input device");
+    }
+<span style = "background-color:#fdd">}</span>
+
+// Disables WM_INPUT messages for the mouse
+//
+static void disableRawMouseMotion(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    const RAWINPUTDEVICE rid = { 0x01, 0x02, RIDEV_REMOVE, NULL };</span>
+
+<span style = "background-color:#fdd">    if (!RegisterRawInputDevices(&amp;rid, 1, sizeof(rid)))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to remove raw input device");
+    }
+<span style = "background-color:#fdd">}</span>
+
+// Apply disabled cursor mode to a focused window
+//
+static void disableCursor(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    _glfw.win32.disabledCursorWindow = window;
+    _glfwPlatformGetCursorPos(window,</span>
+                              &amp;_glfw.win32.restoreCursorPosX,
+                              &amp;_glfw.win32.restoreCursorPosY);
+<span style = "background-color:#dfd">    updateCursorImage(window);
+    _glfwCenterCursorInContentArea(window);
+    updateClipRect(window);</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;rawMouseMotion)</span>
+<span style = "background-color:#fdd">        enableRawMouseMotion(window);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Exit disabled cursor mode for the specified window
+//
+static void enableCursor(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (window-&gt;rawMouseMotion)</span>
+<span style = "background-color:#fdd">        disableRawMouseMotion(window);</span>
+
+<span style = "background-color:#dfd">    _glfw.win32.disabledCursorWindow = NULL;
+    updateClipRect(NULL);
+    _glfwPlatformSetCursorPos(window,</span>
+                              _glfw.win32.restoreCursorPosX,
+                              _glfw.win32.restoreCursorPosY);
+<span style = "background-color:#dfd">    updateCursorImage(window);
+}</span>
+
+// Returns whether the cursor is in the content area of the specified window
+//
+static GLFWbool cursorInContentArea(_GLFWwindow* window)
+<span style = "background-color:#dfd">{</span>
+    RECT area;
+    POINT pos;
+
+<span style = "background-color:#dfd">    if (!GetCursorPos(&amp;pos))</span>
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">    if (WindowFromPoint(pos) != window-&gt;win32.handle)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">    GetClientRect(window-&gt;win32.handle, &amp;area);
+    ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;area.left);
+    ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;area.right);</span>
+
+<span style = "background-color:#dfd">    return PtInRect(&amp;area, pos);
+}</span>
+
+// Update native window styles to match attributes
+//
+static void updateWindowStyles(const _GLFWwindow* window)
+<span style = "background-color:#fdd">{</span>
+    RECT rect;
+<span style = "background-color:#fdd">    DWORD style = GetWindowLongW(window-&gt;win32.handle, GWL_STYLE);
+    style &amp;= ~(WS_OVERLAPPEDWINDOW | WS_POPUP);
+    style |= getWindowStyle(window);</span>
+
+<span style = "background-color:#fdd">    GetClientRect(window-&gt;win32.handle, &amp;rect);</span>
+
+<span style = "background-color:#fdd">    if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+    {
+<span style = "background-color:#fdd">        AdjustWindowRectExForDpi(&amp;rect, style, FALSE,</span>
+                                 getWindowExStyle(window),
+                                 GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#fdd">    }</span>
+    else
+<span style = "background-color:#fdd">        AdjustWindowRectEx(&amp;rect, style, FALSE, getWindowExStyle(window));</span>
+
+<span style = "background-color:#fdd">    ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;rect.left);
+    ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;rect.right);
+    SetWindowLongW(window-&gt;win32.handle, GWL_STYLE, style);
+    SetWindowPos(window-&gt;win32.handle, HWND_TOP,</span>
+                 rect.left, rect.top,
+                 rect.right - rect.left, rect.bottom - rect.top,
+                 SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOZORDER);
+<span style = "background-color:#fdd">}</span>
+
+// Update window framebuffer transparency
+//
+static void updateFramebufferTransparency(const _GLFWwindow* window)
+<span style = "background-color:#fdd">{</span>
+    BOOL composition, opaque;
+    DWORD color;
+
+<span style = "background-color:#fdd">    if (!IsWindowsVistaOrGreater())
+        return;</span>
+
+<span style = "background-color:#fdd">    if (FAILED(DwmIsCompositionEnabled(&amp;composition)) || !composition)
+       return;</span>
+
+<span style = "background-color:#fdd">    if (IsWindows8OrGreater() ||</span>
+        (SUCCEEDED(DwmGetColorizationColor(&amp;color, &amp;opaque)) &amp;&amp; !opaque))
+    {
+<span style = "background-color:#fdd">        HRGN region = CreateRectRgn(0, 0, -1, -1);
+        DWM_BLURBEHIND bb = {0};
+        bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
+        bb.hRgnBlur = region;
+        bb.fEnable = TRUE;</span>
+
+<span style = "background-color:#fdd">        DwmEnableBlurBehindWindow(window-&gt;win32.handle, &amp;bb);
+        DeleteObject(region);
+    }</span>
+    else
+    {
+        // HACK: Disable framebuffer transparency on Windows 7 when the
+        //       colorization color is opaque, because otherwise the window
+        //       contents is blended additively with the previous frame instead
+        //       of replacing it
+<span style = "background-color:#fdd">        DWM_BLURBEHIND bb = {0};
+        bb.dwFlags = DWM_BB_ENABLE;
+        DwmEnableBlurBehindWindow(window-&gt;win32.handle, &amp;bb);</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+// Retrieves and translates modifier keys
+//
+static int getKeyMods(void)
+<span style = "background-color:#dfd">{
+    int mods = 0;</span>
+
+<span style = "background-color:#dfd">    if (GetKeyState(VK_SHIFT) &amp; 0x8000)
+        mods |= GLFW_MOD_SHIFT;
+    if (GetKeyState(VK_CONTROL) &amp; 0x8000)</span>
+<span style = "background-color:#fdd">        mods |= GLFW_MOD_CONTROL;</span>
+<span style = "background-color:#dfd">    if (GetKeyState(VK_MENU) &amp; 0x8000)</span>
+<span style = "background-color:#fdd">        mods |= GLFW_MOD_ALT;</span>
+<span style = "background-color:#dfd">    if ((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) &amp; 0x8000)</span>
+<span style = "background-color:#fdd">        mods |= GLFW_MOD_SUPER;</span>
+<span style = "background-color:#dfd">    if (GetKeyState(VK_CAPITAL) &amp; 1)</span>
+<span style = "background-color:#fdd">        mods |= GLFW_MOD_CAPS_LOCK;</span>
+<span style = "background-color:#dfd">    if (GetKeyState(VK_NUMLOCK) &amp; 1)
+        mods |= GLFW_MOD_NUM_LOCK;</span>
+
+<span style = "background-color:#dfd">    return mods;
+}</span>
+
+static void fitToMonitor(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    MONITORINFO mi = { sizeof(mi) };
+    GetMonitorInfo(window-&gt;monitor-&gt;win32.handle, &amp;mi);
+    SetWindowPos(window-&gt;win32.handle, HWND_TOPMOST,</span>
+                 mi.rcMonitor.left,
+                 mi.rcMonitor.top,
+                 mi.rcMonitor.right - mi.rcMonitor.left,
+                 mi.rcMonitor.bottom - mi.rcMonitor.top,
+                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOCOPYBITS);
+<span style = "background-color:#fdd">}</span>
+
+// Make the specified window and its video mode active on its monitor
+//
+static void acquireMonitor(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    if (!_glfw.win32.acquiredMonitorCount)</span>
+    {
+<span style = "background-color:#fdd">        SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED);</span>
+
+        // HACK: When mouse trails are enabled the cursor becomes invisible when
+        //       the OpenGL ICD switches to page flipping
+<span style = "background-color:#fdd">        SystemParametersInfo(SPI_GETMOUSETRAILS, 0, &amp;_glfw.win32.mouseTrailSize, 0);
+        SystemParametersInfo(SPI_SETMOUSETRAILS, 0, 0, 0);</span>
+    }
+
+<span style = "background-color:#fdd">    if (!window-&gt;monitor-&gt;window)
+        _glfw.win32.acquiredMonitorCount++;</span>
+
+<span style = "background-color:#fdd">    _glfwSetVideoModeWin32(window-&gt;monitor, &amp;window-&gt;videoMode);
+    _glfwInputMonitorWindow(window-&gt;monitor, window);
+}</span>
+
+// Remove the window and restore the original video mode
+//
+static void releaseMonitor(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    if (window-&gt;monitor-&gt;window != window)
+        return;</span>
+
+<span style = "background-color:#fdd">    _glfw.win32.acquiredMonitorCount--;
+    if (!_glfw.win32.acquiredMonitorCount)</span>
+    {
+<span style = "background-color:#fdd">        SetThreadExecutionState(ES_CONTINUOUS);</span>
+
+        // HACK: Restore mouse trail length saved in acquireMonitor
+<span style = "background-color:#fdd">        SystemParametersInfo(SPI_SETMOUSETRAILS, _glfw.win32.mouseTrailSize, 0, 0);</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwInputMonitorWindow(window-&gt;monitor, NULL);
+    _glfwRestoreVideoModeWin32(window-&gt;monitor);
+}</span>
+
+// Window callback function (handles window messages)
+//
+static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
+                                   WPARAM wParam, LPARAM lParam)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = GetPropW(hWnd, L"GLFW");
+    if (!window)</span>
+    {
+        // This is the message handling for the hidden helper window
+        // and for a regular window during its initial creation
+
+<span style = "background-color:#dfd">        switch (uMsg)</span>
+        {
+            case WM_NCCREATE:
+            {
+<span style = "background-color:#dfd">                if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+                {
+<span style = "background-color:#dfd">                    const CREATESTRUCTW* cs = (const CREATESTRUCTW*) lParam;
+                    const _GLFWwndconfig* wndconfig = cs-&gt;lpCreateParams;</span>
+
+                    // On per-monitor DPI aware V1 systems, only enable
+                    // non-client scaling for windows that scale the client area
+                    // We need WM_GETDPISCALEDSIZE from V2 to keep the client
+                    // area static when the non-client area is scaled
+<span style = "background-color:#dfd">                    if (wndconfig &amp;&amp; wndconfig-&gt;scaleToMonitor)</span>
+<span style = "background-color:#fdd">                        EnableNonClientDpiScaling(hWnd);</span>
+                }
+
+<span style = "background-color:#dfd">                break;</span>
+            }
+
+            case WM_DISPLAYCHANGE:
+<span style = "background-color:#fdd">                _glfwPollMonitorsWin32();
+                break;</span>
+
+            case WM_DEVICECHANGE:
+            {
+<span style = "background-color:#fdd">                if (!_glfw.joysticksInitialized)
+                    break;</span>
+
+<span style = "background-color:#fdd">                if (wParam == DBT_DEVICEARRIVAL)</span>
+                {
+<span style = "background-color:#fdd">                    DEV_BROADCAST_HDR* dbh = (DEV_BROADCAST_HDR*) lParam;
+                    if (dbh &amp;&amp; dbh-&gt;dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+                        _glfwDetectJoystickConnectionWin32();
+                }
+                else if (wParam == DBT_DEVICEREMOVECOMPLETE)</span>
+                {
+<span style = "background-color:#fdd">                    DEV_BROADCAST_HDR* dbh = (DEV_BROADCAST_HDR*) lParam;
+                    if (dbh &amp;&amp; dbh-&gt;dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
+                        _glfwDetectJoystickDisconnectionWin32();</span>
+                }
+
+                break;
+            }
+        }
+
+<span style = "background-color:#dfd">        return DefWindowProcW(hWnd, uMsg, wParam, lParam);</span>
+    }
+
+<span style = "background-color:#dfd">    switch (uMsg)</span>
+    {
+        case WM_MOUSEACTIVATE:
+        {
+            // HACK: Postpone cursor disabling when the window was activated by
+            //       clicking a caption button
+<span style = "background-color:#fdd">            if (HIWORD(lParam) == WM_LBUTTONDOWN)</span>
+            {
+<span style = "background-color:#fdd">                if (LOWORD(lParam) != HTCLIENT)
+                    window-&gt;win32.frameAction = GLFW_TRUE;</span>
+            }
+
+<span style = "background-color:#fdd">            break;</span>
+        }
+
+        case WM_CAPTURECHANGED:
+        {
+            // HACK: Disable the cursor once the caption button action has been
+            //       completed or cancelled
+<span style = "background-color:#dfd">            if (lParam == 0 &amp;&amp; window-&gt;win32.frameAction)</span>
+            {
+<span style = "background-color:#fdd">                if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)
+                    disableCursor(window);</span>
+
+<span style = "background-color:#fdd">                window-&gt;win32.frameAction = GLFW_FALSE;</span>
+            }
+
+<span style = "background-color:#dfd">            break;</span>
+        }
+
+        case WM_SETFOCUS:
+        {
+<span style = "background-color:#dfd">            _glfwInputWindowFocus(window, GLFW_TRUE);</span>
+
+            // HACK: Do not disable cursor while the user is interacting with
+            //       a caption button
+<span style = "background-color:#dfd">            if (window-&gt;win32.frameAction)</span>
+<span style = "background-color:#fdd">                break;</span>
+
+<span style = "background-color:#dfd">            if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)</span>
+<span style = "background-color:#fdd">                disableCursor(window);</span>
+
+<span style = "background-color:#dfd">            return 0;</span>
+        }
+
+        case WM_KILLFOCUS:
+        {
+<span style = "background-color:#fdd">            if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)
+                enableCursor(window);</span>
+
+<span style = "background-color:#fdd">            if (window-&gt;monitor &amp;&amp; window-&gt;autoIconify)
+                _glfwPlatformIconifyWindow(window);</span>
+
+<span style = "background-color:#fdd">            _glfwInputWindowFocus(window, GLFW_FALSE);
+            return 0;</span>
+        }
+
+        case WM_SYSCOMMAND:
+        {
+<span style = "background-color:#dfd">            switch (wParam &amp; 0xfff0)</span>
+            {
+                case SC_SCREENSAVE:
+                case SC_MONITORPOWER:
+                {
+<span style = "background-color:#fdd">                    if (window-&gt;monitor)</span>
+                    {
+                        // We are running in full screen mode, so disallow
+                        // screen saver and screen blanking
+<span style = "background-color:#fdd">                        return 0;
+                    }</span>
+                    else
+<span style = "background-color:#fdd">                        break;</span>
+                }
+
+                // User trying to access application menu using ALT?
+                case SC_KEYMENU:
+                {
+<span style = "background-color:#fdd">                    if (!window-&gt;win32.keymenu)
+                        return 0;</span>
+
+                    break;
+                }
+            }
+<span style = "background-color:#dfd">            break;</span>
+        }
+
+        case WM_CLOSE:
+        {
+<span style = "background-color:#dfd">            _glfwInputWindowCloseRequest(window);
+            return 0;</span>
+        }
+
+        case WM_INPUTLANGCHANGE:
+        {
+<span style = "background-color:#fdd">            _glfwUpdateKeyNamesWin32();
+            break;</span>
+        }
+
+        case WM_CHAR:
+        case WM_SYSCHAR:
+        {
+<span style = "background-color:#dfd">            if (wParam &gt;= 0xd800 &amp;&amp; wParam &lt;= 0xdbff)</span>
+<span style = "background-color:#fdd">                window-&gt;win32.highSurrogate = (WCHAR) wParam;</span>
+            else
+            {
+<span style = "background-color:#dfd">                unsigned int codepoint = 0;</span>
+
+<span style = "background-color:#dfd">                if (wParam &gt;= 0xdc00 &amp;&amp; wParam &lt;= 0xdfff)</span>
+                {
+<span style = "background-color:#fdd">                    if (window-&gt;win32.highSurrogate)</span>
+                    {
+<span style = "background-color:#fdd">                        codepoint += (window-&gt;win32.highSurrogate - 0xd800) &lt;&lt; 10;
+                        codepoint += (WCHAR) wParam - 0xdc00;
+                        codepoint += 0x10000;</span>
+                    }
+<span style = "background-color:#fdd">                }</span>
+                else
+<span style = "background-color:#dfd">                    codepoint = (WCHAR) wParam;</span>
+
+<span style = "background-color:#dfd">                window-&gt;win32.highSurrogate = 0;
+                _glfwInputChar(window, codepoint, getKeyMods(), uMsg != WM_SYSCHAR);</span>
+            }
+
+<span style = "background-color:#dfd">            if (uMsg == WM_SYSCHAR &amp;&amp; window-&gt;win32.keymenu)</span>
+<span style = "background-color:#fdd">                break;</span>
+
+<span style = "background-color:#dfd">            return 0;</span>
+        }
+
+        case WM_UNICHAR:
+        {
+<span style = "background-color:#fdd">            if (wParam == UNICODE_NOCHAR)</span>
+            {
+                // WM_UNICHAR is not sent by Windows, but is sent by some
+                // third-party input method engine
+                // Returning TRUE here announces support for this message
+<span style = "background-color:#fdd">                return TRUE;</span>
+            }
+
+<span style = "background-color:#fdd">            _glfwInputChar(window, (unsigned int) wParam, getKeyMods(), GLFW_TRUE);
+            return 0;</span>
+        }
+
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYUP:
+        {
+            int key, scancode;
+<span style = "background-color:#dfd">            const int action = (HIWORD(lParam) &amp; KF_UP) ? GLFW_RELEASE : GLFW_PRESS;
+            const int mods = getKeyMods();</span>
+
+<span style = "background-color:#dfd">            scancode = (HIWORD(lParam) &amp; (KF_EXTENDED | 0xff));
+            if (!scancode)</span>
+            {
+                // NOTE: Some synthetic key messages have a scancode of zero
+                // HACK: Map the virtual key back to a usable scancode
+<span style = "background-color:#fdd">                scancode = MapVirtualKeyW((UINT) wParam, MAPVK_VK_TO_VSC);</span>
+            }
+
+<span style = "background-color:#dfd">            key = _glfw.win32.keycodes[scancode];</span>
+
+            // The Ctrl keys require special handling
+<span style = "background-color:#dfd">            if (wParam == VK_CONTROL)</span>
+            {
+<span style = "background-color:#fdd">                if (HIWORD(lParam) &amp; KF_EXTENDED)</span>
+                {
+                    // Right side keys have the extended key bit set
+<span style = "background-color:#fdd">                    key = GLFW_KEY_RIGHT_CONTROL;
+                }</span>
+                else
+                {
+                    // NOTE: Alt Gr sends Left Ctrl followed by Right Alt
+                    // HACK: We only want one event for Alt Gr, so if we detect
+                    //       this sequence we discard this Left Ctrl message now
+                    //       and later report Right Alt normally
+                    MSG next;
+<span style = "background-color:#fdd">                    const DWORD time = GetMessageTime();</span>
+
+<span style = "background-color:#fdd">                    if (PeekMessageW(&amp;next, NULL, 0, 0, PM_NOREMOVE))</span>
+                    {
+                        if (next.message == WM_KEYDOWN ||
+                            next.message == WM_SYSKEYDOWN ||
+<span style = "background-color:#fdd">                            next.message == WM_KEYUP ||</span>
+                            next.message == WM_SYSKEYUP)
+                        {
+                            if (next.wParam == VK_MENU &amp;&amp;
+<span style = "background-color:#fdd">                                (HIWORD(next.lParam) &amp; KF_EXTENDED) &amp;&amp;</span>
+                                next.time == time)
+                            {
+                                // Next message is Right Alt down so discard this
+<span style = "background-color:#fdd">                                break;</span>
+                            }
+                        }
+                    }
+
+                    // This is a regular Left Ctrl message
+<span style = "background-color:#fdd">                    key = GLFW_KEY_LEFT_CONTROL;</span>
+                }
+<span style = "background-color:#fdd">            }</span>
+<span style = "background-color:#dfd">            else if (wParam == VK_PROCESSKEY)</span>
+            {
+                // IME notifies that keys have been filtered by setting the
+                // virtual key-code to VK_PROCESSKEY
+<span style = "background-color:#fdd">                break;</span>
+            }
+
+<span style = "background-color:#dfd">            if (action == GLFW_RELEASE &amp;&amp; wParam == VK_SHIFT)</span>
+            {
+                // HACK: Release both Shift keys on Shift up event, as when both
+                //       are pressed the first release does not emit any event
+                // NOTE: The other half of this is in _glfwPlatformPollEvents
+<span style = "background-color:#dfd">                _glfwInputKey(window, GLFW_KEY_LEFT_SHIFT, scancode, action, mods);
+                _glfwInputKey(window, GLFW_KEY_RIGHT_SHIFT, scancode, action, mods);
+            }
+            else if (wParam == VK_SNAPSHOT)</span>
+            {
+                // HACK: Key down is not reported for the Print Screen key
+<span style = "background-color:#fdd">                _glfwInputKey(window, key, scancode, GLFW_PRESS, mods);
+                _glfwInputKey(window, key, scancode, GLFW_RELEASE, mods);
+            }</span>
+            else
+<span style = "background-color:#dfd">                _glfwInputKey(window, key, scancode, action, mods);</span>
+
+<span style = "background-color:#dfd">            break;</span>
+        }
+
+        case WM_LBUTTONDOWN:
+        case WM_RBUTTONDOWN:
+        case WM_MBUTTONDOWN:
+        case WM_XBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_RBUTTONUP:
+        case WM_MBUTTONUP:
+        case WM_XBUTTONUP:
+        {
+            int i, button, action;
+
+<span style = "background-color:#dfd">            if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP)
+                button = GLFW_MOUSE_BUTTON_LEFT;
+            else if (uMsg == WM_RBUTTONDOWN || uMsg == WM_RBUTTONUP)</span>
+<span style = "background-color:#fdd">                button = GLFW_MOUSE_BUTTON_RIGHT;</span>
+<span style = "background-color:#dfd">            else if (uMsg == WM_MBUTTONDOWN || uMsg == WM_MBUTTONUP)
+                button = GLFW_MOUSE_BUTTON_MIDDLE;</span>
+<span style = "background-color:#fdd">            else if (GET_XBUTTON_WPARAM(wParam) == XBUTTON1)
+                button = GLFW_MOUSE_BUTTON_4;</span>
+            else
+<span style = "background-color:#fdd">                button = GLFW_MOUSE_BUTTON_5;</span>
+
+            if (uMsg == WM_LBUTTONDOWN || uMsg == WM_RBUTTONDOWN ||
+<span style = "background-color:#dfd">                uMsg == WM_MBUTTONDOWN || uMsg == WM_XBUTTONDOWN)</span>
+            {
+<span style = "background-color:#dfd">                action = GLFW_PRESS;
+            }</span>
+            else
+<span style = "background-color:#dfd">                action = GLFW_RELEASE;</span>
+
+<span style = "background-color:#dfd">            for (i = 0;  i &lt;= GLFW_MOUSE_BUTTON_LAST;  i++)</span>
+            {
+<span style = "background-color:#dfd">                if (window-&gt;mouseButtons[i] == GLFW_PRESS)
+                    break;
+            }</span>
+
+<span style = "background-color:#dfd">            if (i &gt; GLFW_MOUSE_BUTTON_LAST)
+                SetCapture(hWnd);</span>
+
+<span style = "background-color:#dfd">            _glfwInputMouseClick(window, button, action, getKeyMods());</span>
+
+<span style = "background-color:#dfd">            for (i = 0;  i &lt;= GLFW_MOUSE_BUTTON_LAST;  i++)</span>
+            {
+<span style = "background-color:#dfd">                if (window-&gt;mouseButtons[i] == GLFW_PRESS)
+                    break;
+            }</span>
+
+<span style = "background-color:#dfd">            if (i &gt; GLFW_MOUSE_BUTTON_LAST)
+                ReleaseCapture();</span>
+
+<span style = "background-color:#dfd">            if (uMsg == WM_XBUTTONDOWN || uMsg == WM_XBUTTONUP)</span>
+<span style = "background-color:#fdd">                return TRUE;</span>
+
+<span style = "background-color:#dfd">            return 0;</span>
+        }
+
+        case WM_MOUSEMOVE:
+        {
+<span style = "background-color:#dfd">            const int x = GET_X_LPARAM(lParam);
+            const int y = GET_Y_LPARAM(lParam);</span>
+
+<span style = "background-color:#dfd">            if (!window-&gt;win32.cursorTracked)</span>
+            {
+                TRACKMOUSEEVENT tme;
+<span style = "background-color:#dfd">                ZeroMemory(&amp;tme, sizeof(tme));
+                tme.cbSize = sizeof(tme);
+                tme.dwFlags = TME_LEAVE;
+                tme.hwndTrack = window-&gt;win32.handle;
+                TrackMouseEvent(&amp;tme);</span>
+
+<span style = "background-color:#dfd">                window-&gt;win32.cursorTracked = GLFW_TRUE;
+                _glfwInputCursorEnter(window, GLFW_TRUE);</span>
+            }
+
+<span style = "background-color:#dfd">            if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)</span>
+            {
+<span style = "background-color:#dfd">                const int dx = x - window-&gt;win32.lastCursorPosX;
+                const int dy = y - window-&gt;win32.lastCursorPosY;</span>
+
+<span style = "background-color:#dfd">                if (_glfw.win32.disabledCursorWindow != window)</span>
+<span style = "background-color:#fdd">                    break;</span>
+<span style = "background-color:#dfd">                if (window-&gt;rawMouseMotion)</span>
+<span style = "background-color:#fdd">                    break;</span>
+
+<span style = "background-color:#dfd">                _glfwInputCursorPos(window,</span>
+                                    window-&gt;virtualCursorPosX + dx,
+                                    window-&gt;virtualCursorPosY + dy);
+<span style = "background-color:#dfd">            }</span>
+            else
+<span style = "background-color:#dfd">                _glfwInputCursorPos(window, x, y);</span>
+
+<span style = "background-color:#dfd">            window-&gt;win32.lastCursorPosX = x;
+            window-&gt;win32.lastCursorPosY = y;</span>
+
+<span style = "background-color:#dfd">            return 0;</span>
+        }
+
+        case WM_INPUT:
+        {
+<span style = "background-color:#fdd">            UINT size = 0;
+            HRAWINPUT ri = (HRAWINPUT) lParam;
+            RAWINPUT* data = NULL;</span>
+            int dx, dy;
+
+<span style = "background-color:#fdd">            if (_glfw.win32.disabledCursorWindow != window)
+                break;
+            if (!window-&gt;rawMouseMotion)
+                break;</span>
+
+<span style = "background-color:#fdd">            GetRawInputData(ri, RID_INPUT, NULL, &amp;size, sizeof(RAWINPUTHEADER));
+            if (size &gt; (UINT) _glfw.win32.rawInputSize)</span>
+            {
+<span style = "background-color:#fdd">                _glfw_free(_glfw.win32.rawInput);
+                _glfw.win32.rawInput = _glfw_calloc(size, 1);
+                _glfw.win32.rawInputSize = size;</span>
+            }
+
+<span style = "background-color:#fdd">            size = _glfw.win32.rawInputSize;</span>
+            if (GetRawInputData(ri, RID_INPUT,
+                                _glfw.win32.rawInput, &amp;size,
+<span style = "background-color:#fdd">                                sizeof(RAWINPUTHEADER)) == (UINT) -1)</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                                "Win32: Failed to retrieve raw input data");
+<span style = "background-color:#fdd">                break;</span>
+            }
+
+<span style = "background-color:#fdd">            data = _glfw.win32.rawInput;
+            if (data-&gt;data.mouse.usFlags &amp; MOUSE_MOVE_ABSOLUTE)</span>
+            {
+<span style = "background-color:#fdd">                dx = data-&gt;data.mouse.lLastX - window-&gt;win32.lastCursorPosX;
+                dy = data-&gt;data.mouse.lLastY - window-&gt;win32.lastCursorPosY;
+            }</span>
+            else
+            {
+<span style = "background-color:#fdd">                dx = data-&gt;data.mouse.lLastX;
+                dy = data-&gt;data.mouse.lLastY;</span>
+            }
+
+<span style = "background-color:#fdd">            _glfwInputCursorPos(window,</span>
+                                window-&gt;virtualCursorPosX + dx,
+                                window-&gt;virtualCursorPosY + dy);
+
+<span style = "background-color:#fdd">            window-&gt;win32.lastCursorPosX += dx;
+            window-&gt;win32.lastCursorPosY += dy;
+            break;</span>
+        }
+
+        case WM_MOUSELEAVE:
+        {
+<span style = "background-color:#dfd">            window-&gt;win32.cursorTracked = GLFW_FALSE;
+            _glfwInputCursorEnter(window, GLFW_FALSE);
+            return 0;</span>
+        }
+
+        case WM_MOUSEWHEEL:
+        {
+<span style = "background-color:#dfd">            _glfwInputScroll(window, 0.0, (SHORT) HIWORD(wParam) / (double) WHEEL_DELTA);
+            return 0;</span>
+        }
+
+        case WM_MOUSEHWHEEL:
+        {
+            // This message is only sent on Windows Vista and later
+            // NOTE: The X-axis is inverted for consistency with macOS and X11
+<span style = "background-color:#fdd">            _glfwInputScroll(window, -((SHORT) HIWORD(wParam) / (double) WHEEL_DELTA), 0.0);
+            return 0;</span>
+        }
+
+        case WM_ENTERSIZEMOVE:
+        case WM_ENTERMENULOOP:
+        {
+<span style = "background-color:#dfd">            if (window-&gt;win32.frameAction)</span>
+<span style = "background-color:#fdd">                break;</span>
+
+            // HACK: Enable the cursor while the user is moving or
+            //       resizing the window or using the window menu
+<span style = "background-color:#dfd">            if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)</span>
+<span style = "background-color:#fdd">                enableCursor(window);</span>
+
+<span style = "background-color:#dfd">            break;</span>
+        }
+
+        case WM_EXITSIZEMOVE:
+        case WM_EXITMENULOOP:
+        {
+<span style = "background-color:#dfd">            if (window-&gt;win32.frameAction)</span>
+<span style = "background-color:#fdd">                break;</span>
+
+            // HACK: Disable the cursor once the user is done moving or
+            //       resizing the window or using the menu
+<span style = "background-color:#dfd">            if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)</span>
+<span style = "background-color:#fdd">                disableCursor(window);</span>
+
+<span style = "background-color:#dfd">            break;</span>
+        }
+
+        case WM_SIZE:
+        {
+<span style = "background-color:#dfd">            const int width = LOWORD(lParam);
+            const int height = HIWORD(lParam);
+            const GLFWbool iconified = wParam == SIZE_MINIMIZED;
+            const GLFWbool maximized = wParam == SIZE_MAXIMIZED ||</span>
+                                       (window-&gt;win32.maximized &amp;&amp;
+                                        wParam != SIZE_RESTORED);
+
+<span style = "background-color:#dfd">            if (_glfw.win32.disabledCursorWindow == window)</span>
+<span style = "background-color:#fdd">                updateClipRect(window);</span>
+
+<span style = "background-color:#dfd">            if (window-&gt;win32.iconified != iconified)</span>
+<span style = "background-color:#fdd">                _glfwInputWindowIconify(window, iconified);</span>
+
+<span style = "background-color:#dfd">            if (window-&gt;win32.maximized != maximized)
+                _glfwInputWindowMaximize(window, maximized);</span>
+
+<span style = "background-color:#dfd">            if (width != window-&gt;win32.width || height != window-&gt;win32.height)</span>
+            {
+<span style = "background-color:#dfd">                window-&gt;win32.width = width;
+                window-&gt;win32.height = height;</span>
+
+<span style = "background-color:#dfd">                _glfwInputFramebufferSize(window, width, height);
+                _glfwInputWindowSize(window, width, height);</span>
+            }
+
+<span style = "background-color:#dfd">            if (window-&gt;monitor &amp;&amp; window-&gt;win32.iconified != iconified)</span>
+            {
+<span style = "background-color:#fdd">                if (iconified)
+                    releaseMonitor(window);</span>
+                else
+                {
+<span style = "background-color:#fdd">                    acquireMonitor(window);
+                    fitToMonitor(window);</span>
+                }
+            }
+
+<span style = "background-color:#dfd">            window-&gt;win32.iconified = iconified;
+            window-&gt;win32.maximized = maximized;
+            return 0;</span>
+        }
+
+        case WM_MOVE:
+        {
+<span style = "background-color:#dfd">            if (_glfw.win32.disabledCursorWindow == window)</span>
+<span style = "background-color:#fdd">                updateClipRect(window);</span>
+
+            // NOTE: This cannot use LOWORD/HIWORD recommended by MSDN, as
+            // those macros do not handle negative window positions correctly
+<span style = "background-color:#dfd">            _glfwInputWindowPos(window,</span>
+                                GET_X_LPARAM(lParam),
+                                GET_Y_LPARAM(lParam));
+<span style = "background-color:#dfd">            return 0;</span>
+        }
+
+        case WM_SIZING:
+        {
+<span style = "background-color:#dfd">            if (window-&gt;numer == GLFW_DONT_CARE ||</span>
+                window-&gt;denom == GLFW_DONT_CARE)
+            {
+<span style = "background-color:#dfd">                break;</span>
+            }
+
+<span style = "background-color:#fdd">            applyAspectRatio(window, (int) wParam, (RECT*) lParam);
+            return TRUE;</span>
+        }
+
+        case WM_GETMINMAXINFO:
+        {
+            int xoff, yoff;
+<span style = "background-color:#dfd">            UINT dpi = USER_DEFAULT_SCREEN_DPI;
+            MINMAXINFO* mmi = (MINMAXINFO*) lParam;</span>
+
+<span style = "background-color:#dfd">            if (window-&gt;monitor)</span>
+<span style = "background-color:#fdd">                break;</span>
+
+<span style = "background-color:#dfd">            if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())
+                dpi = GetDpiForWindow(window-&gt;win32.handle);</span>
+
+<span style = "background-color:#dfd">            getFullWindowSize(getWindowStyle(window), getWindowExStyle(window),</span>
+                              0, 0, &amp;xoff, &amp;yoff, dpi);
+
+<span style = "background-color:#dfd">            if (window-&gt;minwidth != GLFW_DONT_CARE &amp;&amp;</span>
+                window-&gt;minheight != GLFW_DONT_CARE)
+            {
+<span style = "background-color:#fdd">                mmi-&gt;ptMinTrackSize.x = window-&gt;minwidth + xoff;
+                mmi-&gt;ptMinTrackSize.y = window-&gt;minheight + yoff;</span>
+            }
+
+<span style = "background-color:#dfd">            if (window-&gt;maxwidth != GLFW_DONT_CARE &amp;&amp;</span>
+                window-&gt;maxheight != GLFW_DONT_CARE)
+            {
+<span style = "background-color:#fdd">                mmi-&gt;ptMaxTrackSize.x = window-&gt;maxwidth + xoff;
+                mmi-&gt;ptMaxTrackSize.y = window-&gt;maxheight + yoff;</span>
+            }
+
+<span style = "background-color:#dfd">            if (!window-&gt;decorated)</span>
+            {
+                MONITORINFO mi;
+<span style = "background-color:#fdd">                const HMONITOR mh = MonitorFromWindow(window-&gt;win32.handle,</span>
+                                                      MONITOR_DEFAULTTONEAREST);
+
+<span style = "background-color:#fdd">                ZeroMemory(&amp;mi, sizeof(mi));
+                mi.cbSize = sizeof(mi);
+                GetMonitorInfo(mh, &amp;mi);</span>
+
+<span style = "background-color:#fdd">                mmi-&gt;ptMaxPosition.x = mi.rcWork.left - mi.rcMonitor.left;
+                mmi-&gt;ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
+                mmi-&gt;ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
+                mmi-&gt;ptMaxSize.y = mi.rcWork.bottom - mi.rcWork.top;</span>
+            }
+
+<span style = "background-color:#dfd">            return 0;</span>
+        }
+
+        case WM_PAINT:
+        {
+<span style = "background-color:#dfd">            _glfwInputWindowDamage(window);
+            break;</span>
+        }
+
+        case WM_ERASEBKGND:
+        {
+<span style = "background-color:#dfd">            return TRUE;</span>
+        }
+
+        case WM_NCACTIVATE:
+        case WM_NCPAINT:
+        {
+            // Prevent title bar from being drawn after restoring a minimized
+            // undecorated window
+<span style = "background-color:#dfd">            if (!window-&gt;decorated)</span>
+<span style = "background-color:#fdd">                return TRUE;</span>
+
+<span style = "background-color:#dfd">            break;</span>
+        }
+
+        case WM_DWMCOMPOSITIONCHANGED:
+        case WM_DWMCOLORIZATIONCOLORCHANGED:
+        {
+<span style = "background-color:#fdd">            if (window-&gt;win32.transparent)
+                updateFramebufferTransparency(window);
+            return 0;</span>
+        }
+
+        case WM_GETDPISCALEDSIZE:
+        {
+<span style = "background-color:#fdd">            if (window-&gt;win32.scaleToMonitor)
+                break;</span>
+
+            // Adjust the window size to keep the content area size constant
+<span style = "background-color:#fdd">            if (_glfwIsWindows10CreatorsUpdateOrGreaterWin32())</span>
+            {
+<span style = "background-color:#fdd">                RECT source = {0}, target = {0};
+                SIZE* size = (SIZE*) lParam;</span>
+
+<span style = "background-color:#fdd">                AdjustWindowRectExForDpi(&amp;source, getWindowStyle(window),</span>
+                                         FALSE, getWindowExStyle(window),
+                                         GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#fdd">                AdjustWindowRectExForDpi(&amp;target, getWindowStyle(window),</span>
+                                         FALSE, getWindowExStyle(window),
+                                         LOWORD(wParam));
+
+<span style = "background-color:#fdd">                size-&gt;cx += (target.right - target.left) -</span>
+                            (source.right - source.left);
+<span style = "background-color:#fdd">                size-&gt;cy += (target.bottom - target.top) -</span>
+                            (source.bottom - source.top);
+<span style = "background-color:#fdd">                return TRUE;</span>
+            }
+
+<span style = "background-color:#fdd">            break;</span>
+        }
+
+        case WM_DPICHANGED:
+        {
+<span style = "background-color:#fdd">            const float xscale = HIWORD(wParam) / (float) USER_DEFAULT_SCREEN_DPI;
+            const float yscale = LOWORD(wParam) / (float) USER_DEFAULT_SCREEN_DPI;</span>
+
+            // Resize windowed mode windows that either permit rescaling or that
+            // need it to compensate for non-client area scaling
+<span style = "background-color:#fdd">            if (!window-&gt;monitor &amp;&amp;</span>
+                (window-&gt;win32.scaleToMonitor ||
+                 _glfwIsWindows10CreatorsUpdateOrGreaterWin32()))
+            {
+<span style = "background-color:#fdd">                RECT* suggested = (RECT*) lParam;
+                SetWindowPos(window-&gt;win32.handle, HWND_TOP,</span>
+                             suggested-&gt;left,
+                             suggested-&gt;top,
+                             suggested-&gt;right - suggested-&gt;left,
+                             suggested-&gt;bottom - suggested-&gt;top,
+                             SWP_NOACTIVATE | SWP_NOZORDER);
+            }
+
+<span style = "background-color:#fdd">            _glfwInputWindowContentScale(window, xscale, yscale);
+            break;</span>
+        }
+
+        case WM_SETCURSOR:
+        {
+<span style = "background-color:#dfd">            if (LOWORD(lParam) == HTCLIENT)</span>
+            {
+<span style = "background-color:#dfd">                updateCursorImage(window);
+                return TRUE;</span>
+            }
+
+<span style = "background-color:#dfd">            break;</span>
+        }
+
+        case WM_DROPFILES:
+        {
+<span style = "background-color:#fdd">            HDROP drop = (HDROP) wParam;</span>
+            POINT pt;
+            int i;
+
+<span style = "background-color:#fdd">            const int count = DragQueryFileW(drop, 0xffffffff, NULL, 0);
+            char** paths = _glfw_calloc(count, sizeof(char*));</span>
+
+            // Move the mouse to the position of the drop
+<span style = "background-color:#fdd">            DragQueryPoint(drop, &amp;pt);
+            _glfwInputCursorPos(window, pt.x, pt.y);</span>
+
+<span style = "background-color:#fdd">            for (i = 0;  i &lt; count;  i++)</span>
+            {
+<span style = "background-color:#fdd">                const UINT length = DragQueryFileW(drop, i, NULL, 0);
+                WCHAR* buffer = _glfw_calloc((size_t) length + 1, sizeof(WCHAR));</span>
+
+<span style = "background-color:#fdd">                DragQueryFileW(drop, i, buffer, length + 1);
+                paths[i] = _glfwCreateUTF8FromWideStringWin32(buffer);</span>
+
+<span style = "background-color:#fdd">                _glfw_free(buffer);
+            }</span>
+
+<span style = "background-color:#fdd">            _glfwInputDrop(window, count, (const char**) paths);</span>
+
+<span style = "background-color:#fdd">            for (i = 0;  i &lt; count;  i++)
+                _glfw_free(paths[i]);
+            _glfw_free(paths);</span>
+
+<span style = "background-color:#fdd">            DragFinish(drop);
+            return 0;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    return DefWindowProcW(hWnd, uMsg, wParam, lParam);
+}</span>
+
+// Creates the GLFW window
+//
+static int createNativeWindow(_GLFWwindow* window,
+                              const _GLFWwndconfig* wndconfig,
+                              const _GLFWfbconfig* fbconfig)
+<span style = "background-color:#dfd">{</span>
+    int xpos, ypos, fullWidth, fullHeight;
+    WCHAR* wideTitle;
+<span style = "background-color:#dfd">    DWORD style = getWindowStyle(window);
+    DWORD exStyle = getWindowExStyle(window);</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;monitor)</span>
+    {
+        GLFWvidmode mode;
+
+        // NOTE: This window placement is temporary and approximate, as the
+        //       correct position and size cannot be known until the monitor
+        //       video mode has been picked in _glfwSetVideoModeWin32
+<span style = "background-color:#fdd">        _glfwPlatformGetMonitorPos(window-&gt;monitor, &amp;xpos, &amp;ypos);
+        _glfwPlatformGetVideoMode(window-&gt;monitor, &amp;mode);
+        fullWidth  = mode.width;
+        fullHeight = mode.height;
+    }</span>
+    else
+    {
+<span style = "background-color:#dfd">        xpos = CW_USEDEFAULT;
+        ypos = CW_USEDEFAULT;</span>
+
+<span style = "background-color:#dfd">        window-&gt;win32.maximized = wndconfig-&gt;maximized;
+        if (wndconfig-&gt;maximized)</span>
+<span style = "background-color:#fdd">            style |= WS_MAXIMIZE;</span>
+
+<span style = "background-color:#dfd">        getFullWindowSize(style, exStyle,</span>
+                          wndconfig-&gt;width, wndconfig-&gt;height,
+                          &amp;fullWidth, &amp;fullHeight,
+                          USER_DEFAULT_SCREEN_DPI);
+    }
+
+<span style = "background-color:#dfd">    wideTitle = _glfwCreateWideStringFromUTF8Win32(wndconfig-&gt;title);
+    if (!wideTitle)</span>
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">    window-&gt;win32.handle = CreateWindowExW(exStyle,</span>
+                                           _GLFW_WNDCLASSNAME,
+                                           wideTitle,
+                                           style,
+                                           xpos, ypos,
+                                           fullWidth, fullHeight,
+                                           NULL, // No parent window
+                                           NULL, // No window menu
+                                           GetModuleHandleW(NULL),
+                                           (LPVOID) wndconfig);
+
+<span style = "background-color:#dfd">    _glfw_free(wideTitle);</span>
+
+<span style = "background-color:#dfd">    if (!window-&gt;win32.handle)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to create window");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    SetPropW(window-&gt;win32.handle, L"GLFW", window);</span>
+
+<span style = "background-color:#dfd">    if (IsWindows7OrGreater())</span>
+    {
+<span style = "background-color:#dfd">        ChangeWindowMessageFilterEx(window-&gt;win32.handle,</span>
+                                    WM_DROPFILES, MSGFLT_ALLOW, NULL);
+<span style = "background-color:#dfd">        ChangeWindowMessageFilterEx(window-&gt;win32.handle,</span>
+                                    WM_COPYDATA, MSGFLT_ALLOW, NULL);
+<span style = "background-color:#dfd">        ChangeWindowMessageFilterEx(window-&gt;win32.handle,</span>
+                                    WM_COPYGLOBALDATA, MSGFLT_ALLOW, NULL);
+    }
+
+<span style = "background-color:#dfd">    window-&gt;win32.scaleToMonitor = wndconfig-&gt;scaleToMonitor;
+    window-&gt;win32.keymenu = wndconfig-&gt;win32.keymenu;</span>
+
+    // Adjust window rect to account for DPI scaling of the window frame and
+    // (if enabled) DPI scaling of the content area
+    // This cannot be done until we know what monitor the window was placed on
+<span style = "background-color:#dfd">    if (!window-&gt;monitor)</span>
+    {
+<span style = "background-color:#dfd">        RECT rect = { 0, 0, wndconfig-&gt;width, wndconfig-&gt;height };
+        WINDOWPLACEMENT wp = { sizeof(wp) };</span>
+
+<span style = "background-color:#dfd">        if (wndconfig-&gt;scaleToMonitor)</span>
+        {
+            float xscale, yscale;
+<span style = "background-color:#fdd">            _glfwPlatformGetWindowContentScale(window, &amp;xscale, &amp;yscale);
+            rect.right = (int) (rect.right * xscale);
+            rect.bottom = (int) (rect.bottom * yscale);</span>
+        }
+
+<span style = "background-color:#dfd">        ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;rect.left);
+        ClientToScreen(window-&gt;win32.handle, (POINT*) &amp;rect.right);</span>
+
+<span style = "background-color:#dfd">        if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+        {
+<span style = "background-color:#dfd">            AdjustWindowRectExForDpi(&amp;rect, style, FALSE, exStyle,</span>
+                                     GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#dfd">        }</span>
+        else
+<span style = "background-color:#fdd">            AdjustWindowRectEx(&amp;rect, style, FALSE, exStyle);</span>
+
+        // Only update the restored window rect as the window may be maximized
+<span style = "background-color:#dfd">        GetWindowPlacement(window-&gt;win32.handle, &amp;wp);
+        wp.rcNormalPosition = rect;
+        wp.showCmd = SW_HIDE;
+        SetWindowPlacement(window-&gt;win32.handle, &amp;wp);</span>
+    }
+
+<span style = "background-color:#dfd">    DragAcceptFiles(window-&gt;win32.handle, TRUE);</span>
+
+<span style = "background-color:#dfd">    if (fbconfig-&gt;transparent)</span>
+    {
+<span style = "background-color:#fdd">        updateFramebufferTransparency(window);
+        window-&gt;win32.transparent = GLFW_TRUE;</span>
+    }
+
+<span style = "background-color:#dfd">    _glfwPlatformGetWindowSize(window, &amp;window-&gt;win32.width, &amp;window-&gt;win32.height);</span>
+
+<span style = "background-color:#dfd">    return GLFW_TRUE;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+// Registers the GLFW window class
+//
+GLFWbool _glfwRegisterWindowClassWin32(void)
+<span style = "background-color:#dfd">{</span>
+    WNDCLASSEXW wc;
+
+<span style = "background-color:#dfd">    ZeroMemory(&amp;wc, sizeof(wc));
+    wc.cbSize        = sizeof(wc);
+    wc.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+    wc.lpfnWndProc   = (WNDPROC) windowProc;
+    wc.hInstance     = GetModuleHandleW(NULL);
+    wc.hCursor       = LoadCursorW(NULL, IDC_ARROW);
+    wc.lpszClassName = _GLFW_WNDCLASSNAME;</span>
+
+    // Load user-provided icon if available
+<span style = "background-color:#dfd">    wc.hIcon = LoadImageW(GetModuleHandleW(NULL),</span>
+                          L"GLFW_ICON", IMAGE_ICON,
+                          0, 0, LR_DEFAULTSIZE | LR_SHARED);
+<span style = "background-color:#dfd">    if (!wc.hIcon)</span>
+    {
+        // No user-provided icon found, load default icon
+<span style = "background-color:#dfd">        wc.hIcon = LoadImageW(NULL,</span>
+                              IDI_APPLICATION, IMAGE_ICON,
+                              0, 0, LR_DEFAULTSIZE | LR_SHARED);
+    }
+
+<span style = "background-color:#dfd">    if (!RegisterClassExW(&amp;wc))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to register window class");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    return GLFW_TRUE;
+}</span>
+
+// Unregisters the GLFW window class
+//
+void _glfwUnregisterWindowClassWin32(void)
+<span style = "background-color:#dfd">{
+    UnregisterClassW(_GLFW_WNDCLASSNAME, GetModuleHandleW(NULL));
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW platform API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+int _glfwPlatformCreateWindow(_GLFWwindow* window,
+                              const _GLFWwndconfig* wndconfig,
+                              const _GLFWctxconfig* ctxconfig,
+                              const _GLFWfbconfig* fbconfig)
+<span style = "background-color:#dfd">{
+    if (!createNativeWindow(window, wndconfig, fbconfig))</span>
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">    if (ctxconfig-&gt;client != GLFW_NO_API)</span>
+    {
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;source == GLFW_NATIVE_CONTEXT_API)</span>
+        {
+<span style = "background-color:#dfd">            if (!_glfwInitWGL())</span>
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+<span style = "background-color:#dfd">            if (!_glfwCreateContextWGL(window, ctxconfig, fbconfig))</span>
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+<span style = "background-color:#dfd">        }</span>
+<span style = "background-color:#fdd">        else if (ctxconfig-&gt;source == GLFW_EGL_CONTEXT_API)</span>
+        {
+<span style = "background-color:#fdd">            if (!_glfwInitEGL())
+                return GLFW_FALSE;
+            if (!_glfwCreateContextEGL(window, ctxconfig, fbconfig))
+                return GLFW_FALSE;
+        }
+        else if (ctxconfig-&gt;source == GLFW_OSMESA_CONTEXT_API)</span>
+        {
+<span style = "background-color:#fdd">            if (!_glfwInitOSMesa())
+                return GLFW_FALSE;
+            if (!_glfwCreateContextOSMesa(window, ctxconfig, fbconfig))
+                return GLFW_FALSE;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;monitor)</span>
+    {
+<span style = "background-color:#fdd">        _glfwPlatformShowWindow(window);
+        _glfwPlatformFocusWindow(window);
+        acquireMonitor(window);
+        fitToMonitor(window);</span>
+    }
+
+<span style = "background-color:#dfd">    return GLFW_TRUE;
+}</span>
+
+void _glfwPlatformDestroyWindow(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (window-&gt;monitor)</span>
+<span style = "background-color:#fdd">        releaseMonitor(window);</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;context.destroy)
+        window-&gt;context.destroy(window);</span>
+
+<span style = "background-color:#dfd">    if (_glfw.win32.disabledCursorWindow == window)</span>
+<span style = "background-color:#fdd">        _glfw.win32.disabledCursorWindow = NULL;</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;win32.handle)</span>
+    {
+<span style = "background-color:#dfd">        RemovePropW(window-&gt;win32.handle, L"GLFW");
+        DestroyWindow(window-&gt;win32.handle);
+        window-&gt;win32.handle = NULL;</span>
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;win32.bigIcon)</span>
+<span style = "background-color:#fdd">        DestroyIcon(window-&gt;win32.bigIcon);</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;win32.smallIcon)</span>
+<span style = "background-color:#fdd">        DestroyIcon(window-&gt;win32.smallIcon);</span>
+<span style = "background-color:#dfd">}</span>
+
+void _glfwPlatformSetWindowTitle(_GLFWwindow* window, const char* title)
+<span style = "background-color:#fdd">{
+    WCHAR* wideTitle = _glfwCreateWideStringFromUTF8Win32(title);
+    if (!wideTitle)
+        return;</span>
+
+<span style = "background-color:#fdd">    SetWindowTextW(window-&gt;win32.handle, wideTitle);
+    _glfw_free(wideTitle);
+}</span>
+
+void _glfwPlatformSetWindowIcon(_GLFWwindow* window,
+                                int count, const GLFWimage* images)
+<span style = "background-color:#fdd">{
+    HICON bigIcon = NULL, smallIcon = NULL;</span>
+
+<span style = "background-color:#fdd">    if (count)</span>
+    {
+<span style = "background-color:#fdd">        const GLFWimage* bigImage = chooseImage(count, images,</span>
+                                                GetSystemMetrics(SM_CXICON),
+                                                GetSystemMetrics(SM_CYICON));
+<span style = "background-color:#fdd">        const GLFWimage* smallImage = chooseImage(count, images,</span>
+                                                  GetSystemMetrics(SM_CXSMICON),
+                                                  GetSystemMetrics(SM_CYSMICON));
+
+<span style = "background-color:#fdd">        bigIcon = createIcon(bigImage, 0, 0, GLFW_TRUE);
+        smallIcon = createIcon(smallImage, 0, 0, GLFW_TRUE);
+    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        bigIcon = (HICON) GetClassLongPtrW(window-&gt;win32.handle, GCLP_HICON);
+        smallIcon = (HICON) GetClassLongPtrW(window-&gt;win32.handle, GCLP_HICONSM);</span>
+    }
+
+<span style = "background-color:#fdd">    SendMessage(window-&gt;win32.handle, WM_SETICON, ICON_BIG, (LPARAM) bigIcon);
+    SendMessage(window-&gt;win32.handle, WM_SETICON, ICON_SMALL, (LPARAM) smallIcon);</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;win32.bigIcon)
+        DestroyIcon(window-&gt;win32.bigIcon);</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;win32.smallIcon)
+        DestroyIcon(window-&gt;win32.smallIcon);</span>
+
+<span style = "background-color:#fdd">    if (count)</span>
+    {
+<span style = "background-color:#fdd">        window-&gt;win32.bigIcon = bigIcon;
+        window-&gt;win32.smallIcon = smallIcon;</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+void _glfwPlatformGetWindowPos(_GLFWwindow* window, int* xpos, int* ypos)
+<span style = "background-color:#fdd">{
+    POINT pos = { 0, 0 };
+    ClientToScreen(window-&gt;win32.handle, &amp;pos);</span>
+
+<span style = "background-color:#fdd">    if (xpos)
+        *xpos = pos.x;
+    if (ypos)
+        *ypos = pos.y;
+}</span>
+
+void _glfwPlatformSetWindowPos(_GLFWwindow* window, int xpos, int ypos)
+<span style = "background-color:#fdd">{
+    RECT rect = { xpos, ypos, xpos, ypos };</span>
+
+<span style = "background-color:#fdd">    if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+    {
+<span style = "background-color:#fdd">        AdjustWindowRectExForDpi(&amp;rect, getWindowStyle(window),</span>
+                                 FALSE, getWindowExStyle(window),
+                                 GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#fdd">    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        AdjustWindowRectEx(&amp;rect, getWindowStyle(window),</span>
+                           FALSE, getWindowExStyle(window));
+    }
+
+<span style = "background-color:#fdd">    SetWindowPos(window-&gt;win32.handle, NULL, rect.left, rect.top, 0, 0,</span>
+                 SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE);
+<span style = "background-color:#fdd">}</span>
+
+void _glfwPlatformGetWindowSize(_GLFWwindow* window, int* width, int* height)
+<span style = "background-color:#dfd">{</span>
+    RECT area;
+<span style = "background-color:#dfd">    GetClientRect(window-&gt;win32.handle, &amp;area);</span>
+
+<span style = "background-color:#dfd">    if (width)
+        *width = area.right;
+    if (height)
+        *height = area.bottom;
+}</span>
+
+void _glfwPlatformSetWindowSize(_GLFWwindow* window, int width, int height)
+<span style = "background-color:#fdd">{
+    if (window-&gt;monitor)</span>
+    {
+<span style = "background-color:#fdd">        if (window-&gt;monitor-&gt;window == window)</span>
+        {
+<span style = "background-color:#fdd">            acquireMonitor(window);
+            fitToMonitor(window);</span>
+        }
+<span style = "background-color:#fdd">    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        RECT rect = { 0, 0, width, height };</span>
+
+<span style = "background-color:#fdd">        if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+        {
+<span style = "background-color:#fdd">            AdjustWindowRectExForDpi(&amp;rect, getWindowStyle(window),</span>
+                                     FALSE, getWindowExStyle(window),
+                                     GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#fdd">        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            AdjustWindowRectEx(&amp;rect, getWindowStyle(window),</span>
+                               FALSE, getWindowExStyle(window));
+        }
+
+<span style = "background-color:#fdd">        SetWindowPos(window-&gt;win32.handle, HWND_TOP,</span>
+                     0, 0, rect.right - rect.left, rect.bottom - rect.top,
+                     SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOMOVE | SWP_NOZORDER);
+    }
+<span style = "background-color:#fdd">}</span>
+
+void _glfwPlatformSetWindowSizeLimits(_GLFWwindow* window,
+                                      int minwidth, int minheight,
+                                      int maxwidth, int maxheight)
+<span style = "background-color:#fdd">{</span>
+    RECT area;
+
+<span style = "background-color:#fdd">    if ((minwidth == GLFW_DONT_CARE || minheight == GLFW_DONT_CARE) &amp;&amp;</span>
+        (maxwidth == GLFW_DONT_CARE || maxheight == GLFW_DONT_CARE))
+    {
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    GetWindowRect(window-&gt;win32.handle, &amp;area);
+    MoveWindow(window-&gt;win32.handle,</span>
+               area.left, area.top,
+               area.right - area.left,
+               area.bottom - area.top, TRUE);
+<span style = "background-color:#fdd">}</span>
+
+void _glfwPlatformSetWindowAspectRatio(_GLFWwindow* window, int numer, int denom)
+<span style = "background-color:#fdd">{</span>
+    RECT area;
+
+<span style = "background-color:#fdd">    if (numer == GLFW_DONT_CARE || denom == GLFW_DONT_CARE)
+        return;</span>
+
+<span style = "background-color:#fdd">    GetWindowRect(window-&gt;win32.handle, &amp;area);
+    applyAspectRatio(window, WMSZ_BOTTOMRIGHT, &amp;area);
+    MoveWindow(window-&gt;win32.handle,</span>
+               area.left, area.top,
+               area.right - area.left,
+               area.bottom - area.top, TRUE);
+<span style = "background-color:#fdd">}</span>
+
+void _glfwPlatformGetFramebufferSize(_GLFWwindow* window, int* width, int* height)
+<span style = "background-color:#dfd">{
+    _glfwPlatformGetWindowSize(window, width, height);
+}</span>
+
+void _glfwPlatformGetWindowFrameSize(_GLFWwindow* window,
+                                     int* left, int* top,
+                                     int* right, int* bottom)
+<span style = "background-color:#fdd">{</span>
+    RECT rect;
+    int width, height;
+
+<span style = "background-color:#fdd">    _glfwPlatformGetWindowSize(window, &amp;width, &amp;height);
+    SetRect(&amp;rect, 0, 0, width, height);</span>
+
+<span style = "background-color:#fdd">    if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+    {
+<span style = "background-color:#fdd">        AdjustWindowRectExForDpi(&amp;rect, getWindowStyle(window),</span>
+                                 FALSE, getWindowExStyle(window),
+                                 GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#fdd">    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        AdjustWindowRectEx(&amp;rect, getWindowStyle(window),</span>
+                           FALSE, getWindowExStyle(window));
+    }
+
+<span style = "background-color:#fdd">    if (left)
+        *left = -rect.left;
+    if (top)
+        *top = -rect.top;
+    if (right)
+        *right = rect.right - width;
+    if (bottom)
+        *bottom = rect.bottom - height;
+}</span>
+
+void _glfwPlatformGetWindowContentScale(_GLFWwindow* window,
+                                        float* xscale, float* yscale)
+<span style = "background-color:#fdd">{
+    const HANDLE handle = MonitorFromWindow(window-&gt;win32.handle,</span>
+                                            MONITOR_DEFAULTTONEAREST);
+<span style = "background-color:#fdd">    _glfwGetMonitorContentScaleWin32(handle, xscale, yscale);
+}</span>
+
+void _glfwPlatformIconifyWindow(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    ShowWindow(window-&gt;win32.handle, SW_MINIMIZE);
+}</span>
+
+void _glfwPlatformRestoreWindow(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    ShowWindow(window-&gt;win32.handle, SW_RESTORE);
+}</span>
+
+void _glfwPlatformMaximizeWindow(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    ShowWindow(window-&gt;win32.handle, SW_MAXIMIZE);
+}</span>
+
+void _glfwPlatformShowWindow(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    ShowWindow(window-&gt;win32.handle, SW_SHOWNA);
+}</span>
+
+void _glfwPlatformHideWindow(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    ShowWindow(window-&gt;win32.handle, SW_HIDE);
+}</span>
+
+void _glfwPlatformRequestWindowAttention(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    FlashWindow(window-&gt;win32.handle, TRUE);
+}</span>
+
+void _glfwPlatformFocusWindow(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    BringWindowToTop(window-&gt;win32.handle);
+    SetForegroundWindow(window-&gt;win32.handle);
+    SetFocus(window-&gt;win32.handle);
+}</span>
+
+void _glfwPlatformSetWindowMonitor(_GLFWwindow* window,
+                                   _GLFWmonitor* monitor,
+                                   int xpos, int ypos,
+                                   int width, int height,
+                                   int refreshRate)
+<span style = "background-color:#fdd">{
+    if (window-&gt;monitor == monitor)</span>
+    {
+<span style = "background-color:#fdd">        if (monitor)</span>
+        {
+<span style = "background-color:#fdd">            if (monitor-&gt;window == window)</span>
+            {
+<span style = "background-color:#fdd">                acquireMonitor(window);
+                fitToMonitor(window);</span>
+            }
+<span style = "background-color:#fdd">        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            RECT rect = { xpos, ypos, xpos + width, ypos + height };</span>
+
+<span style = "background-color:#fdd">            if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+            {
+<span style = "background-color:#fdd">                AdjustWindowRectExForDpi(&amp;rect, getWindowStyle(window),</span>
+                                         FALSE, getWindowExStyle(window),
+                                         GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#fdd">            }</span>
+            else
+            {
+<span style = "background-color:#fdd">                AdjustWindowRectEx(&amp;rect, getWindowStyle(window),</span>
+                                   FALSE, getWindowExStyle(window));
+            }
+
+<span style = "background-color:#fdd">            SetWindowPos(window-&gt;win32.handle, HWND_TOP,</span>
+                         rect.left, rect.top,
+                         rect.right - rect.left, rect.bottom - rect.top,
+                         SWP_NOCOPYBITS | SWP_NOACTIVATE | SWP_NOZORDER);
+        }
+
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor)
+        releaseMonitor(window);</span>
+
+<span style = "background-color:#fdd">    _glfwInputWindowMonitor(window, monitor);</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor)</span>
+    {
+<span style = "background-color:#fdd">        MONITORINFO mi = { sizeof(mi) };
+        UINT flags = SWP_SHOWWINDOW | SWP_NOACTIVATE | SWP_NOCOPYBITS;</span>
+
+<span style = "background-color:#fdd">        if (window-&gt;decorated)</span>
+        {
+<span style = "background-color:#fdd">            DWORD style = GetWindowLongW(window-&gt;win32.handle, GWL_STYLE);
+            style &amp;= ~WS_OVERLAPPEDWINDOW;
+            style |= getWindowStyle(window);
+            SetWindowLongW(window-&gt;win32.handle, GWL_STYLE, style);
+            flags |= SWP_FRAMECHANGED;</span>
+        }
+
+<span style = "background-color:#fdd">        acquireMonitor(window);</span>
+
+<span style = "background-color:#fdd">        GetMonitorInfo(window-&gt;monitor-&gt;win32.handle, &amp;mi);
+        SetWindowPos(window-&gt;win32.handle, HWND_TOPMOST,</span>
+                     mi.rcMonitor.left,
+                     mi.rcMonitor.top,
+                     mi.rcMonitor.right - mi.rcMonitor.left,
+                     mi.rcMonitor.bottom - mi.rcMonitor.top,
+                     flags);
+<span style = "background-color:#fdd">    }</span>
+    else
+    {
+        HWND after;
+<span style = "background-color:#fdd">        RECT rect = { xpos, ypos, xpos + width, ypos + height };
+        DWORD style = GetWindowLongW(window-&gt;win32.handle, GWL_STYLE);
+        UINT flags = SWP_NOACTIVATE | SWP_NOCOPYBITS;</span>
+
+<span style = "background-color:#fdd">        if (window-&gt;decorated)</span>
+        {
+<span style = "background-color:#fdd">            style &amp;= ~WS_POPUP;
+            style |= getWindowStyle(window);
+            SetWindowLongW(window-&gt;win32.handle, GWL_STYLE, style);</span>
+
+<span style = "background-color:#fdd">            flags |= SWP_FRAMECHANGED;</span>
+        }
+
+<span style = "background-color:#fdd">        if (window-&gt;floating)
+            after = HWND_TOPMOST;</span>
+        else
+<span style = "background-color:#fdd">            after = HWND_NOTOPMOST;</span>
+
+<span style = "background-color:#fdd">        if (_glfwIsWindows10AnniversaryUpdateOrGreaterWin32())</span>
+        {
+<span style = "background-color:#fdd">            AdjustWindowRectExForDpi(&amp;rect, getWindowStyle(window),</span>
+                                     FALSE, getWindowExStyle(window),
+                                     GetDpiForWindow(window-&gt;win32.handle));
+<span style = "background-color:#fdd">        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            AdjustWindowRectEx(&amp;rect, getWindowStyle(window),</span>
+                               FALSE, getWindowExStyle(window));
+        }
+
+<span style = "background-color:#fdd">        SetWindowPos(window-&gt;win32.handle, after,</span>
+                     rect.left, rect.top,
+                     rect.right - rect.left, rect.bottom - rect.top,
+                     flags);
+    }
+<span style = "background-color:#fdd">}</span>
+
+int _glfwPlatformWindowFocused(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    return window-&gt;win32.handle == GetActiveWindow();
+}</span>
+
+int _glfwPlatformWindowIconified(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    return IsIconic(window-&gt;win32.handle);
+}</span>
+
+int _glfwPlatformWindowVisible(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    return IsWindowVisible(window-&gt;win32.handle);
+}</span>
+
+int _glfwPlatformWindowMaximized(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    return IsZoomed(window-&gt;win32.handle);
+}</span>
+
+int _glfwPlatformWindowHovered(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    return cursorInContentArea(window);
+}</span>
+
+int _glfwPlatformFramebufferTransparent(_GLFWwindow* window)
+<span style = "background-color:#fdd">{</span>
+    BOOL composition, opaque;
+    DWORD color;
+
+<span style = "background-color:#fdd">    if (!window-&gt;win32.transparent)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (!IsWindowsVistaOrGreater())
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (FAILED(DwmIsCompositionEnabled(&amp;composition)) || !composition)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (!IsWindows8OrGreater())</span>
+    {
+        // HACK: Disable framebuffer transparency on Windows 7 when the
+        //       colorization color is opaque, because otherwise the window
+        //       contents is blended additively with the previous frame instead
+        //       of replacing it
+<span style = "background-color:#fdd">        if (FAILED(DwmGetColorizationColor(&amp;color, &amp;opaque)) || opaque)
+            return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+void _glfwPlatformSetWindowResizable(_GLFWwindow* window, GLFWbool enabled)
+<span style = "background-color:#fdd">{
+    updateWindowStyles(window);
+}</span>
+
+void _glfwPlatformSetWindowDecorated(_GLFWwindow* window, GLFWbool enabled)
+<span style = "background-color:#fdd">{
+    updateWindowStyles(window);
+}</span>
+
+void _glfwPlatformSetWindowFloating(_GLFWwindow* window, GLFWbool enabled)
+<span style = "background-color:#fdd">{
+    const HWND after = enabled ? HWND_TOPMOST : HWND_NOTOPMOST;
+    SetWindowPos(window-&gt;win32.handle, after, 0, 0, 0, 0,</span>
+                 SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+<span style = "background-color:#fdd">}</span>
+
+void _glfwPlatformSetWindowMousePassthrough(_GLFWwindow* window, GLFWbool enabled)
+<span style = "background-color:#fdd">{
+    COLORREF key = 0;
+    BYTE alpha = 0;
+    DWORD flags = 0;
+    DWORD exStyle = GetWindowLongW(window-&gt;win32.handle, GWL_EXSTYLE);</span>
+
+<span style = "background-color:#fdd">    if (exStyle &amp; WS_EX_LAYERED)
+        GetLayeredWindowAttributes(window-&gt;win32.handle, &amp;key, &amp;alpha, &amp;flags);</span>
+
+<span style = "background-color:#fdd">    if (enabled)
+        exStyle |= (WS_EX_TRANSPARENT | WS_EX_LAYERED);</span>
+    else
+    {
+<span style = "background-color:#fdd">        exStyle &amp;= ~WS_EX_TRANSPARENT;</span>
+        // NOTE: Window opacity also needs the layered window style so do not
+        //       remove it if the window is alpha blended
+<span style = "background-color:#fdd">        if (exStyle &amp; WS_EX_LAYERED)</span>
+        {
+<span style = "background-color:#fdd">            if (!(flags &amp; LWA_ALPHA))
+                exStyle &amp;= ~WS_EX_LAYERED;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    SetWindowLongW(window-&gt;win32.handle, GWL_EXSTYLE, exStyle);</span>
+
+<span style = "background-color:#fdd">    if (enabled)
+        SetLayeredWindowAttributes(window-&gt;win32.handle, key, alpha, flags);
+}</span>
+
+float _glfwPlatformGetWindowOpacity(_GLFWwindow* window)
+<span style = "background-color:#fdd">{</span>
+    BYTE alpha;
+    DWORD flags;
+
+<span style = "background-color:#fdd">    if ((GetWindowLongW(window-&gt;win32.handle, GWL_EXSTYLE) &amp; WS_EX_LAYERED) &amp;&amp;</span>
+        GetLayeredWindowAttributes(window-&gt;win32.handle, NULL, &amp;alpha, &amp;flags))
+    {
+<span style = "background-color:#fdd">        if (flags &amp; LWA_ALPHA)
+            return alpha / 255.f;</span>
+    }
+
+<span style = "background-color:#fdd">    return 1.f;
+}</span>
+
+void _glfwPlatformSetWindowOpacity(_GLFWwindow* window, float opacity)
+<span style = "background-color:#fdd">{
+    LONG exStyle = GetWindowLongW(window-&gt;win32.handle, GWL_EXSTYLE);
+    if (opacity &lt; 1.f || (exStyle &amp; WS_EX_TRANSPARENT))</span>
+    {
+<span style = "background-color:#fdd">        const BYTE alpha = (BYTE) (255 * opacity);
+        exStyle |= WS_EX_LAYERED;
+        SetWindowLongW(window-&gt;win32.handle, GWL_EXSTYLE, exStyle);
+        SetLayeredWindowAttributes(window-&gt;win32.handle, 0, alpha, LWA_ALPHA);
+    }
+    else if (exStyle &amp; WS_EX_TRANSPARENT)</span>
+    {
+<span style = "background-color:#fdd">        SetLayeredWindowAttributes(window-&gt;win32.handle, 0, 0, 0);
+    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        exStyle &amp;= ~WS_EX_LAYERED;
+        SetWindowLongW(window-&gt;win32.handle, GWL_EXSTYLE, exStyle);</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+void _glfwPlatformSetRawMouseMotion(_GLFWwindow *window, GLFWbool enabled)
+<span style = "background-color:#fdd">{
+    if (_glfw.win32.disabledCursorWindow != window)
+        return;</span>
+
+<span style = "background-color:#fdd">    if (enabled)
+        enableRawMouseMotion(window);</span>
+    else
+<span style = "background-color:#fdd">        disableRawMouseMotion(window);
+}</span>
+
+GLFWbool _glfwPlatformRawMouseMotionSupported(void)
+<span style = "background-color:#fdd">{
+    return GLFW_TRUE;
+}</span>
+
+void _glfwPlatformPollEvents(void)
+<span style = "background-color:#dfd">{</span>
+    MSG msg;
+    HWND handle;
+    _GLFWwindow* window;
+
+<span style = "background-color:#dfd">    while (PeekMessageW(&amp;msg, NULL, 0, 0, PM_REMOVE))</span>
+    {
+<span style = "background-color:#dfd">        if (msg.message == WM_QUIT)</span>
+        {
+            // NOTE: While GLFW does not itself post WM_QUIT, other processes
+            //       may post it to this one, for example Task Manager
+            // HACK: Treat WM_QUIT as a close on all windows
+
+<span style = "background-color:#fdd">            window = _glfw.windowListHead;
+            while (window)</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputWindowCloseRequest(window);
+                window = window-&gt;next;
+            }
+        }</span>
+        else
+        {
+<span style = "background-color:#dfd">            TranslateMessage(&amp;msg);
+            DispatchMessageW(&amp;msg);</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+
+    // HACK: Release modifier keys that the system did not emit KEYUP for
+    // NOTE: Shift keys on Windows tend to "stick" when both are pressed as
+    //       no key up message is generated by the first key release
+    // NOTE: Windows key is not reported as released by the Win+V hotkey
+    //       Other Win hotkeys are handled implicitly by _glfwInputWindowFocus
+    //       because they change the input focus
+    // NOTE: The other half of this is in the WM_*KEY* handler in windowProc
+<span style = "background-color:#dfd">    handle = GetActiveWindow();
+    if (handle)</span>
+    {
+<span style = "background-color:#dfd">        window = GetPropW(handle, L"GLFW");
+        if (window)</span>
+        {
+            int i;
+<span style = "background-color:#dfd">            const int keys[4][2] =</span>
+            {
+                { VK_LSHIFT, GLFW_KEY_LEFT_SHIFT },
+                { VK_RSHIFT, GLFW_KEY_RIGHT_SHIFT },
+                { VK_LWIN, GLFW_KEY_LEFT_SUPER },
+                { VK_RWIN, GLFW_KEY_RIGHT_SUPER }
+            };
+
+<span style = "background-color:#dfd">            for (i = 0;  i &lt; 4;  i++)</span>
+            {
+<span style = "background-color:#dfd">                const int vk = keys[i][0];
+                const int key = keys[i][1];
+                const int scancode = _glfw.win32.scancodes[key];</span>
+
+<span style = "background-color:#dfd">                if ((GetKeyState(vk) &amp; 0x8000))
+                    continue;
+                if (window-&gt;keys[key] != GLFW_PRESS)
+                    continue;</span>
+
+<span style = "background-color:#fdd">                _glfwInputKey(window, key, scancode, GLFW_RELEASE, getKeyMods());
+            }</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    window = _glfw.win32.disabledCursorWindow;
+    if (window)</span>
+    {
+        int width, height;
+<span style = "background-color:#dfd">        _glfwPlatformGetWindowSize(window, &amp;width, &amp;height);</span>
+
+        // NOTE: Re-center the cursor only if it has moved since the last call,
+        //       to avoid breaking glfwWaitEvents with WM_MOUSEMOVE
+<span style = "background-color:#dfd">        if (window-&gt;win32.lastCursorPosX != width / 2 ||</span>
+            window-&gt;win32.lastCursorPosY != height / 2)
+        {
+<span style = "background-color:#fdd">            _glfwPlatformSetCursorPos(window, width / 2, height / 2);</span>
+        }
+    }
+<span style = "background-color:#dfd">}</span>
+
+void _glfwPlatformWaitEvents(void)
+<span style = "background-color:#fdd">{
+    WaitMessage();</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformPollEvents();
+}</span>
+
+void _glfwPlatformWaitEventsTimeout(double timeout)
+<span style = "background-color:#fdd">{
+    MsgWaitForMultipleObjects(0, NULL, FALSE, (DWORD) (timeout * 1e3), QS_ALLEVENTS);</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformPollEvents();
+}</span>
+
+void _glfwPlatformPostEmptyEvent(void)
+<span style = "background-color:#fdd">{
+    PostMessage(_glfw.win32.helperWindowHandle, WM_NULL, 0, 0);
+}</span>
+
+void _glfwPlatformGetCursorPos(_GLFWwindow* window, double* xpos, double* ypos)
+<span style = "background-color:#dfd">{</span>
+    POINT pos;
+
+<span style = "background-color:#dfd">    if (GetCursorPos(&amp;pos))</span>
+    {
+<span style = "background-color:#dfd">        ScreenToClient(window-&gt;win32.handle, &amp;pos);</span>
+
+<span style = "background-color:#dfd">        if (xpos)
+            *xpos = pos.x;
+        if (ypos)
+            *ypos = pos.y;</span>
+    }
+<span style = "background-color:#dfd">}</span>
+
+void _glfwPlatformSetCursorPos(_GLFWwindow* window, double xpos, double ypos)
+<span style = "background-color:#dfd">{
+    POINT pos = { (int) xpos, (int) ypos };</span>
+
+    // Store the new position so it can be recognized later
+<span style = "background-color:#dfd">    window-&gt;win32.lastCursorPosX = pos.x;
+    window-&gt;win32.lastCursorPosY = pos.y;</span>
+
+<span style = "background-color:#dfd">    ClientToScreen(window-&gt;win32.handle, &amp;pos);
+    SetCursorPos(pos.x, pos.y);
+}</span>
+
+void _glfwPlatformSetCursorMode(_GLFWwindow* window, int mode)
+<span style = "background-color:#dfd">{
+    if (mode == GLFW_CURSOR_DISABLED)</span>
+    {
+<span style = "background-color:#dfd">        if (_glfwPlatformWindowFocused(window))
+            disableCursor(window);
+    }
+    else if (_glfw.win32.disabledCursorWindow == window)
+        enableCursor(window);</span>
+<span style = "background-color:#fdd">    else if (cursorInContentArea(window))
+        updateCursorImage(window);</span>
+<span style = "background-color:#dfd">}</span>
+
+const char* _glfwPlatformGetScancodeName(int scancode)
+<span style = "background-color:#fdd">{
+    if (scancode &lt; 0 || scancode &gt; (KF_EXTENDED | 0xff) ||</span>
+        _glfw.win32.keycodes[scancode] == GLFW_KEY_UNKNOWN)
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, "Invalid scancode %i", scancode);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    return _glfw.win32.keynames[_glfw.win32.keycodes[scancode]];
+}</span>
+
+int _glfwPlatformGetKeyScancode(int key)
+<span style = "background-color:#fdd">{
+    return _glfw.win32.scancodes[key];
+}</span>
+
+int _glfwPlatformCreateCursor(_GLFWcursor* cursor,
+                              const GLFWimage* image,
+                              int xhot, int yhot)
+<span style = "background-color:#fdd">{
+    cursor-&gt;win32.handle = (HCURSOR) createIcon(image, xhot, yhot, GLFW_FALSE);
+    if (!cursor-&gt;win32.handle)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+int _glfwPlatformCreateStandardCursor(_GLFWcursor* cursor, int shape)
+<span style = "background-color:#dfd">{
+    int id = 0;</span>
+
+<span style = "background-color:#dfd">    switch (shape)</span>
+    {
+        case GLFW_ARROW_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_NORMAL;
+            break;</span>
+        case GLFW_IBEAM_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_IBEAM;
+            break;</span>
+        case GLFW_CROSSHAIR_CURSOR:
+<span style = "background-color:#fdd">            id = OCR_CROSS;
+            break;</span>
+        case GLFW_POINTING_HAND_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_HAND;
+            break;</span>
+        case GLFW_RESIZE_EW_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_SIZEWE;
+            break;</span>
+        case GLFW_RESIZE_NS_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_SIZENS;
+            break;</span>
+        case GLFW_RESIZE_NWSE_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_SIZENWSE;
+            break;</span>
+        case GLFW_RESIZE_NESW_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_SIZENESW;
+            break;</span>
+        case GLFW_RESIZE_ALL_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_SIZEALL;
+            break;</span>
+        case GLFW_NOT_ALLOWED_CURSOR:
+<span style = "background-color:#dfd">            id = OCR_NO;
+            break;</span>
+        default:
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR, "Win32: Unknown standard cursor");
+            return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    cursor-&gt;win32.handle = LoadImageW(NULL,</span>
+                                      MAKEINTRESOURCEW(id), IMAGE_CURSOR, 0, 0,
+                                      LR_DEFAULTSIZE | LR_SHARED);
+<span style = "background-color:#dfd">    if (!cursor-&gt;win32.handle)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to create standard cursor");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    return GLFW_TRUE;
+}</span>
+
+void _glfwPlatformDestroyCursor(_GLFWcursor* cursor)
+<span style = "background-color:#dfd">{
+    if (cursor-&gt;win32.handle)
+        DestroyIcon((HICON) cursor-&gt;win32.handle);
+}</span>
+
+void _glfwPlatformSetCursor(_GLFWwindow* window, _GLFWcursor* cursor)
+<span style = "background-color:#dfd">{
+    if (cursorInContentArea(window))
+        updateCursorImage(window);
+}</span>
+
+void _glfwPlatformSetClipboardString(const char* string)
+<span style = "background-color:#fdd">{</span>
+    int characterCount;
+    HANDLE object;
+    WCHAR* buffer;
+
+<span style = "background-color:#fdd">    characterCount = MultiByteToWideChar(CP_UTF8, 0, string, -1, NULL, 0);
+    if (!characterCount)
+        return;</span>
+
+<span style = "background-color:#fdd">    object = GlobalAlloc(GMEM_MOVEABLE, characterCount * sizeof(WCHAR));
+    if (!object)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to allocate global handle for clipboard");
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    buffer = GlobalLock(object);
+    if (!buffer)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to lock global handle");
+<span style = "background-color:#fdd">        GlobalFree(object);
+        return;</span>
+    }
+
+<span style = "background-color:#fdd">    MultiByteToWideChar(CP_UTF8, 0, string, -1, buffer, characterCount);
+    GlobalUnlock(object);</span>
+
+<span style = "background-color:#fdd">    if (!OpenClipboard(_glfw.win32.helperWindowHandle))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to open clipboard");
+<span style = "background-color:#fdd">        GlobalFree(object);
+        return;</span>
+    }
+
+<span style = "background-color:#fdd">    EmptyClipboard();
+    SetClipboardData(CF_UNICODETEXT, object);
+    CloseClipboard();
+}</span>
+
+const char* _glfwPlatformGetClipboardString(void)
+<span style = "background-color:#fdd">{</span>
+    HANDLE object;
+    WCHAR* buffer;
+
+<span style = "background-color:#fdd">    if (!OpenClipboard(_glfw.win32.helperWindowHandle))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to open clipboard");
+<span style = "background-color:#fdd">        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    object = GetClipboardData(CF_UNICODETEXT);
+    if (!object)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_FORMAT_UNAVAILABLE,</span>
+                             "Win32: Failed to convert clipboard to string");
+<span style = "background-color:#fdd">        CloseClipboard();
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    buffer = GlobalLock(object);
+    if (!buffer)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "Win32: Failed to lock global handle");
+<span style = "background-color:#fdd">        CloseClipboard();
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfw_free(_glfw.win32.clipboardString);
+    _glfw.win32.clipboardString = _glfwCreateUTF8FromWideStringWin32(buffer);</span>
+
+<span style = "background-color:#fdd">    GlobalUnlock(object);
+    CloseClipboard();</span>
+
+<span style = "background-color:#fdd">    return _glfw.win32.clipboardString;
+}</span>
+
+EGLenum _glfwPlatformGetEGLPlatform(EGLint** attribs)
+<span style = "background-color:#fdd">{
+    if (_glfw.egl.ANGLE_platform_angle)</span>
+    {
+<span style = "background-color:#fdd">        int type = 0;</span>
+
+<span style = "background-color:#fdd">        if (_glfw.egl.ANGLE_platform_angle_opengl)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfw.hints.init.angleType == GLFW_ANGLE_PLATFORM_TYPE_OPENGL)
+                type = EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE;
+            else if (_glfw.hints.init.angleType == GLFW_ANGLE_PLATFORM_TYPE_OPENGLES)
+                type = EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE;</span>
+        }
+
+<span style = "background-color:#fdd">        if (_glfw.egl.ANGLE_platform_angle_d3d)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfw.hints.init.angleType == GLFW_ANGLE_PLATFORM_TYPE_D3D9)
+                type = EGL_PLATFORM_ANGLE_TYPE_D3D9_ANGLE;
+            else if (_glfw.hints.init.angleType == GLFW_ANGLE_PLATFORM_TYPE_D3D11)
+                type = EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE;</span>
+        }
+
+<span style = "background-color:#fdd">        if (_glfw.egl.ANGLE_platform_angle_vulkan)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfw.hints.init.angleType == GLFW_ANGLE_PLATFORM_TYPE_VULKAN)
+                type = EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE;</span>
+        }
+
+<span style = "background-color:#fdd">        if (type)</span>
+        {
+<span style = "background-color:#fdd">            *attribs = _glfw_calloc(3, sizeof(EGLint));
+            (*attribs)[0] = EGL_PLATFORM_ANGLE_TYPE_ANGLE;
+            (*attribs)[1] = type;
+            (*attribs)[2] = EGL_NONE;
+            return EGL_PLATFORM_ANGLE_ANGLE;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    return 0;
+}</span>
+
+EGLNativeDisplayType _glfwPlatformGetEGLNativeDisplay(void)
+<span style = "background-color:#fdd">{
+    return GetDC(_glfw.win32.helperWindowHandle);
+}</span>
+
+EGLNativeWindowType _glfwPlatformGetEGLNativeWindow(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    return window-&gt;win32.handle;
+}</span>
+
+void _glfwPlatformGetRequiredInstanceExtensions(char** extensions)
+<span style = "background-color:#fdd">{
+    if (!_glfw.vk.KHR_surface || !_glfw.vk.KHR_win32_surface)
+        return;</span>
+
+<span style = "background-color:#fdd">    extensions[0] = "VK_KHR_surface";
+    extensions[1] = "VK_KHR_win32_surface";
+}</span>
+
+int _glfwPlatformGetPhysicalDevicePresentationSupport(VkInstance instance,
+                                                      VkPhysicalDevice device,
+                                                      uint32_t queuefamily)
+<span style = "background-color:#fdd">{</span>
+    PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR
+<span style = "background-color:#fdd">        vkGetPhysicalDeviceWin32PresentationSupportKHR =</span>
+        (PFN_vkGetPhysicalDeviceWin32PresentationSupportKHR)
+        vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceWin32PresentationSupportKHR");
+<span style = "background-color:#fdd">    if (!vkGetPhysicalDeviceWin32PresentationSupportKHR)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "Win32: Vulkan instance missing VK_KHR_win32_surface extension");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    return vkGetPhysicalDeviceWin32PresentationSupportKHR(device, queuefamily);
+}</span>
+
+VkResult _glfwPlatformCreateWindowSurface(VkInstance instance,
+                                          _GLFWwindow* window,
+                                          const VkAllocationCallbacks* allocator,
+                                          VkSurfaceKHR* surface)
+<span style = "background-color:#fdd">{</span>
+    VkResult err;
+    VkWin32SurfaceCreateInfoKHR sci;
+    PFN_vkCreateWin32SurfaceKHR vkCreateWin32SurfaceKHR;
+
+<span style = "background-color:#fdd">    vkCreateWin32SurfaceKHR = (PFN_vkCreateWin32SurfaceKHR)</span>
+        vkGetInstanceProcAddr(instance, "vkCreateWin32SurfaceKHR");
+<span style = "background-color:#fdd">    if (!vkCreateWin32SurfaceKHR)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "Win32: Vulkan instance missing VK_KHR_win32_surface extension");
+<span style = "background-color:#fdd">        return VK_ERROR_EXTENSION_NOT_PRESENT;</span>
+    }
+
+<span style = "background-color:#fdd">    memset(&amp;sci, 0, sizeof(sci));
+    sci.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    sci.hinstance = GetModuleHandle(NULL);
+    sci.hwnd = window-&gt;win32.handle;</span>
+
+<span style = "background-color:#fdd">    err = vkCreateWin32SurfaceKHR(instance, &amp;sci, allocator, surface);
+    if (err)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                        "Win32: Failed to create Vulkan surface: %s",
+                        _glfwGetVulkanResultString(err));
+    }
+
+<span style = "background-color:#fdd">    return err;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW native API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI HWND glfwGetWin32Window(GLFWwindow* handle)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return window-&gt;win32.handle;
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

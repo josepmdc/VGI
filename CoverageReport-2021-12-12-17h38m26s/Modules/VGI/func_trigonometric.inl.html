@@ -1,0 +1,223 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>func_trigonometric.inl</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include "_vectorize.hpp"
+#include &lt;cmath&gt;
+#include &lt;limits&gt;
+
+namespace glm
+{
+	// radians
+	template&lt;typename genType&gt;
+	GLM_FUNC_QUALIFIER GLM_CONSTEXPR genType radians(genType degrees)
+<span style = "background-color:#dfd">	{</span>
+		GLM_STATIC_ASSERT(std::numeric_limits&lt;genType&gt;::is_iec559, "'radians' only accept floating-point input");
+
+<span style = "background-color:#dfd">		return degrees * static_cast&lt;genType&gt;(0.01745329251994329576923690768489);
+	}</span>
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER GLM_CONSTEXPR vec&lt;L, T, Q&gt; radians(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(radians, v);
+	}
+
+	// degrees
+	template&lt;typename genType&gt;
+	GLM_FUNC_QUALIFIER GLM_CONSTEXPR genType degrees(genType radians)
+	{
+		GLM_STATIC_ASSERT(std::numeric_limits&lt;genType&gt;::is_iec559, "'degrees' only accept floating-point input");
+
+		return radians * static_cast&lt;genType&gt;(57.295779513082320876798154814105);
+	}
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER GLM_CONSTEXPR vec&lt;L, T, Q&gt; degrees(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(degrees, v);
+	}
+
+	// sin
+	using ::std::sin;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; sin(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(sin, v);
+	}
+
+	// cos
+	using std::cos;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; cos(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(cos, v);
+	}
+
+	// tan
+	using std::tan;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; tan(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(tan, v);
+	}
+
+	// asin
+	using std::asin;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; asin(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(asin, v);
+	}
+
+	// acos
+	using std::acos;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; acos(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(acos, v);
+	}
+
+	// atan
+	template&lt;typename genType&gt;
+	GLM_FUNC_QUALIFIER genType atan(genType y, genType x)
+	{
+		GLM_STATIC_ASSERT(std::numeric_limits&lt;genType&gt;::is_iec559, "'atan' only accept floating-point input");
+
+		return ::std::atan2(y, x);
+	}
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; atan(vec&lt;L, T, Q&gt; const&amp; a, vec&lt;L, T, Q&gt; const&amp; b)
+	{
+		return detail::functor2&lt;vec, L, T, Q&gt;::call(::std::atan2, a, b);
+	}
+
+	using std::atan;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; atan(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(atan, v);
+	}
+
+	// sinh
+	using std::sinh;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; sinh(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(sinh, v);
+	}
+
+	// cosh
+	using std::cosh;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; cosh(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(cosh, v);
+	}
+
+	// tanh
+	using std::tanh;
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; tanh(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(tanh, v);
+	}
+
+	// asinh
+#	if GLM_HAS_CXX11_STL
+		using std::asinh;
+#	else
+		template&lt;typename genType&gt;
+		GLM_FUNC_QUALIFIER genType asinh(genType x)
+		{
+			GLM_STATIC_ASSERT(std::numeric_limits&lt;genType&gt;::is_iec559, "'asinh' only accept floating-point input");
+
+			return (x &lt; static_cast&lt;genType&gt;(0) ? static_cast&lt;genType&gt;(-1) : (x &gt; static_cast&lt;genType&gt;(0) ? static_cast&lt;genType&gt;(1) : static_cast&lt;genType&gt;(0))) * log(std::abs(x) + sqrt(static_cast&lt;genType&gt;(1) + x * x));
+		}
+#	endif
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; asinh(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(asinh, v);
+	}
+
+	// acosh
+#	if GLM_HAS_CXX11_STL
+		using std::acosh;
+#	else
+		template&lt;typename genType&gt;
+		GLM_FUNC_QUALIFIER genType acosh(genType x)
+		{
+			GLM_STATIC_ASSERT(std::numeric_limits&lt;genType&gt;::is_iec559, "'acosh' only accept floating-point input");
+
+			if(x &lt; static_cast&lt;genType&gt;(1))
+				return static_cast&lt;genType&gt;(0);
+			return log(x + sqrt(x * x - static_cast&lt;genType&gt;(1)));
+		}
+#	endif
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; acosh(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(acosh, v);
+	}
+
+	// atanh
+#	if GLM_HAS_CXX11_STL
+		using std::atanh;
+#	else
+		template&lt;typename genType&gt;
+		GLM_FUNC_QUALIFIER genType atanh(genType x)
+		{
+			GLM_STATIC_ASSERT(std::numeric_limits&lt;genType&gt;::is_iec559, "'atanh' only accept floating-point input");
+
+			if(std::abs(x) &gt;= static_cast&lt;genType&gt;(1))
+				return 0;
+			return static_cast&lt;genType&gt;(0.5) * log((static_cast&lt;genType&gt;(1) + x) / (static_cast&lt;genType&gt;(1) - x));
+		}
+#	endif
+
+	template&lt;length_t L, typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER vec&lt;L, T, Q&gt; atanh(vec&lt;L, T, Q&gt; const&amp; v)
+	{
+		return detail::functor1&lt;vec, L, T, T, Q&gt;::call(atanh, v);
+	}
+}//namespace glm
+
+#if GLM_CONFIG_SIMD == GLM_ENABLE
+#	include "func_trigonometric_simd.inl"
+#endif
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

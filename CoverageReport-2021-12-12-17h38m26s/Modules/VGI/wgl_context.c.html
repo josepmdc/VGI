@@ -1,0 +1,823 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>wgl_context.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 WGL - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2019 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;stdlib.h&gt;
+#include &lt;assert.h&gt;
+
+// Return the value corresponding to the specified attribute
+//
+static int findPixelFormatAttribValue(const int* attribs,
+                                      int attribCount,
+                                      const int* values,
+                                      int attrib)
+<span style = "background-color:#dfd">{</span>
+    int i;
+
+<span style = "background-color:#dfd">    for (i = 0;  i &lt; attribCount;  i++)</span>
+    {
+<span style = "background-color:#dfd">        if (attribs[i] == attrib)
+            return values[i];
+    }</span>
+
+<span style = "background-color:#fdd">    _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                         "WGL: Unknown pixel format attribute requested");
+<span style = "background-color:#fdd">    return 0;</span>
+<span style = "background-color:#dfd">}</span>
+
+#define addAttrib(a) \
+{ \
+    assert((size_t) attribCount &lt; sizeof(attribs) / sizeof(attribs[0])); \
+    attribs[attribCount++] = a; \
+}
+#define findAttribValue(a) \
+    findPixelFormatAttribValue(attribs, attribCount, values, a)
+
+// Return a list of available and usable framebuffer configs
+//
+static int choosePixelFormat(_GLFWwindow* window,
+                             const _GLFWctxconfig* ctxconfig,
+                             const _GLFWfbconfig* fbconfig)
+<span style = "background-color:#dfd">{</span>
+    _GLFWfbconfig* usableConfigs;
+    const _GLFWfbconfig* closest;
+<span style = "background-color:#dfd">    int i, pixelFormat, nativeCount, usableCount = 0, attribCount = 0;</span>
+    int attribs[40];
+    int values[sizeof(attribs) / sizeof(attribs[0])];
+
+<span style = "background-color:#dfd">    if (_glfw.wgl.ARB_pixel_format)</span>
+    {
+<span style = "background-color:#dfd">        const int attrib = WGL_NUMBER_PIXEL_FORMATS_ARB;</span>
+
+<span style = "background-color:#dfd">        if (!wglGetPixelFormatAttribivARB(window-&gt;context.wgl.dc,</span>
+                                          1, 0, 1, &amp;attrib, &amp;nativeCount))
+        {
+<span style = "background-color:#fdd">            _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                 "WGL: Failed to retrieve pixel format attribute");
+<span style = "background-color:#fdd">            return 0;</span>
+        }
+
+<span style = "background-color:#dfd">        addAttrib(WGL_SUPPORT_OPENGL_ARB);
+        addAttrib(WGL_DRAW_TO_WINDOW_ARB);
+        addAttrib(WGL_PIXEL_TYPE_ARB);
+        addAttrib(WGL_ACCELERATION_ARB);
+        addAttrib(WGL_RED_BITS_ARB);
+        addAttrib(WGL_RED_SHIFT_ARB);
+        addAttrib(WGL_GREEN_BITS_ARB);
+        addAttrib(WGL_GREEN_SHIFT_ARB);
+        addAttrib(WGL_BLUE_BITS_ARB);
+        addAttrib(WGL_BLUE_SHIFT_ARB);
+        addAttrib(WGL_ALPHA_BITS_ARB);
+        addAttrib(WGL_ALPHA_SHIFT_ARB);
+        addAttrib(WGL_DEPTH_BITS_ARB);
+        addAttrib(WGL_STENCIL_BITS_ARB);
+        addAttrib(WGL_ACCUM_BITS_ARB);
+        addAttrib(WGL_ACCUM_RED_BITS_ARB);
+        addAttrib(WGL_ACCUM_GREEN_BITS_ARB);
+        addAttrib(WGL_ACCUM_BLUE_BITS_ARB);
+        addAttrib(WGL_ACCUM_ALPHA_BITS_ARB);
+        addAttrib(WGL_AUX_BUFFERS_ARB);
+        addAttrib(WGL_STEREO_ARB);
+        addAttrib(WGL_DOUBLE_BUFFER_ARB);</span>
+
+<span style = "background-color:#dfd">        if (_glfw.wgl.ARB_multisample)
+            addAttrib(WGL_SAMPLES_ARB);</span>
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+        {
+<span style = "background-color:#dfd">            if (_glfw.wgl.ARB_framebuffer_sRGB || _glfw.wgl.EXT_framebuffer_sRGB)
+                addAttrib(WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB);
+        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            if (_glfw.wgl.EXT_colorspace)
+                addAttrib(WGL_COLORSPACE_EXT);</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        nativeCount = DescribePixelFormat(window-&gt;context.wgl.dc,</span>
+                                          1,
+                                          sizeof(PIXELFORMATDESCRIPTOR),
+                                          NULL);
+    }
+
+<span style = "background-color:#dfd">    usableConfigs = _glfw_calloc(nativeCount, sizeof(_GLFWfbconfig));</span>
+
+<span style = "background-color:#dfd">    for (i = 0;  i &lt; nativeCount;  i++)</span>
+    {
+<span style = "background-color:#dfd">        _GLFWfbconfig* u = usableConfigs + usableCount;
+        pixelFormat = i + 1;</span>
+
+<span style = "background-color:#dfd">        if (_glfw.wgl.ARB_pixel_format)</span>
+        {
+            // Get pixel format attributes through "modern" extension
+
+<span style = "background-color:#dfd">            if (!wglGetPixelFormatAttribivARB(window-&gt;context.wgl.dc,</span>
+                                              pixelFormat, 0,
+                                              attribCount,
+                                              attribs, values))
+            {
+<span style = "background-color:#fdd">                _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                    "WGL: Failed to retrieve pixel format attributes");
+
+<span style = "background-color:#fdd">                _glfw_free(usableConfigs);
+                return 0;</span>
+            }
+
+<span style = "background-color:#dfd">            if (!findAttribValue(WGL_SUPPORT_OPENGL_ARB) ||</span>
+                !findAttribValue(WGL_DRAW_TO_WINDOW_ARB))
+            {
+<span style = "background-color:#dfd">                continue;</span>
+            }
+
+<span style = "background-color:#dfd">            if (findAttribValue(WGL_PIXEL_TYPE_ARB) != WGL_TYPE_RGBA_ARB)
+                continue;</span>
+
+<span style = "background-color:#dfd">            if (findAttribValue(WGL_ACCELERATION_ARB) == WGL_NO_ACCELERATION_ARB)
+                continue;</span>
+
+<span style = "background-color:#dfd">            if (findAttribValue(WGL_DOUBLE_BUFFER_ARB) != fbconfig-&gt;doublebuffer)
+                continue;</span>
+
+<span style = "background-color:#dfd">            u-&gt;redBits = findAttribValue(WGL_RED_BITS_ARB);
+            u-&gt;greenBits = findAttribValue(WGL_GREEN_BITS_ARB);
+            u-&gt;blueBits = findAttribValue(WGL_BLUE_BITS_ARB);
+            u-&gt;alphaBits = findAttribValue(WGL_ALPHA_BITS_ARB);</span>
+
+<span style = "background-color:#dfd">            u-&gt;depthBits = findAttribValue(WGL_DEPTH_BITS_ARB);
+            u-&gt;stencilBits = findAttribValue(WGL_STENCIL_BITS_ARB);</span>
+
+<span style = "background-color:#dfd">            u-&gt;accumRedBits = findAttribValue(WGL_ACCUM_RED_BITS_ARB);
+            u-&gt;accumGreenBits = findAttribValue(WGL_ACCUM_GREEN_BITS_ARB);
+            u-&gt;accumBlueBits = findAttribValue(WGL_ACCUM_BLUE_BITS_ARB);
+            u-&gt;accumAlphaBits = findAttribValue(WGL_ACCUM_ALPHA_BITS_ARB);</span>
+
+<span style = "background-color:#dfd">            u-&gt;auxBuffers = findAttribValue(WGL_AUX_BUFFERS_ARB);</span>
+
+<span style = "background-color:#dfd">            if (findAttribValue(WGL_STEREO_ARB))</span>
+<span style = "background-color:#fdd">                u-&gt;stereo = GLFW_TRUE;</span>
+
+<span style = "background-color:#dfd">            if (_glfw.wgl.ARB_multisample)
+                u-&gt;samples = findAttribValue(WGL_SAMPLES_ARB);</span>
+
+<span style = "background-color:#dfd">            if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+            {
+<span style = "background-color:#dfd">                if (_glfw.wgl.ARB_framebuffer_sRGB ||</span>
+                    _glfw.wgl.EXT_framebuffer_sRGB)
+                {
+<span style = "background-color:#dfd">                    if (findAttribValue(WGL_FRAMEBUFFER_SRGB_CAPABLE_ARB))
+                        u-&gt;sRGB = GLFW_TRUE;</span>
+                }
+<span style = "background-color:#dfd">            }</span>
+            else
+            {
+<span style = "background-color:#fdd">                if (_glfw.wgl.EXT_colorspace)</span>
+                {
+<span style = "background-color:#fdd">                    if (findAttribValue(WGL_COLORSPACE_EXT) == WGL_COLORSPACE_SRGB_EXT)
+                        u-&gt;sRGB = GLFW_TRUE;</span>
+                }
+            }
+<span style = "background-color:#dfd">        }</span>
+        else
+        {
+            // Get pixel format attributes through legacy PFDs
+
+            PIXELFORMATDESCRIPTOR pfd;
+
+<span style = "background-color:#fdd">            if (!DescribePixelFormat(window-&gt;context.wgl.dc,</span>
+                                     pixelFormat,
+                                     sizeof(PIXELFORMATDESCRIPTOR),
+                                     &amp;pfd))
+            {
+<span style = "background-color:#fdd">                _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                    "WGL: Failed to describe pixel format");
+
+<span style = "background-color:#fdd">                _glfw_free(usableConfigs);
+                return 0;</span>
+            }
+
+<span style = "background-color:#fdd">            if (!(pfd.dwFlags &amp; PFD_DRAW_TO_WINDOW) ||</span>
+                !(pfd.dwFlags &amp; PFD_SUPPORT_OPENGL))
+            {
+<span style = "background-color:#fdd">                continue;</span>
+            }
+
+<span style = "background-color:#fdd">            if (!(pfd.dwFlags &amp; PFD_GENERIC_ACCELERATED) &amp;&amp;</span>
+                (pfd.dwFlags &amp; PFD_GENERIC_FORMAT))
+            {
+<span style = "background-color:#fdd">                continue;</span>
+            }
+
+<span style = "background-color:#fdd">            if (pfd.iPixelType != PFD_TYPE_RGBA)
+                continue;</span>
+
+<span style = "background-color:#fdd">            if (!!(pfd.dwFlags &amp; PFD_DOUBLEBUFFER) != fbconfig-&gt;doublebuffer)
+                continue;</span>
+
+<span style = "background-color:#fdd">            u-&gt;redBits = pfd.cRedBits;
+            u-&gt;greenBits = pfd.cGreenBits;
+            u-&gt;blueBits = pfd.cBlueBits;
+            u-&gt;alphaBits = pfd.cAlphaBits;</span>
+
+<span style = "background-color:#fdd">            u-&gt;depthBits = pfd.cDepthBits;
+            u-&gt;stencilBits = pfd.cStencilBits;</span>
+
+<span style = "background-color:#fdd">            u-&gt;accumRedBits = pfd.cAccumRedBits;
+            u-&gt;accumGreenBits = pfd.cAccumGreenBits;
+            u-&gt;accumBlueBits = pfd.cAccumBlueBits;
+            u-&gt;accumAlphaBits = pfd.cAccumAlphaBits;</span>
+
+<span style = "background-color:#fdd">            u-&gt;auxBuffers = pfd.cAuxBuffers;</span>
+
+<span style = "background-color:#fdd">            if (pfd.dwFlags &amp; PFD_STEREO)
+                u-&gt;stereo = GLFW_TRUE;</span>
+        }
+
+<span style = "background-color:#dfd">        u-&gt;handle = pixelFormat;
+        usableCount++;
+    }</span>
+
+<span style = "background-color:#dfd">    if (!usableCount)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "WGL: The driver does not appear to support OpenGL");
+
+<span style = "background-color:#fdd">        _glfw_free(usableConfigs);
+        return 0;</span>
+    }
+
+<span style = "background-color:#dfd">    closest = _glfwChooseFBConfig(fbconfig, usableConfigs, usableCount);
+    if (!closest)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_FORMAT_UNAVAILABLE,</span>
+                        "WGL: Failed to find a suitable pixel format");
+
+<span style = "background-color:#fdd">        _glfw_free(usableConfigs);
+        return 0;</span>
+    }
+
+<span style = "background-color:#dfd">    pixelFormat = (int) closest-&gt;handle;
+    _glfw_free(usableConfigs);</span>
+
+<span style = "background-color:#dfd">    return pixelFormat;
+}</span>
+
+#undef addAttrib
+#undef findAttribValue
+
+static void makeContextCurrentWGL(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (window)</span>
+    {
+<span style = "background-color:#dfd">        if (wglMakeCurrent(window-&gt;context.wgl.dc, window-&gt;context.wgl.handle))
+            _glfwPlatformSetTls(&amp;_glfw.contextSlot, window);</span>
+        else
+        {
+<span style = "background-color:#fdd">            _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                 "WGL: Failed to make context current");
+<span style = "background-color:#fdd">            _glfwPlatformSetTls(&amp;_glfw.contextSlot, NULL);</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+    else
+    {
+<span style = "background-color:#dfd">        if (!wglMakeCurrent(NULL, NULL))</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                 "WGL: Failed to clear current context");
+        }
+
+<span style = "background-color:#dfd">        _glfwPlatformSetTls(&amp;_glfw.contextSlot, NULL);</span>
+    }
+<span style = "background-color:#dfd">}</span>
+
+static void swapBuffersWGL(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (!window-&gt;monitor)</span>
+    {
+<span style = "background-color:#dfd">        if (IsWindowsVistaOrGreater())</span>
+        {
+            // DWM Composition is always enabled on Win8+
+<span style = "background-color:#dfd">            BOOL enabled = IsWindows8OrGreater();</span>
+
+            // HACK: Use DwmFlush when desktop composition is enabled
+<span style = "background-color:#dfd">            if (enabled ||</span>
+                (SUCCEEDED(DwmIsCompositionEnabled(&amp;enabled)) &amp;&amp; enabled))
+            {
+<span style = "background-color:#dfd">                int count = abs(window-&gt;context.wgl.interval);
+                while (count--)</span>
+<span style = "background-color:#fdd">                    DwmFlush();</span>
+            }
+        }
+    }
+
+<span style = "background-color:#dfd">    SwapBuffers(window-&gt;context.wgl.dc);
+}</span>
+
+static void swapIntervalWGL(int interval)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = _glfwPlatformGetTls(&amp;_glfw.contextSlot);</span>
+
+<span style = "background-color:#fdd">    window-&gt;context.wgl.interval = interval;</span>
+
+<span style = "background-color:#fdd">    if (!window-&gt;monitor)</span>
+    {
+<span style = "background-color:#fdd">        if (IsWindowsVistaOrGreater())</span>
+        {
+            // DWM Composition is always enabled on Win8+
+<span style = "background-color:#fdd">            BOOL enabled = IsWindows8OrGreater();</span>
+
+            // HACK: Disable WGL swap interval when desktop composition is enabled to
+            //       avoid interfering with DWM vsync
+<span style = "background-color:#fdd">            if (enabled ||</span>
+                (SUCCEEDED(DwmIsCompositionEnabled(&amp;enabled)) &amp;&amp; enabled))
+<span style = "background-color:#fdd">                interval = 0;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    if (_glfw.wgl.EXT_swap_control)
+        wglSwapIntervalEXT(interval);
+}</span>
+
+static int extensionSupportedWGL(const char* extension)
+<span style = "background-color:#dfd">{
+    const char* extensions = NULL;</span>
+
+<span style = "background-color:#dfd">    if (_glfw.wgl.GetExtensionsStringARB)
+        extensions = wglGetExtensionsStringARB(wglGetCurrentDC());</span>
+<span style = "background-color:#fdd">    else if (_glfw.wgl.GetExtensionsStringEXT)
+        extensions = wglGetExtensionsStringEXT();</span>
+
+<span style = "background-color:#dfd">    if (!extensions)</span>
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">    return _glfwStringInExtensionString(extension, extensions);
+}</span>
+
+static GLFWglproc getProcAddressWGL(const char* procname)
+<span style = "background-color:#dfd">{
+    const GLFWglproc proc = (GLFWglproc) wglGetProcAddress(procname);
+    if (proc)
+        return proc;</span>
+
+<span style = "background-color:#dfd">    return (GLFWglproc) GetProcAddress(_glfw.wgl.instance, procname);
+}</span>
+
+static void destroyContextWGL(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (window-&gt;context.wgl.handle)</span>
+    {
+<span style = "background-color:#dfd">        wglDeleteContext(window-&gt;context.wgl.handle);
+        window-&gt;context.wgl.handle = NULL;</span>
+    }
+<span style = "background-color:#dfd">}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+// Initialize WGL
+//
+GLFWbool _glfwInitWGL(void)
+<span style = "background-color:#dfd">{</span>
+    PIXELFORMATDESCRIPTOR pfd;
+    HGLRC prc, rc;
+    HDC pdc, dc;
+
+<span style = "background-color:#dfd">    if (_glfw.wgl.instance)</span>
+<span style = "background-color:#fdd">        return GLFW_TRUE;</span>
+
+<span style = "background-color:#dfd">    _glfw.wgl.instance = LoadLibraryA("opengl32.dll");
+    if (!_glfw.wgl.instance)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "WGL: Failed to load opengl32.dll");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    _glfw.wgl.CreateContext = (PFN_wglCreateContext)</span>
+        GetProcAddress(_glfw.wgl.instance, "wglCreateContext");
+<span style = "background-color:#dfd">    _glfw.wgl.DeleteContext = (PFN_wglDeleteContext)</span>
+        GetProcAddress(_glfw.wgl.instance, "wglDeleteContext");
+<span style = "background-color:#dfd">    _glfw.wgl.GetProcAddress = (PFN_wglGetProcAddress)</span>
+        GetProcAddress(_glfw.wgl.instance, "wglGetProcAddress");
+<span style = "background-color:#dfd">    _glfw.wgl.GetCurrentDC = (PFN_wglGetCurrentDC)</span>
+        GetProcAddress(_glfw.wgl.instance, "wglGetCurrentDC");
+<span style = "background-color:#dfd">    _glfw.wgl.GetCurrentContext = (PFN_wglGetCurrentContext)</span>
+        GetProcAddress(_glfw.wgl.instance, "wglGetCurrentContext");
+<span style = "background-color:#dfd">    _glfw.wgl.MakeCurrent = (PFN_wglMakeCurrent)</span>
+        GetProcAddress(_glfw.wgl.instance, "wglMakeCurrent");
+<span style = "background-color:#dfd">    _glfw.wgl.ShareLists = (PFN_wglShareLists)</span>
+        GetProcAddress(_glfw.wgl.instance, "wglShareLists");
+
+    // NOTE: A dummy context has to be created for opengl32.dll to load the
+    //       OpenGL ICD, from which we can then query WGL extensions
+    // NOTE: This code will accept the Microsoft GDI ICD; accelerated context
+    //       creation failure occurs during manual pixel format enumeration
+
+<span style = "background-color:#dfd">    dc = GetDC(_glfw.win32.helperWindowHandle);</span>
+
+<span style = "background-color:#dfd">    ZeroMemory(&amp;pfd, sizeof(pfd));
+    pfd.nSize = sizeof(pfd);
+    pfd.nVersion = 1;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.cColorBits = 24;</span>
+
+<span style = "background-color:#dfd">    if (!SetPixelFormat(dc, ChoosePixelFormat(dc, &amp;pfd), &amp;pfd))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "WGL: Failed to set pixel format for dummy context");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    rc = wglCreateContext(dc);
+    if (!rc)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "WGL: Failed to create dummy context");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    pdc = wglGetCurrentDC();
+    prc = wglGetCurrentContext();</span>
+
+<span style = "background-color:#dfd">    if (!wglMakeCurrent(dc, rc))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "WGL: Failed to make dummy context current");
+<span style = "background-color:#fdd">        wglMakeCurrent(pdc, prc);
+        wglDeleteContext(rc);
+        return GLFW_FALSE;</span>
+    }
+
+    // NOTE: Functions must be loaded first as they're needed to retrieve the
+    //       extension string that tells us whether the functions are supported
+<span style = "background-color:#dfd">    _glfw.wgl.GetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)</span>
+        wglGetProcAddress("wglGetExtensionsStringEXT");
+<span style = "background-color:#dfd">    _glfw.wgl.GetExtensionsStringARB = (PFNWGLGETEXTENSIONSSTRINGARBPROC)</span>
+        wglGetProcAddress("wglGetExtensionsStringARB");
+<span style = "background-color:#dfd">    _glfw.wgl.CreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)</span>
+        wglGetProcAddress("wglCreateContextAttribsARB");
+<span style = "background-color:#dfd">    _glfw.wgl.SwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)</span>
+        wglGetProcAddress("wglSwapIntervalEXT");
+<span style = "background-color:#dfd">    _glfw.wgl.GetPixelFormatAttribivARB = (PFNWGLGETPIXELFORMATATTRIBIVARBPROC)</span>
+        wglGetProcAddress("wglGetPixelFormatAttribivARB");
+
+    // NOTE: WGL_ARB_extensions_string and WGL_EXT_extensions_string are not
+    //       checked below as we are already using them
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_multisample =</span>
+        extensionSupportedWGL("WGL_ARB_multisample");
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_framebuffer_sRGB =</span>
+        extensionSupportedWGL("WGL_ARB_framebuffer_sRGB");
+<span style = "background-color:#dfd">    _glfw.wgl.EXT_framebuffer_sRGB =</span>
+        extensionSupportedWGL("WGL_EXT_framebuffer_sRGB");
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_create_context =</span>
+        extensionSupportedWGL("WGL_ARB_create_context");
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_create_context_profile =</span>
+        extensionSupportedWGL("WGL_ARB_create_context_profile");
+<span style = "background-color:#dfd">    _glfw.wgl.EXT_create_context_es2_profile =</span>
+        extensionSupportedWGL("WGL_EXT_create_context_es2_profile");
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_create_context_robustness =</span>
+        extensionSupportedWGL("WGL_ARB_create_context_robustness");
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_create_context_no_error =</span>
+        extensionSupportedWGL("WGL_ARB_create_context_no_error");
+<span style = "background-color:#dfd">    _glfw.wgl.EXT_swap_control =</span>
+        extensionSupportedWGL("WGL_EXT_swap_control");
+<span style = "background-color:#dfd">    _glfw.wgl.EXT_colorspace =</span>
+        extensionSupportedWGL("WGL_EXT_colorspace");
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_pixel_format =</span>
+        extensionSupportedWGL("WGL_ARB_pixel_format");
+<span style = "background-color:#dfd">    _glfw.wgl.ARB_context_flush_control =</span>
+        extensionSupportedWGL("WGL_ARB_context_flush_control");
+
+<span style = "background-color:#dfd">    wglMakeCurrent(pdc, prc);
+    wglDeleteContext(rc);
+    return GLFW_TRUE;
+}</span>
+
+// Terminate WGL
+//
+void _glfwTerminateWGL(void)
+<span style = "background-color:#dfd">{
+    if (_glfw.wgl.instance)
+        FreeLibrary(_glfw.wgl.instance);
+}</span>
+
+#define setAttrib(a, v) \
+{ \
+    assert(((size_t) index + 1) &lt; sizeof(attribs) / sizeof(attribs[0])); \
+    attribs[index++] = a; \
+    attribs[index++] = v; \
+}
+
+// Create the OpenGL or OpenGL ES context
+//
+GLFWbool _glfwCreateContextWGL(_GLFWwindow* window,
+                               const _GLFWctxconfig* ctxconfig,
+                               const _GLFWfbconfig* fbconfig)
+<span style = "background-color:#dfd">{</span>
+    int attribs[40];
+    int pixelFormat;
+    PIXELFORMATDESCRIPTOR pfd;
+<span style = "background-color:#dfd">    HGLRC share = NULL;</span>
+
+<span style = "background-color:#dfd">    if (ctxconfig-&gt;share)</span>
+<span style = "background-color:#fdd">        share = ctxconfig-&gt;share-&gt;context.wgl.handle;</span>
+
+<span style = "background-color:#dfd">    window-&gt;context.wgl.dc = GetDC(window-&gt;win32.handle);
+    if (!window-&gt;context.wgl.dc)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                        "WGL: Failed to retrieve DC for window");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    pixelFormat = choosePixelFormat(window, ctxconfig, fbconfig);
+    if (!pixelFormat)</span>
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">    if (!DescribePixelFormat(window-&gt;context.wgl.dc,</span>
+                             pixelFormat, sizeof(pfd), &amp;pfd))
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "WGL: Failed to retrieve PFD for selected pixel format");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (!SetPixelFormat(window-&gt;context.wgl.dc, pixelFormat, &amp;pfd))</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                             "WGL: Failed to set selected pixel format");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+    {
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;forward)</span>
+        {
+<span style = "background-color:#fdd">            if (!_glfw.wgl.ARB_create_context)</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                                "WGL: A forward compatible OpenGL context requested but WGL_ARB_create_context is unavailable");
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+            }
+        }
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;profile)</span>
+        {
+<span style = "background-color:#dfd">            if (!_glfw.wgl.ARB_create_context_profile)</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                                "WGL: OpenGL profile requested but WGL_ARB_create_context_profile is unavailable");
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+            }
+        }
+<span style = "background-color:#dfd">    }</span>
+    else
+    {
+        if (!_glfw.wgl.ARB_create_context ||
+<span style = "background-color:#fdd">            !_glfw.wgl.ARB_create_context_profile ||</span>
+            !_glfw.wgl.EXT_create_context_es2_profile)
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                            "WGL: OpenGL ES requested but WGL_ARB_create_context_es2_profile is unavailable");
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    if (_glfw.wgl.ARB_create_context)</span>
+    {
+<span style = "background-color:#dfd">        int index = 0, mask = 0, flags = 0;</span>
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+        {
+<span style = "background-color:#dfd">            if (ctxconfig-&gt;forward)</span>
+<span style = "background-color:#fdd">                flags |= WGL_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB;</span>
+
+<span style = "background-color:#dfd">            if (ctxconfig-&gt;profile == GLFW_OPENGL_CORE_PROFILE)
+                mask |= WGL_CONTEXT_CORE_PROFILE_BIT_ARB;</span>
+<span style = "background-color:#fdd">            else if (ctxconfig-&gt;profile == GLFW_OPENGL_COMPAT_PROFILE)
+                mask |= WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;</span>
+<span style = "background-color:#dfd">        }</span>
+        else
+<span style = "background-color:#fdd">            mask |= WGL_CONTEXT_ES2_PROFILE_BIT_EXT;</span>
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;debug)</span>
+<span style = "background-color:#fdd">            flags |= WGL_CONTEXT_DEBUG_BIT_ARB;</span>
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;robustness)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfw.wgl.ARB_create_context_robustness)</span>
+            {
+<span style = "background-color:#fdd">                if (ctxconfig-&gt;robustness == GLFW_NO_RESET_NOTIFICATION)</span>
+                {
+<span style = "background-color:#fdd">                    setAttrib(WGL_CONTEXT_RESET_NOTIFICATION_STRATEGY_ARB,</span>
+                              WGL_NO_RESET_NOTIFICATION_ARB);
+<span style = "background-color:#fdd">                }
+                else if (ctxconfig-&gt;robustness == GLFW_LOSE_CONTEXT_ON_RESET)</span>
+                {
+<span style = "background-color:#fdd">                    setAttrib(WGL_CONTEXT_RESET_NOTIFICATION_STRATEGY_ARB,</span>
+                              WGL_LOSE_CONTEXT_ON_RESET_ARB);
+                }
+
+<span style = "background-color:#fdd">                flags |= WGL_CONTEXT_ROBUST_ACCESS_BIT_ARB;</span>
+            }
+        }
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;release)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfw.wgl.ARB_context_flush_control)</span>
+            {
+<span style = "background-color:#fdd">                if (ctxconfig-&gt;release == GLFW_RELEASE_BEHAVIOR_NONE)</span>
+                {
+<span style = "background-color:#fdd">                    setAttrib(WGL_CONTEXT_RELEASE_BEHAVIOR_ARB,</span>
+                              WGL_CONTEXT_RELEASE_BEHAVIOR_NONE_ARB);
+<span style = "background-color:#fdd">                }
+                else if (ctxconfig-&gt;release == GLFW_RELEASE_BEHAVIOR_FLUSH)</span>
+                {
+<span style = "background-color:#fdd">                    setAttrib(WGL_CONTEXT_RELEASE_BEHAVIOR_ARB,</span>
+                              WGL_CONTEXT_RELEASE_BEHAVIOR_FLUSH_ARB);
+                }
+            }
+        }
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;noerror)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfw.wgl.ARB_create_context_no_error)
+                setAttrib(WGL_CONTEXT_OPENGL_NO_ERROR_ARB, GLFW_TRUE);</span>
+        }
+
+        // NOTE: Only request an explicitly versioned context when necessary, as
+        //       explicitly requesting version 1.0 does not always return the
+        //       highest version supported by the driver
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;major != 1 || ctxconfig-&gt;minor != 0)</span>
+        {
+<span style = "background-color:#dfd">            setAttrib(WGL_CONTEXT_MAJOR_VERSION_ARB, ctxconfig-&gt;major);
+            setAttrib(WGL_CONTEXT_MINOR_VERSION_ARB, ctxconfig-&gt;minor);</span>
+        }
+
+<span style = "background-color:#dfd">        if (flags)</span>
+<span style = "background-color:#fdd">            setAttrib(WGL_CONTEXT_FLAGS_ARB, flags);</span>
+
+<span style = "background-color:#dfd">        if (mask)
+            setAttrib(WGL_CONTEXT_PROFILE_MASK_ARB, mask);</span>
+
+<span style = "background-color:#dfd">        setAttrib(0, 0);</span>
+
+<span style = "background-color:#dfd">        window-&gt;context.wgl.handle =</span>
+            wglCreateContextAttribsARB(window-&gt;context.wgl.dc, share, attribs);
+<span style = "background-color:#dfd">        if (!window-&gt;context.wgl.handle)</span>
+        {
+<span style = "background-color:#fdd">            const DWORD error = GetLastError();</span>
+
+<span style = "background-color:#fdd">            if (error == (0xc0070000 | ERROR_INVALID_VERSION_ARB))</span>
+            {
+<span style = "background-color:#fdd">                if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+                {
+<span style = "background-color:#fdd">                    _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                                    "WGL: Driver does not support OpenGL version %i.%i",
+                                    ctxconfig-&gt;major,
+                                    ctxconfig-&gt;minor);
+<span style = "background-color:#fdd">                }</span>
+                else
+                {
+<span style = "background-color:#fdd">                    _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                                    "WGL: Driver does not support OpenGL ES version %i.%i",
+                                    ctxconfig-&gt;major,
+                                    ctxconfig-&gt;minor);
+                }
+<span style = "background-color:#fdd">            }
+            else if (error == (0xc0070000 | ERROR_INVALID_PROFILE_ARB))</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                                "WGL: Driver does not support the requested OpenGL profile");
+<span style = "background-color:#fdd">            }
+            else if (error == (0xc0070000 | ERROR_INCOMPATIBLE_DEVICE_CONTEXTS_ARB))</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_INVALID_VALUE,</span>
+                                "WGL: The share context is not compatible with the requested context");
+<span style = "background-color:#fdd">            }</span>
+            else
+            {
+<span style = "background-color:#fdd">                if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+                {
+<span style = "background-color:#fdd">                    _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                                    "WGL: Failed to create OpenGL context");
+<span style = "background-color:#fdd">                }</span>
+                else
+                {
+<span style = "background-color:#fdd">                    _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                                    "WGL: Failed to create OpenGL ES context");
+                }
+            }
+
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        window-&gt;context.wgl.handle = wglCreateContext(window-&gt;context.wgl.dc);
+        if (!window-&gt;context.wgl.handle)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputErrorWin32(GLFW_VERSION_UNAVAILABLE,</span>
+                                 "WGL: Failed to create OpenGL context");
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+
+<span style = "background-color:#fdd">        if (share)</span>
+        {
+<span style = "background-color:#fdd">            if (!wglShareLists(share, window-&gt;context.wgl.handle))</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputErrorWin32(GLFW_PLATFORM_ERROR,</span>
+                                     "WGL: Failed to enable sharing with specified OpenGL context");
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+            }
+        }
+    }
+
+<span style = "background-color:#dfd">    window-&gt;context.makeCurrent = makeContextCurrentWGL;
+    window-&gt;context.swapBuffers = swapBuffersWGL;
+    window-&gt;context.swapInterval = swapIntervalWGL;
+    window-&gt;context.extensionSupported = extensionSupportedWGL;
+    window-&gt;context.getProcAddress = getProcAddressWGL;
+    window-&gt;context.destroy = destroyContextWGL;</span>
+
+<span style = "background-color:#dfd">    return GLFW_TRUE;
+}</span>
+
+#undef setAttrib
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW native API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI HGLRC glfwGetWGLContext(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;context.client == GLFW_NO_API)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_NO_WINDOW_CONTEXT, NULL);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    return window-&gt;context.wgl.handle;
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

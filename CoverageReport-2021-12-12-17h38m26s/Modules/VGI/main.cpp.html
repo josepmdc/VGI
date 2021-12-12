@@ -1,0 +1,225 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>main.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include &lt;iostream&gt;
+#include &lt;cmath&gt;
+
+#include &lt;glad/glad.h&gt;
+#include &lt;GLFW/glfw3.h&gt;
+#include &lt;glm/glm.hpp&gt;
+#include &lt;glm/gtc/matrix_transform.hpp&gt;
+#include &lt;glm/gtc/type_ptr.hpp&gt;
+#include &lt;glm/gtx/string_cast.hpp&gt;
+#include &lt;imgui.h&gt;
+#include &lt;imgui_impl_glfw.h&gt;
+#include &lt;imgui_impl_opengl3.h&gt;
+
+#include "shader/shader.h"
+#include "planet/planet.h"
+#include "skybox/skybox.h"
+#include "util/util.h"
+#include "state/state.h"
+#include "camera/camera.h"
+#include "gui/gui.h"
+
+<span style = "background-color:#dfd">State state;
+Camera camera;</span>
+
+bool firstMouse = true;
+float yaw = -90.0f;
+float pitch = 0.0f;
+float lastX = 800.0f / 2.0;
+float lastY = 600.0 / 2.0;
+
+<span style = "background-color:#dfd">void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;</span>
+    }
+
+<span style = "background-color:#dfd">    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    lastX = xpos;
+    lastY = ypos;</span>
+
+<span style = "background-color:#dfd">    float sensitivity = 0.2f; // change this value to your liking
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;</span>
+
+<span style = "background-color:#dfd">    yaw += xoffset;
+    pitch += yoffset;</span>
+
+    // make sure that when pitch is out of bounds, screen doesn't get flipped
+<span style = "background-color:#dfd">    if (pitch &gt; 89.0f)</span>
+<span style = "background-color:#fdd">        pitch = 89.0f;</span>
+<span style = "background-color:#dfd">    if (pitch &lt; -89.0f)</span>
+<span style = "background-color:#fdd">        pitch = -89.0f;</span>
+
+    glm::vec3 front;
+<span style = "background-color:#dfd">    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));</span>
+    //cameraFront = glm::normalize(front);
+<span style = "background-color:#dfd">    camera.SetCameraFront(glm::normalize(front));
+}</span>
+
+<span style = "background-color:#dfd">void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    state.Modify(key, action);
+}</span>
+
+<span style = "background-color:#dfd">int main(void) {</span>
+    GLFWwindow* window;
+
+    /* Initialize the library */
+<span style = "background-color:#dfd">    if (!glfwInit())</span>
+<span style = "background-color:#fdd">        return -1;</span>
+
+<span style = "background-color:#dfd">    const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    unsigned int SCR_WIDTH = mode-&gt;width;
+    unsigned int SCR_HEIGHT = mode-&gt;height;
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);</span>
+
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
+
+<span style = "background-color:#dfd">    window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "OpenGL", NULL, NULL);
+    if (!window) {</span>
+<span style = "background-color:#fdd">        glfwTerminate();
+        return -1;</span>
+    }
+
+<span style = "background-color:#dfd">    glfwMakeContextCurrent(window);</span>
+
+<span style = "background-color:#dfd">    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {</span>
+<span style = "background-color:#fdd">        std::cout &lt;&lt; "Failed to initialize GLAD" &lt;&lt; std::endl;
+        return -1;</span>
+    }
+
+<span style = "background-color:#dfd">    std::cout &lt;&lt; glGetString(GL_VERSION) &lt;&lt; std::endl;</span>
+
+<span style = "background-color:#dfd">    glfwSetKeyCallback(window, KeyCallback);</span>
+
+<span style = "background-color:#dfd">    GUI::SetUp(window);</span>
+
+<span style = "background-color:#dfd">    glEnable(GL_DEPTH_TEST);</span>
+
+<span style = "background-color:#dfd">    Shader shader("shaders/Basic");</span>
+
+<span style = "background-color:#dfd">    std::vector&lt;std::string&gt; skyboxFaces = { "assets/textures/skybox/right.png",</span>
+                                             "assets/textures/skybox/left.png",
+                                             "assets/textures/skybox/top.png",
+                                             "assets/textures/skybox/bottom.png",
+                                             "assets/textures/skybox/front.png",
+                                             "assets/textures/skybox/back.png" };
+
+<span style = "background-color:#dfd">    Skybox skybox("shaders/Skybox", skyboxFaces);</span>
+
+<span style = "background-color:#dfd">    std::vector&lt;Planet*&gt; planets = util::LoadPlanets(false);
+    std::vector&lt;Planet*&gt; academicPlanets = util::LoadPlanets(true);</span>
+
+<span style = "background-color:#dfd">    if (!state.RealisticModeOrbitsEnabled()) {
+        for (Planet* planet : planets) {
+            planet-&gt;GenerateOrbit(state.GetOrbitRadius());
+        }
+        for (Planet* planet : academicPlanets) {
+            planet-&gt;GenerateOrbit(state.GetOrbitRadius());
+        }</span>
+    }
+
+    /* Loop until the user closes the window */
+<span style = "background-color:#dfd">    while (!glfwWindowShouldClose(window)) {</span>
+
+<span style = "background-color:#dfd">        glfwSetCursorPosCallback(window,</span>
+                                 state.CursorCallbackDisabled() ? NULL : mouse_callback);
+
+        //processInput(window);
+<span style = "background-color:#dfd">        camera.ProcessInput(window, state);</span>
+
+<span style = "background-color:#dfd">        glfwSetInputMode(window, GLFW_CURSOR,</span>
+                         state.CursorDisabled() ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+
+<span style = "background-color:#dfd">        GUI::NewFrame();</span>
+
+<span style = "background-color:#dfd">        glClearColor(0.114, 0.125, 0.129, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);</span>
+
+<span style = "background-color:#dfd">        shader.Bind();</span>
+
+<span style = "background-color:#dfd">        camera.LookAt();</span>
+
+        glm::mat4 projection;
+<span style = "background-color:#dfd">        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 5000.0f);</span>
+
+<span style = "background-color:#dfd">        shader.SetMat4("u_View", camera.getView());
+        shader.SetMat4("u_Projection", projection);</span>
+
+<span style = "background-color:#dfd">        float i = planets.size();</span>
+
+<span style = "background-color:#dfd">        int modelLocation = shader.GetUniformLocation("u_Model");
+        std::vector&lt;Planet*&gt; selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
+        for (Planet* planet : selectedPlanets) {
+            float radius = state.RealisticModeOrbitsEnabled() ? planet-&gt;GetOrbitRadius() : state.GetOrbitRadius();
+            float camX = sin(glfwGetTime() / (5 - i)) * radius;
+            float camZ = cos(glfwGetTime() / (5 - i)) * radius;</span>
+
+<span style = "background-color:#dfd">            if (planet-&gt;GetName() == state.GetSelectedPlanet()) {
+                state.SetCurrentPosition(glm::vec3(camX, planet-&gt;GetRadius(), camZ) * planet-&gt;GetCoordinates());</span>
+            }
+
+<span style = "background-color:#dfd">            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, glm::vec3(camX, 0.0f, camZ) * planet-&gt;GetCoordinates());
+            model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(model));</span>
+
+<span style = "background-color:#dfd">            planet-&gt;Draw();</span>
+
+<span style = "background-color:#dfd">            glUniformMatrix4fv(modelLocation, 1, GL_FALSE, glm::value_ptr(glm::mat4(1.0f)));
+            planet-&gt;DrawOrbit();</span>
+
+<span style = "background-color:#dfd">            i++;
+        }</span>
+
+<span style = "background-color:#dfd">        skybox.Draw(projection, camera.getView());</span>
+
+<span style = "background-color:#dfd">        GUI::DrawControls(planets, academicPlanets, state);</span>
+
+<span style = "background-color:#dfd">        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }</span>
+
+<span style = "background-color:#dfd">    for (Planet* planet : planets) {
+        delete planet;
+    }</span>
+
+<span style = "background-color:#dfd">    GUI::Destroy();
+    glfwTerminate();</span>
+
+<span style = "background-color:#dfd">    return 0;
+}</span></pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

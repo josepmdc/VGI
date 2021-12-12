@@ -1,0 +1,137 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>shader.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include &lt;glm/gtc/type_ptr.hpp&gt;
+
+#include "shader.h"
+
+<span style = "background-color:#dfd">Shader::Shader(const std::string filepath) {
+    std::string vertexSrc = ParseShader(filepath, VS_FILE_EXT);
+    std::string fragmentSrc = ParseShader(filepath, FS_FILE_EXT);
+    m_ID = Create(vertexSrc, fragmentSrc);
+}</span>
+
+<span style = "background-color:#dfd">Shader::~Shader() {
+    glDeleteProgram(m_ID);
+}</span>
+
+<span style = "background-color:#dfd">std::string Shader::ParseShader(const std::string&amp; filepath, const std::string type) {
+    std::ifstream stream(filepath + type);
+    std::stringstream ss;
+    ss &lt;&lt; stream.rdbuf();
+    return ss.str();
+}</span>
+
+<span style = "background-color:#dfd">unsigned int Shader::Create(std::string vertexSrc, std::string fragmentSrc) {
+    unsigned int program = glCreateProgram();
+    unsigned int vs = Compile(GL_VERTEX_SHADER, vertexSrc);
+    unsigned int fs = Compile(GL_FRAGMENT_SHADER, fragmentSrc);</span>
+
+<span style = "background-color:#dfd">    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);</span>
+
+    int result;
+<span style = "background-color:#dfd">    glGetProgramiv(program, GL_LINK_STATUS, &amp;result);
+    if (result == GL_FALSE) {</span>
+        int lenght;
+<span style = "background-color:#fdd">        glGetShaderiv(program, GL_INFO_LOG_LENGTH, &amp;lenght);</span>
+
+<span style = "background-color:#fdd">        char* infoLog = new char[lenght];
+        glGetShaderInfoLog(program, lenght, NULL, infoLog);</span>
+
+<span style = "background-color:#fdd">        std::cout &lt;&lt; "ERROR::SHADER::LINKING_FAILED\n" &lt;&lt; infoLog &lt;&lt; std::endl;</span>
+
+<span style = "background-color:#fdd">        delete[] infoLog;</span>
+    }
+
+<span style = "background-color:#dfd">    glValidateProgram(program);</span>
+
+<span style = "background-color:#dfd">    glDeleteShader(vs);
+    glDeleteShader(fs);</span>
+
+<span style = "background-color:#dfd">    return program;
+}</span>
+
+<span style = "background-color:#dfd">unsigned int Shader::Compile(unsigned int type, const std::string&amp; source) {
+    unsigned int shader = glCreateShader(type);</span>
+
+<span style = "background-color:#dfd">    const char* src = source.c_str();
+    glShaderSource(shader, 1, &amp;src, nullptr);</span>
+
+<span style = "background-color:#dfd">    glCompileShader(shader);</span>
+
+    int result;
+<span style = "background-color:#dfd">    glGetShaderiv(shader, GL_COMPILE_STATUS, &amp;result);
+    if (result == GL_FALSE) {</span>
+        int lenght;
+<span style = "background-color:#fdd">        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &amp;lenght);</span>
+
+<span style = "background-color:#fdd">        char* infoLog = new char[lenght];
+        glGetShaderInfoLog(shader, lenght, NULL, infoLog);</span>
+
+<span style = "background-color:#fdd">        std::cout</span>
+            &lt;&lt; "ERROR::SHADER::" &lt;&lt; (type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT") &lt;&lt; "::COMPILATION_FAILED\n"
+            &lt;&lt; infoLog
+            &lt;&lt; std::endl;
+
+<span style = "background-color:#fdd">        delete[] infoLog;
+        glDeleteShader(shader);</span>
+
+<span style = "background-color:#fdd">        return 0;</span>
+    }
+    
+<span style = "background-color:#dfd">    return shader;
+}</span>
+
+<span style = "background-color:#dfd">void Shader::Bind() {
+    glUseProgram(m_ID);
+}</span>
+
+<span style = "background-color:#fdd">void Shader::Unbind() {
+    glUseProgram(m_ID);
+}</span>
+
+<span style = "background-color:#dfd">int Shader::GetUniformLocation(const std::string&amp; name) {
+    if (m_UniformCache.find(name) != m_UniformCache.end()) {
+        return m_UniformCache[name];</span>
+    }
+    
+<span style = "background-color:#dfd">    int location = glGetUniformLocation(m_ID, name.c_str());
+    if (location == -1) {</span>
+<span style = "background-color:#fdd">        std::cout &lt;&lt; "ERROR: Uniform \"" &lt;&lt; name &lt;&lt; "\" not found";
+        return -1;</span>
+    }
+
+<span style = "background-color:#dfd">    m_UniformCache[name] = location;
+    return location;    
+}</span>
+
+<span style = "background-color:#dfd">void Shader::SetMat4(std::string uniformName, glm::mat4 matrix) {
+    int location = GetUniformLocation(uniformName);
+    glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

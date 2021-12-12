@@ -1,0 +1,143 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>sphere.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+// https://github.com/1kar/OpenGL-SolarSystem/blob/master/Sphere.h
+#define _USE_MATH_DEFINES
+#include &lt;cstdlib&gt;
+#include &lt;iostream&gt;
+#include &lt;string&gt;
+#include &lt;cmath&gt;
+
+#include "sphere.h"
+
+<span style = "background-color:#dfd">Sphere::~Sphere() {
+    glDeleteVertexArrays(1, &amp;m_VAO);
+    glDeleteBuffers(1, &amp;m_VBO);
+    glDeleteBuffers(1, &amp;m_EBO);
+}</span>
+
+<span style = "background-color:#dfd">Sphere::Sphere(float r, int sectors, int stacks) {
+    m_Radius = r;
+    m_SectorCount = sectors;
+    m_StackCount = stacks;</span>
+
+    /* GENERATE VERTEX ARRAY */
+    float x, y, z, xy;               // vertex position
+<span style = "background-color:#dfd">    float lengthInv = 1.0f / m_Radius; // vertex normal</span>
+    float s, t;                      // vertex texCoord
+
+<span style = "background-color:#dfd">    float sectorStep = (float)(2 * M_PI / m_SectorCount);
+    float stackStep = (float)(M_PI / m_StackCount);</span>
+    float sectorAngle, stackAngle;
+
+<span style = "background-color:#dfd">    for (int i = 0; i &lt;= m_StackCount; ++i) {
+        stackAngle = (float)(M_PI / 2 - i * stackStep); // starting from pi/2 to -pi/2
+        xy = 1.02f * m_Radius * cosf(stackAngle);         // r * cos(u)
+        y = m_Radius * sinf(stackAngle);                  // r * sin(u)</span>
+
+        // add (sectorCount+1) vertices per stack
+        // the first and last vertices have same position and normal, but different
+        // tex coords
+<span style = "background-color:#dfd">        for (int j = 0; j &lt;= m_SectorCount; ++j) {
+            sectorAngle = j * sectorStep; // starting from 0 to 2pi</span>
+
+            // vertex position (x, y, z)
+<span style = "background-color:#dfd">            x = xy * cosf(sectorAngle); // r * cos(u) * cos(v)
+            z = xy * sinf(sectorAngle); // r * cos(u) * sin(v)
+            m_Vertices.push_back(x);
+            m_Vertices.push_back(y);
+            m_Vertices.push_back(z);</span>
+
+            // vertex tex coord (s, t) range between [0, 1]
+<span style = "background-color:#dfd">            s = (float)j / m_SectorCount;
+            t = (float)i / m_StackCount;
+            m_Vertices.push_back(s);
+            m_Vertices.push_back(t);
+        }
+    }</span>
+    /* GENERATE VERTEX ARRAY */
+
+    /* GENERATE INDEX ARRAY */
+    int k1, k2;
+<span style = "background-color:#dfd">    for (int i = 0; i &lt; m_StackCount; ++i) {
+        k1 = i * (m_SectorCount + 1); // beginning of current stack
+        k2 = k1 + m_SectorCount + 1;  // beginning of next stack</span>
+
+<span style = "background-color:#dfd">        for (int j = 0; j &lt; m_SectorCount; ++j, ++k1, ++k2) {</span>
+            // 2 triangles per sector excluding first and last stacks
+            // k1 =&gt; k2 =&gt; k1+1
+<span style = "background-color:#dfd">            if (i != 0) {
+                m_Indices.push_back(k1);
+                m_Indices.push_back(k2);
+                m_Indices.push_back(k1 + 1);</span>
+            }
+
+            // k1+1 =&gt; k2 =&gt; k2+1
+<span style = "background-color:#dfd">            if (i != (m_StackCount - 1)) {
+                m_Indices.push_back(k1 + 1);
+                m_Indices.push_back(k2);
+                m_Indices.push_back(k2 + 1);</span>
+            }
+<span style = "background-color:#dfd">        }
+    }</span>
+    /* GENERATE INDEX ARRAY */
+
+    /* GENERATE VAO-EBO */
+    // GLuint VBO, VAO, EBO;
+<span style = "background-color:#dfd">    glGenVertexArrays(1, &amp;m_VAO);
+    glGenBuffers(1, &amp;m_VBO);
+    glGenBuffers(1, &amp;m_EBO);</span>
+    // Bind the Vertex Array Object first, then bind and set vertex buffer(s) and
+    // attribute pointer(s).
+<span style = "background-color:#dfd">    glBindVertexArray(m_VAO);</span>
+
+<span style = "background-color:#dfd">    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+    glBufferData(</span>
+        GL_ARRAY_BUFFER,
+        (unsigned int)m_Vertices.size() * sizeof(float),
+        m_Vertices.data(), GL_DYNAMIC_DRAW);
+
+<span style = "background-color:#dfd">    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_EBO);
+    glBufferData(</span>
+        GL_ELEMENT_ARRAY_BUFFER,
+        (unsigned int)m_Indices.size() * sizeof(unsigned int),
+        m_Indices.data(), GL_DYNAMIC_DRAW);
+
+<span style = "background-color:#dfd">    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(0);</span>
+
+<span style = "background-color:#dfd">    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);</span>
+
+<span style = "background-color:#dfd">    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}</span>
+
+<span style = "background-color:#dfd">void Sphere::Draw() {
+    glBindVertexArray(m_VAO);
+    glDrawElements(GL_TRIANGLES, (unsigned int)m_Indices.size(), GL_UNSIGNED_INT, (void*)0);
+    glBindVertexArray(0);
+}</span></pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

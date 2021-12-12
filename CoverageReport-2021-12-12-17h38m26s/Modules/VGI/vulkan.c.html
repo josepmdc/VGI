@@ -1,0 +1,358 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>vulkan.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2018 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;assert.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+
+#define _GLFW_FIND_LOADER    1
+#define _GLFW_REQUIRE_LOADER 2
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWbool _glfwInitVulkan(int mode)
+<span style = "background-color:#fdd">{</span>
+    VkResult err;
+    VkExtensionProperties* ep;
+    uint32_t i, count;
+
+<span style = "background-color:#fdd">    if (_glfw.vk.available)
+        return GLFW_TRUE;</span>
+
+#if !defined(_GLFW_VULKAN_STATIC)
+#if defined(_GLFW_VULKAN_LIBRARY)
+    _glfw.vk.handle = _glfw_dlopen(_GLFW_VULKAN_LIBRARY);
+#elif defined(_GLFW_WIN32)
+<span style = "background-color:#fdd">    _glfw.vk.handle = _glfw_dlopen("vulkan-1.dll");</span>
+#elif defined(_GLFW_COCOA)
+    _glfw.vk.handle = _glfw_dlopen("libvulkan.1.dylib");
+    if (!_glfw.vk.handle)
+        _glfw.vk.handle = _glfwLoadLocalVulkanLoaderNS();
+#else
+    _glfw.vk.handle = _glfw_dlopen("libvulkan.so.1");
+#endif
+<span style = "background-color:#fdd">    if (!_glfw.vk.handle)</span>
+    {
+<span style = "background-color:#fdd">        if (mode == _GLFW_REQUIRE_LOADER)
+            _glfwInputError(GLFW_API_UNAVAILABLE, "Vulkan: Loader not found");</span>
+
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfw.vk.GetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)</span>
+        _glfw_dlsym(_glfw.vk.handle, "vkGetInstanceProcAddr");
+<span style = "background-color:#fdd">    if (!_glfw.vk.GetInstanceProcAddr)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "Vulkan: Loader does not export vkGetInstanceProcAddr");
+
+<span style = "background-color:#fdd">        _glfwTerminateVulkan();
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfw.vk.EnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)</span>
+        vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
+<span style = "background-color:#fdd">    if (!_glfw.vk.EnumerateInstanceExtensionProperties)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "Vulkan: Failed to retrieve vkEnumerateInstanceExtensionProperties");
+
+<span style = "background-color:#fdd">        _glfwTerminateVulkan();
+        return GLFW_FALSE;</span>
+    }
+#endif // _GLFW_VULKAN_STATIC
+
+<span style = "background-color:#fdd">    err = vkEnumerateInstanceExtensionProperties(NULL, &amp;count, NULL);
+    if (err)</span>
+    {
+        // NOTE: This happens on systems with a loader but without any Vulkan ICD
+<span style = "background-color:#fdd">        if (mode == _GLFW_REQUIRE_LOADER)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                            "Vulkan: Failed to query instance extension count: %s",
+                            _glfwGetVulkanResultString(err));
+        }
+
+<span style = "background-color:#fdd">        _glfwTerminateVulkan();
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    ep = _glfw_calloc(count, sizeof(VkExtensionProperties));</span>
+
+<span style = "background-color:#fdd">    err = vkEnumerateInstanceExtensionProperties(NULL, &amp;count, ep);
+    if (err)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "Vulkan: Failed to query instance extensions: %s",
+                        _glfwGetVulkanResultString(err));
+
+<span style = "background-color:#fdd">        _glfw_free(ep);
+        _glfwTerminateVulkan();
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt; count;  i++)</span>
+    {
+<span style = "background-color:#fdd">        if (strcmp(ep[i].extensionName, "VK_KHR_surface") == 0)
+            _glfw.vk.KHR_surface = GLFW_TRUE;</span>
+#if defined(_GLFW_WIN32)
+<span style = "background-color:#fdd">        else if (strcmp(ep[i].extensionName, "VK_KHR_win32_surface") == 0)
+            _glfw.vk.KHR_win32_surface = GLFW_TRUE;</span>
+#elif defined(_GLFW_COCOA)
+        else if (strcmp(ep[i].extensionName, "VK_MVK_macos_surface") == 0)
+            _glfw.vk.MVK_macos_surface = GLFW_TRUE;
+        else if (strcmp(ep[i].extensionName, "VK_EXT_metal_surface") == 0)
+            _glfw.vk.EXT_metal_surface = GLFW_TRUE;
+#elif defined(_GLFW_X11)
+        else if (strcmp(ep[i].extensionName, "VK_KHR_xlib_surface") == 0)
+            _glfw.vk.KHR_xlib_surface = GLFW_TRUE;
+        else if (strcmp(ep[i].extensionName, "VK_KHR_xcb_surface") == 0)
+            _glfw.vk.KHR_xcb_surface = GLFW_TRUE;
+#elif defined(_GLFW_WAYLAND)
+        else if (strcmp(ep[i].extensionName, "VK_KHR_wayland_surface") == 0)
+            _glfw.vk.KHR_wayland_surface = GLFW_TRUE;
+#endif
+<span style = "background-color:#fdd">    }</span>
+
+<span style = "background-color:#fdd">    _glfw_free(ep);</span>
+
+<span style = "background-color:#fdd">    _glfw.vk.available = GLFW_TRUE;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformGetRequiredInstanceExtensions(_glfw.vk.extensions);</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+void _glfwTerminateVulkan(void)
+<span style = "background-color:#dfd">{</span>
+#if !defined(_GLFW_VULKAN_STATIC)
+<span style = "background-color:#dfd">    if (_glfw.vk.handle)</span>
+<span style = "background-color:#fdd">        _glfw_dlclose(_glfw.vk.handle);</span>
+#endif
+<span style = "background-color:#dfd">}</span>
+
+const char* _glfwGetVulkanResultString(VkResult result)
+<span style = "background-color:#fdd">{
+    switch (result)</span>
+    {
+        case VK_SUCCESS:
+<span style = "background-color:#fdd">            return "Success";</span>
+        case VK_NOT_READY:
+<span style = "background-color:#fdd">            return "A fence or query has not yet completed";</span>
+        case VK_TIMEOUT:
+<span style = "background-color:#fdd">            return "A wait operation has not completed in the specified time";</span>
+        case VK_EVENT_SET:
+<span style = "background-color:#fdd">            return "An event is signaled";</span>
+        case VK_EVENT_RESET:
+<span style = "background-color:#fdd">            return "An event is unsignaled";</span>
+        case VK_INCOMPLETE:
+<span style = "background-color:#fdd">            return "A return array was too small for the result";</span>
+        case VK_ERROR_OUT_OF_HOST_MEMORY:
+<span style = "background-color:#fdd">            return "A host memory allocation has failed";</span>
+        case VK_ERROR_OUT_OF_DEVICE_MEMORY:
+<span style = "background-color:#fdd">            return "A device memory allocation has failed";</span>
+        case VK_ERROR_INITIALIZATION_FAILED:
+<span style = "background-color:#fdd">            return "Initialization of an object could not be completed for implementation-specific reasons";</span>
+        case VK_ERROR_DEVICE_LOST:
+<span style = "background-color:#fdd">            return "The logical or physical device has been lost";</span>
+        case VK_ERROR_MEMORY_MAP_FAILED:
+<span style = "background-color:#fdd">            return "Mapping of a memory object has failed";</span>
+        case VK_ERROR_LAYER_NOT_PRESENT:
+<span style = "background-color:#fdd">            return "A requested layer is not present or could not be loaded";</span>
+        case VK_ERROR_EXTENSION_NOT_PRESENT:
+<span style = "background-color:#fdd">            return "A requested extension is not supported";</span>
+        case VK_ERROR_FEATURE_NOT_PRESENT:
+<span style = "background-color:#fdd">            return "A requested feature is not supported";</span>
+        case VK_ERROR_INCOMPATIBLE_DRIVER:
+<span style = "background-color:#fdd">            return "The requested version of Vulkan is not supported by the driver or is otherwise incompatible";</span>
+        case VK_ERROR_TOO_MANY_OBJECTS:
+<span style = "background-color:#fdd">            return "Too many objects of the type have already been created";</span>
+        case VK_ERROR_FORMAT_NOT_SUPPORTED:
+<span style = "background-color:#fdd">            return "A requested format is not supported on this device";</span>
+        case VK_ERROR_SURFACE_LOST_KHR:
+<span style = "background-color:#fdd">            return "A surface is no longer available";</span>
+        case VK_SUBOPTIMAL_KHR:
+<span style = "background-color:#fdd">            return "A swapchain no longer matches the surface properties exactly, but can still be used";</span>
+        case VK_ERROR_OUT_OF_DATE_KHR:
+<span style = "background-color:#fdd">            return "A surface has changed in such a way that it is no longer compatible with the swapchain";</span>
+        case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR:
+<span style = "background-color:#fdd">            return "The display used by a swapchain does not use the same presentable image layout";</span>
+        case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR:
+<span style = "background-color:#fdd">            return "The requested window is already connected to a VkSurfaceKHR, or to some other non-Vulkan API";</span>
+        case VK_ERROR_VALIDATION_FAILED_EXT:
+<span style = "background-color:#fdd">            return "A validation layer found an error";</span>
+        default:
+<span style = "background-color:#fdd">            return "ERROR: UNKNOWN VULKAN ERROR";</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW public API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI int glfwVulkanSupported(void)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);
+    return _glfwInitVulkan(_GLFW_FIND_LOADER);
+}</span>
+
+GLFWAPI const char** glfwGetRequiredInstanceExtensions(uint32_t* count)
+<span style = "background-color:#fdd">{
+    assert(count != NULL);</span>
+
+<span style = "background-color:#fdd">    *count = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (!_glfwInitVulkan(_GLFW_REQUIRE_LOADER))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!_glfw.vk.extensions[0])
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    *count = 2;
+    return (const char**) _glfw.vk.extensions;
+}</span>
+
+GLFWAPI GLFWvkproc glfwGetInstanceProcAddress(VkInstance instance,
+                                              const char* procname)
+<span style = "background-color:#fdd">{</span>
+    GLFWvkproc proc;
+<span style = "background-color:#fdd">    assert(procname != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (!_glfwInitVulkan(_GLFW_REQUIRE_LOADER))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    proc = (GLFWvkproc) vkGetInstanceProcAddr(instance, procname);</span>
+#if defined(_GLFW_VULKAN_STATIC)
+    if (!proc)
+    {
+        if (strcmp(procname, "vkGetInstanceProcAddr") == 0)
+            return (GLFWvkproc) vkGetInstanceProcAddr;
+    }
+#else
+<span style = "background-color:#fdd">    if (!proc)
+        proc = (GLFWvkproc) _glfw_dlsym(_glfw.vk.handle, procname);</span>
+#endif
+
+<span style = "background-color:#fdd">    return proc;
+}</span>
+
+GLFWAPI int glfwGetPhysicalDevicePresentationSupport(VkInstance instance,
+                                                     VkPhysicalDevice device,
+                                                     uint32_t queuefamily)
+<span style = "background-color:#fdd">{
+    assert(instance != VK_NULL_HANDLE);
+    assert(device != VK_NULL_HANDLE);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#fdd">    if (!_glfwInitVulkan(_GLFW_REQUIRE_LOADER))
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (!_glfw.vk.extensions[0])</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "Vulkan: Window surface creation extensions not found");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    return _glfwPlatformGetPhysicalDevicePresentationSupport(instance,</span>
+                                                             device,
+                                                             queuefamily);
+<span style = "background-color:#fdd">}</span>
+
+GLFWAPI VkResult glfwCreateWindowSurface(VkInstance instance,
+                                         GLFWwindow* handle,
+                                         const VkAllocationCallbacks* allocator,
+                                         VkSurfaceKHR* surface)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(instance != VK_NULL_HANDLE);
+    assert(window != NULL);
+    assert(surface != NULL);</span>
+
+<span style = "background-color:#fdd">    *surface = VK_NULL_HANDLE;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(VK_ERROR_INITIALIZATION_FAILED);</span>
+
+<span style = "background-color:#fdd">    if (!_glfwInitVulkan(_GLFW_REQUIRE_LOADER))
+        return VK_ERROR_INITIALIZATION_FAILED;</span>
+
+<span style = "background-color:#fdd">    if (!_glfw.vk.extensions[0])</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "Vulkan: Window surface creation extensions not found");
+<span style = "background-color:#fdd">        return VK_ERROR_EXTENSION_NOT_PRESENT;</span>
+    }
+
+<span style = "background-color:#fdd">    if (window-&gt;context.client != GLFW_NO_API)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE,</span>
+                        "Vulkan: Window surface creation requires the window to have the client API set to GLFW_NO_API");
+<span style = "background-color:#fdd">        return VK_ERROR_NATIVE_WINDOW_IN_USE_KHR;</span>
+    }
+
+<span style = "background-color:#fdd">    return _glfwPlatformCreateWindowSurface(instance, window, allocator, surface);
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

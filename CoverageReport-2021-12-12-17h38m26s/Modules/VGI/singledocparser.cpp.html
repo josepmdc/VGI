@@ -1,0 +1,461 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>singledocparser.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include &lt;algorithm&gt;
+#include &lt;cstdio&gt;
+#include &lt;sstream&gt;
+
+#include "collectionstack.h"  // IWYU pragma: keep
+#include "scanner.h"
+#include "singledocparser.h"
+#include "tag.h"
+#include "token.h"
+#include "yaml-cpp/depthguard.h"
+#include "yaml-cpp/emitterstyle.h"
+#include "yaml-cpp/eventhandler.h"
+#include "yaml-cpp/exceptions.h"  // IWYU pragma: keep
+#include "yaml-cpp/mark.h"
+#include "yaml-cpp/null.h"
+
+namespace YAML {
+SingleDocParser::SingleDocParser(Scanner&amp; scanner, const Directives&amp; directives)
+<span style = "background-color:#dfd">    : m_scanner(scanner),
+      m_directives(directives),
+      m_pCollectionStack(new CollectionStack),
+      m_anchors{},
+      m_curAnchor(0) {}</span>
+
+<span style = "background-color:#dfd">SingleDocParser::~SingleDocParser() = default;</span>
+
+// HandleDocument
+// . Handles the next document
+// . Throws a ParserException on error.
+<span style = "background-color:#dfd">void SingleDocParser::HandleDocument(EventHandler&amp; eventHandler) {
+  assert(!m_scanner.empty());  // guaranteed that there are tokens
+  assert(!m_curAnchor);</span>
+
+<span style = "background-color:#dfd">  eventHandler.OnDocumentStart(m_scanner.peek().mark);</span>
+
+  // eat doc start
+<span style = "background-color:#dfd">  if (m_scanner.peek().type == Token::DOC_START)</span>
+<span style = "background-color:#fdd">    m_scanner.pop();</span>
+
+  // recurse!
+<span style = "background-color:#dfd">  HandleNode(eventHandler);</span>
+
+<span style = "background-color:#dfd">  eventHandler.OnDocumentEnd();</span>
+
+  // and finally eat any doc ends we see
+<span style = "background-color:#dfd">  while (!m_scanner.empty() &amp;&amp; m_scanner.peek().type == Token::DOC_END)</span>
+<span style = "background-color:#fdd">    m_scanner.pop();</span>
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#dfd">void SingleDocParser::HandleNode(EventHandler&amp; eventHandler) {
+  DepthGuard&lt;500&gt; depthguard(depth, m_scanner.mark(), ErrorMsg::BAD_FILE);</span>
+
+  // an empty node *is* a possibility
+<span style = "background-color:#dfd">  if (m_scanner.empty()) {</span>
+<span style = "background-color:#fdd">    eventHandler.OnNull(m_scanner.mark(), NullAnchor);
+    return;</span>
+  }
+
+  // save location
+<span style = "background-color:#dfd">  Mark mark = m_scanner.peek().mark;</span>
+
+  // special case: a value node by itself must be a map, with no header
+<span style = "background-color:#dfd">  if (m_scanner.peek().type == Token::VALUE) {</span>
+<span style = "background-color:#fdd">    eventHandler.OnMapStart(mark, "?", NullAnchor, EmitterStyle::Default);
+    HandleMap(eventHandler);
+    eventHandler.OnMapEnd();
+    return;</span>
+  }
+
+  // special case: an alias node
+<span style = "background-color:#dfd">  if (m_scanner.peek().type == Token::ALIAS) {</span>
+<span style = "background-color:#fdd">    eventHandler.OnAlias(mark, LookupAnchor(mark, m_scanner.peek().value));
+    m_scanner.pop();
+    return;</span>
+  }
+
+<span style = "background-color:#dfd">  std::string tag;
+  std::string anchor_name;</span>
+  anchor_t anchor;
+<span style = "background-color:#dfd">  ParseProperties(tag, anchor, anchor_name);</span>
+
+<span style = "background-color:#dfd">  if (!anchor_name.empty())</span>
+<span style = "background-color:#fdd">    eventHandler.OnAnchor(mark, anchor_name);</span>
+
+  // after parsing properties, an empty node is again a possibility
+<span style = "background-color:#dfd">  if (m_scanner.empty()) {</span>
+<span style = "background-color:#fdd">    eventHandler.OnNull(mark, anchor);
+    return;</span>
+  }
+
+<span style = "background-color:#dfd">  const Token&amp; token = m_scanner.peek();</span>
+
+  // add non-specific tags
+<span style = "background-color:#dfd">  if (tag.empty())
+    tag = (token.type == Token::NON_PLAIN_SCALAR ? "!" : "?");</span>
+  
+  if (token.type == Token::PLAIN_SCALAR 
+<span style = "background-color:#dfd">      &amp;&amp; tag.compare("?") == 0 &amp;&amp; IsNullString(token.value)) {</span>
+<span style = "background-color:#fdd">    eventHandler.OnNull(mark, anchor);
+    m_scanner.pop();
+    return;</span>
+  }
+
+  // now split based on what kind of node we should be
+<span style = "background-color:#dfd">  switch (token.type) {</span>
+    case Token::PLAIN_SCALAR:
+    case Token::NON_PLAIN_SCALAR:
+<span style = "background-color:#dfd">      eventHandler.OnScalar(mark, tag, anchor, token.value);
+      m_scanner.pop();
+      return;</span>
+    case Token::FLOW_SEQ_START:
+<span style = "background-color:#dfd">      eventHandler.OnSequenceStart(mark, tag, anchor, EmitterStyle::Flow);
+      HandleSequence(eventHandler);
+      eventHandler.OnSequenceEnd();
+      return;</span>
+    case Token::BLOCK_SEQ_START:
+<span style = "background-color:#fdd">      eventHandler.OnSequenceStart(mark, tag, anchor, EmitterStyle::Block);
+      HandleSequence(eventHandler);
+      eventHandler.OnSequenceEnd();
+      return;</span>
+    case Token::FLOW_MAP_START:
+<span style = "background-color:#fdd">      eventHandler.OnMapStart(mark, tag, anchor, EmitterStyle::Flow);
+      HandleMap(eventHandler);
+      eventHandler.OnMapEnd();
+      return;</span>
+    case Token::BLOCK_MAP_START:
+<span style = "background-color:#dfd">      eventHandler.OnMapStart(mark, tag, anchor, EmitterStyle::Block);
+      HandleMap(eventHandler);
+      eventHandler.OnMapEnd();
+      return;</span>
+    case Token::KEY:
+      // compact maps can only go in a flow sequence
+<span style = "background-color:#fdd">      if (m_pCollectionStack-&gt;GetCurCollectionType() ==</span>
+          CollectionType::FlowSeq) {
+<span style = "background-color:#fdd">        eventHandler.OnMapStart(mark, tag, anchor, EmitterStyle::Flow);
+        HandleMap(eventHandler);
+        eventHandler.OnMapEnd();
+        return;</span>
+      }
+      break;
+    default:
+      break;
+  }
+
+<span style = "background-color:#fdd">  if (tag == "?")
+    eventHandler.OnNull(mark, anchor);</span>
+  else
+<span style = "background-color:#fdd">    eventHandler.OnScalar(mark, tag, anchor, "");
+}</span>
+
+<span style = "background-color:#dfd">void SingleDocParser::HandleSequence(EventHandler&amp; eventHandler) {</span>
+  // split based on start token
+<span style = "background-color:#dfd">  switch (m_scanner.peek().type) {</span>
+    case Token::BLOCK_SEQ_START:
+<span style = "background-color:#fdd">      HandleBlockSequence(eventHandler);
+      break;</span>
+    case Token::FLOW_SEQ_START:
+<span style = "background-color:#dfd">      HandleFlowSequence(eventHandler);</span>
+      break;
+    default:
+      break;
+  }
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#fdd">void SingleDocParser::HandleBlockSequence(EventHandler&amp; eventHandler) {</span>
+  // eat start token
+<span style = "background-color:#fdd">  m_scanner.pop();
+  m_pCollectionStack-&gt;PushCollectionType(CollectionType::BlockSeq);</span>
+
+<span style = "background-color:#fdd">  while (true) {
+    if (m_scanner.empty())
+      throw ParserException(m_scanner.mark(), ErrorMsg::END_OF_SEQ);</span>
+
+<span style = "background-color:#fdd">    Token token = m_scanner.peek();
+    if (token.type != Token::BLOCK_ENTRY &amp;&amp; token.type != Token::BLOCK_SEQ_END)
+      throw ParserException(token.mark, ErrorMsg::END_OF_SEQ);</span>
+
+<span style = "background-color:#fdd">    m_scanner.pop();
+    if (token.type == Token::BLOCK_SEQ_END)
+      break;</span>
+
+    // check for null
+<span style = "background-color:#fdd">    if (!m_scanner.empty()) {
+      const Token&amp; nextToken = m_scanner.peek();
+      if (nextToken.type == Token::BLOCK_ENTRY ||</span>
+          nextToken.type == Token::BLOCK_SEQ_END) {
+<span style = "background-color:#fdd">        eventHandler.OnNull(nextToken.mark, NullAnchor);
+        continue;</span>
+      }
+    }
+
+<span style = "background-color:#fdd">    HandleNode(eventHandler);
+  }</span>
+
+<span style = "background-color:#fdd">  m_pCollectionStack-&gt;PopCollectionType(CollectionType::BlockSeq);
+}</span>
+
+<span style = "background-color:#dfd">void SingleDocParser::HandleFlowSequence(EventHandler&amp; eventHandler) {</span>
+  // eat start token
+<span style = "background-color:#dfd">  m_scanner.pop();
+  m_pCollectionStack-&gt;PushCollectionType(CollectionType::FlowSeq);</span>
+
+<span style = "background-color:#dfd">  while (true) {
+    if (m_scanner.empty())</span>
+<span style = "background-color:#fdd">      throw ParserException(m_scanner.mark(), ErrorMsg::END_OF_SEQ_FLOW);</span>
+
+    // first check for end
+<span style = "background-color:#dfd">    if (m_scanner.peek().type == Token::FLOW_SEQ_END) {
+      m_scanner.pop();
+      break;</span>
+    }
+
+    // then read the node
+<span style = "background-color:#dfd">    HandleNode(eventHandler);</span>
+
+<span style = "background-color:#dfd">    if (m_scanner.empty())</span>
+<span style = "background-color:#fdd">      throw ParserException(m_scanner.mark(), ErrorMsg::END_OF_SEQ_FLOW);</span>
+
+    // now eat the separator (or could be a sequence end, which we ignore - but
+    // if it's neither, then it's a bad node)
+<span style = "background-color:#dfd">    Token&amp; token = m_scanner.peek();
+    if (token.type == Token::FLOW_ENTRY)
+      m_scanner.pop();
+    else if (token.type != Token::FLOW_SEQ_END)</span>
+<span style = "background-color:#fdd">      throw ParserException(token.mark, ErrorMsg::END_OF_SEQ_FLOW);</span>
+<span style = "background-color:#dfd">  }</span>
+
+<span style = "background-color:#dfd">  m_pCollectionStack-&gt;PopCollectionType(CollectionType::FlowSeq);
+}</span>
+
+<span style = "background-color:#dfd">void SingleDocParser::HandleMap(EventHandler&amp; eventHandler) {</span>
+  // split based on start token
+<span style = "background-color:#dfd">  switch (m_scanner.peek().type) {</span>
+    case Token::BLOCK_MAP_START:
+<span style = "background-color:#dfd">      HandleBlockMap(eventHandler);
+      break;</span>
+    case Token::FLOW_MAP_START:
+<span style = "background-color:#fdd">      HandleFlowMap(eventHandler);
+      break;</span>
+    case Token::KEY:
+<span style = "background-color:#fdd">      HandleCompactMap(eventHandler);
+      break;</span>
+    case Token::VALUE:
+<span style = "background-color:#fdd">      HandleCompactMapWithNoKey(eventHandler);</span>
+      break;
+    default:
+      break;
+  }
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#dfd">void SingleDocParser::HandleBlockMap(EventHandler&amp; eventHandler) {</span>
+  // eat start token
+<span style = "background-color:#dfd">  m_scanner.pop();
+  m_pCollectionStack-&gt;PushCollectionType(CollectionType::BlockMap);</span>
+
+<span style = "background-color:#dfd">  while (true) {
+    if (m_scanner.empty())</span>
+<span style = "background-color:#fdd">      throw ParserException(m_scanner.mark(), ErrorMsg::END_OF_MAP);</span>
+
+<span style = "background-color:#dfd">    Token token = m_scanner.peek();
+    if (token.type != Token::KEY &amp;&amp; token.type != Token::VALUE &amp;&amp;</span>
+        token.type != Token::BLOCK_MAP_END)
+<span style = "background-color:#fdd">      throw ParserException(token.mark, ErrorMsg::END_OF_MAP);</span>
+
+<span style = "background-color:#dfd">    if (token.type == Token::BLOCK_MAP_END) {
+      m_scanner.pop();
+      break;</span>
+    }
+
+    // grab key (if non-null)
+<span style = "background-color:#dfd">    if (token.type == Token::KEY) {
+      m_scanner.pop();
+      HandleNode(eventHandler);
+    } else {</span>
+<span style = "background-color:#fdd">      eventHandler.OnNull(token.mark, NullAnchor);</span>
+    }
+
+    // now grab value (optional)
+<span style = "background-color:#dfd">    if (!m_scanner.empty() &amp;&amp; m_scanner.peek().type == Token::VALUE) {
+      m_scanner.pop();
+      HandleNode(eventHandler);
+    } else {</span>
+<span style = "background-color:#fdd">      eventHandler.OnNull(token.mark, NullAnchor);</span>
+    }
+<span style = "background-color:#dfd">  }</span>
+
+<span style = "background-color:#dfd">  m_pCollectionStack-&gt;PopCollectionType(CollectionType::BlockMap);
+}</span>
+
+<span style = "background-color:#fdd">void SingleDocParser::HandleFlowMap(EventHandler&amp; eventHandler) {</span>
+  // eat start token
+<span style = "background-color:#fdd">  m_scanner.pop();
+  m_pCollectionStack-&gt;PushCollectionType(CollectionType::FlowMap);</span>
+
+<span style = "background-color:#fdd">  while (true) {
+    if (m_scanner.empty())
+      throw ParserException(m_scanner.mark(), ErrorMsg::END_OF_MAP_FLOW);</span>
+
+<span style = "background-color:#fdd">    Token&amp; token = m_scanner.peek();
+    const Mark mark = token.mark;</span>
+    // first check for end
+<span style = "background-color:#fdd">    if (token.type == Token::FLOW_MAP_END) {
+      m_scanner.pop();
+      break;</span>
+    }
+
+    // grab key (if non-null)
+<span style = "background-color:#fdd">    if (token.type == Token::KEY) {
+      m_scanner.pop();
+      HandleNode(eventHandler);
+    } else {
+      eventHandler.OnNull(mark, NullAnchor);</span>
+    }
+
+    // now grab value (optional)
+<span style = "background-color:#fdd">    if (!m_scanner.empty() &amp;&amp; m_scanner.peek().type == Token::VALUE) {
+      m_scanner.pop();
+      HandleNode(eventHandler);
+    } else {
+      eventHandler.OnNull(mark, NullAnchor);</span>
+    }
+
+<span style = "background-color:#fdd">    if (m_scanner.empty())
+      throw ParserException(m_scanner.mark(), ErrorMsg::END_OF_MAP_FLOW);</span>
+
+    // now eat the separator (or could be a map end, which we ignore - but if
+    // it's neither, then it's a bad node)
+<span style = "background-color:#fdd">    Token&amp; nextToken = m_scanner.peek();
+    if (nextToken.type == Token::FLOW_ENTRY)
+      m_scanner.pop();
+    else if (nextToken.type != Token::FLOW_MAP_END)
+      throw ParserException(nextToken.mark, ErrorMsg::END_OF_MAP_FLOW);
+  }</span>
+
+<span style = "background-color:#fdd">  m_pCollectionStack-&gt;PopCollectionType(CollectionType::FlowMap);
+}</span>
+
+// . Single "key: value" pair in a flow sequence
+<span style = "background-color:#fdd">void SingleDocParser::HandleCompactMap(EventHandler&amp; eventHandler) {
+  m_pCollectionStack-&gt;PushCollectionType(CollectionType::CompactMap);</span>
+
+  // grab key
+<span style = "background-color:#fdd">  Mark mark = m_scanner.peek().mark;
+  m_scanner.pop();
+  HandleNode(eventHandler);</span>
+
+  // now grab value (optional)
+<span style = "background-color:#fdd">  if (!m_scanner.empty() &amp;&amp; m_scanner.peek().type == Token::VALUE) {
+    m_scanner.pop();
+    HandleNode(eventHandler);
+  } else {
+    eventHandler.OnNull(mark, NullAnchor);</span>
+  }
+
+<span style = "background-color:#fdd">  m_pCollectionStack-&gt;PopCollectionType(CollectionType::CompactMap);
+}</span>
+
+// . Single ": value" pair in a flow sequence
+<span style = "background-color:#fdd">void SingleDocParser::HandleCompactMapWithNoKey(EventHandler&amp; eventHandler) {
+  m_pCollectionStack-&gt;PushCollectionType(CollectionType::CompactMap);</span>
+
+  // null key
+<span style = "background-color:#fdd">  eventHandler.OnNull(m_scanner.peek().mark, NullAnchor);</span>
+
+  // grab value
+<span style = "background-color:#fdd">  m_scanner.pop();
+  HandleNode(eventHandler);</span>
+
+<span style = "background-color:#fdd">  m_pCollectionStack-&gt;PopCollectionType(CollectionType::CompactMap);
+}</span>
+
+// ParseProperties
+// . Grabs any tag or anchor tokens and deals with them.
+void SingleDocParser::ParseProperties(std::string&amp; tag, anchor_t&amp; anchor,
+<span style = "background-color:#dfd">                                      std::string&amp; anchor_name) {
+  tag.clear();
+  anchor_name.clear();
+  anchor = NullAnchor;</span>
+
+<span style = "background-color:#dfd">  while (true) {
+    if (m_scanner.empty())</span>
+<span style = "background-color:#fdd">      return;</span>
+
+<span style = "background-color:#dfd">    switch (m_scanner.peek().type) {</span>
+      case Token::TAG:
+<span style = "background-color:#fdd">        ParseTag(tag);
+        break;</span>
+      case Token::ANCHOR:
+<span style = "background-color:#fdd">        ParseAnchor(anchor, anchor_name);
+        break;</span>
+      default:
+<span style = "background-color:#dfd">        return;</span>
+    }
+<span style = "background-color:#fdd">  }</span>
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#fdd">void SingleDocParser::ParseTag(std::string&amp; tag) {
+  Token&amp; token = m_scanner.peek();
+  if (!tag.empty())
+    throw ParserException(token.mark, ErrorMsg::MULTIPLE_TAGS);</span>
+
+<span style = "background-color:#fdd">  Tag tagInfo(token);
+  tag = tagInfo.Translate(m_directives);
+  m_scanner.pop();
+}</span>
+
+<span style = "background-color:#fdd">void SingleDocParser::ParseAnchor(anchor_t&amp; anchor, std::string&amp; anchor_name) {
+  Token&amp; token = m_scanner.peek();
+  if (anchor)
+    throw ParserException(token.mark, ErrorMsg::MULTIPLE_ANCHORS);</span>
+
+<span style = "background-color:#fdd">  anchor_name = token.value;
+  anchor = RegisterAnchor(token.value);
+  m_scanner.pop();
+}</span>
+
+<span style = "background-color:#fdd">anchor_t SingleDocParser::RegisterAnchor(const std::string&amp; name) {
+  if (name.empty())
+    return NullAnchor;</span>
+
+<span style = "background-color:#fdd">  return m_anchors[name] = ++m_curAnchor;
+}</span>
+
+anchor_t SingleDocParser::LookupAnchor(const Mark&amp; mark,
+<span style = "background-color:#fdd">                                       const std::string&amp; name) const {
+  auto it = m_anchors.find(name);
+  if (it == m_anchors.end()) {
+    std::stringstream ss;
+    ss &lt;&lt; ErrorMsg::UNKNOWN_ANCHOR &lt;&lt; name;
+    throw ParserException(mark, ss.str());
+  }</span>
+
+<span style = "background-color:#fdd">  return it-&gt;second;
+}</span>
+}  // namespace YAML</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

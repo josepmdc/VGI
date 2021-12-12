@@ -1,0 +1,398 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>osmesa_context.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 OSMesa - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2016 Google Inc.
+// Copyright (c) 2016-2017 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;assert.h&gt;
+
+#include "internal.h"
+
+
+static void makeContextCurrentOSMesa(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    if (window)</span>
+    {
+        int width, height;
+<span style = "background-color:#fdd">        _glfwPlatformGetFramebufferSize(window, &amp;width, &amp;height);</span>
+
+        // Check to see if we need to allocate a new buffer
+        if ((window-&gt;context.osmesa.buffer == NULL) ||
+<span style = "background-color:#fdd">            (width != window-&gt;context.osmesa.width) ||</span>
+            (height != window-&gt;context.osmesa.height))
+        {
+<span style = "background-color:#fdd">            _glfw_free(window-&gt;context.osmesa.buffer);</span>
+
+            // Allocate the new buffer (width * height * 8-bit RGBA)
+<span style = "background-color:#fdd">            window-&gt;context.osmesa.buffer = _glfw_calloc(4, (size_t) width * height);
+            window-&gt;context.osmesa.width  = width;
+            window-&gt;context.osmesa.height = height;</span>
+        }
+
+<span style = "background-color:#fdd">        if (!OSMesaMakeCurrent(window-&gt;context.osmesa.handle,</span>
+                               window-&gt;context.osmesa.buffer,
+                               GL_UNSIGNED_BYTE,
+                               width, height))
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "OSMesa: Failed to make context current");
+<span style = "background-color:#fdd">            return;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    _glfwPlatformSetTls(&amp;_glfw.contextSlot, window);
+}</span>
+
+static GLFWglproc getProcAddressOSMesa(const char* procname)
+<span style = "background-color:#fdd">{
+    return (GLFWglproc) OSMesaGetProcAddress(procname);
+}</span>
+
+static void destroyContextOSMesa(_GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    if (window-&gt;context.osmesa.handle)</span>
+    {
+<span style = "background-color:#fdd">        OSMesaDestroyContext(window-&gt;context.osmesa.handle);
+        window-&gt;context.osmesa.handle = NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    if (window-&gt;context.osmesa.buffer)</span>
+    {
+<span style = "background-color:#fdd">        _glfw_free(window-&gt;context.osmesa.buffer);
+        window-&gt;context.osmesa.width = 0;
+        window-&gt;context.osmesa.height = 0;</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+static void swapBuffersOSMesa(_GLFWwindow* window)
+<span style = "background-color:#fdd">{</span>
+    // No double buffering on OSMesa
+<span style = "background-color:#fdd">}</span>
+
+static void swapIntervalOSMesa(int interval)
+<span style = "background-color:#fdd">{</span>
+    // No swap interval on OSMesa
+<span style = "background-color:#fdd">}</span>
+
+static int extensionSupportedOSMesa(const char* extension)
+<span style = "background-color:#fdd">{</span>
+    // OSMesa does not have extensions
+<span style = "background-color:#fdd">    return GLFW_FALSE;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWbool _glfwInitOSMesa(void)
+<span style = "background-color:#fdd">{</span>
+    int i;
+<span style = "background-color:#fdd">    const char* sonames[] =</span>
+    {
+#if defined(_GLFW_OSMESA_LIBRARY)
+        _GLFW_OSMESA_LIBRARY,
+#elif defined(_WIN32)
+        "libOSMesa.dll",
+        "OSMesa.dll",
+#elif defined(__APPLE__)
+        "libOSMesa.8.dylib",
+#elif defined(__CYGWIN__)
+        "libOSMesa-8.so",
+#else
+        "libOSMesa.so.8",
+        "libOSMesa.so.6",
+#endif
+        NULL
+    };
+
+<span style = "background-color:#fdd">    if (_glfw.osmesa.handle)
+        return GLFW_TRUE;</span>
+
+<span style = "background-color:#fdd">    for (i = 0;  sonames[i];  i++)</span>
+    {
+<span style = "background-color:#fdd">        _glfw.osmesa.handle = _glfw_dlopen(sonames[i]);
+        if (_glfw.osmesa.handle)
+            break;
+    }</span>
+
+<span style = "background-color:#fdd">    if (!_glfw.osmesa.handle)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE, "OSMesa: Library not found");
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfw.osmesa.CreateContextExt = (PFN_OSMesaCreateContextExt)</span>
+        _glfw_dlsym(_glfw.osmesa.handle, "OSMesaCreateContextExt");
+<span style = "background-color:#fdd">    _glfw.osmesa.CreateContextAttribs = (PFN_OSMesaCreateContextAttribs)</span>
+        _glfw_dlsym(_glfw.osmesa.handle, "OSMesaCreateContextAttribs");
+<span style = "background-color:#fdd">    _glfw.osmesa.DestroyContext = (PFN_OSMesaDestroyContext)</span>
+        _glfw_dlsym(_glfw.osmesa.handle, "OSMesaDestroyContext");
+<span style = "background-color:#fdd">    _glfw.osmesa.MakeCurrent = (PFN_OSMesaMakeCurrent)</span>
+        _glfw_dlsym(_glfw.osmesa.handle, "OSMesaMakeCurrent");
+<span style = "background-color:#fdd">    _glfw.osmesa.GetColorBuffer = (PFN_OSMesaGetColorBuffer)</span>
+        _glfw_dlsym(_glfw.osmesa.handle, "OSMesaGetColorBuffer");
+<span style = "background-color:#fdd">    _glfw.osmesa.GetDepthBuffer = (PFN_OSMesaGetDepthBuffer)</span>
+        _glfw_dlsym(_glfw.osmesa.handle, "OSMesaGetDepthBuffer");
+<span style = "background-color:#fdd">    _glfw.osmesa.GetProcAddress = (PFN_OSMesaGetProcAddress)</span>
+        _glfw_dlsym(_glfw.osmesa.handle, "OSMesaGetProcAddress");
+
+    if (!_glfw.osmesa.CreateContextExt ||
+        !_glfw.osmesa.DestroyContext ||
+        !_glfw.osmesa.MakeCurrent ||
+        !_glfw.osmesa.GetColorBuffer ||
+<span style = "background-color:#fdd">        !_glfw.osmesa.GetDepthBuffer ||</span>
+        !_glfw.osmesa.GetProcAddress)
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                        "OSMesa: Failed to load required entry points");
+
+<span style = "background-color:#fdd">        _glfwTerminateOSMesa();
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+void _glfwTerminateOSMesa(void)
+<span style = "background-color:#fdd">{
+    if (_glfw.osmesa.handle)</span>
+    {
+<span style = "background-color:#fdd">        _glfw_dlclose(_glfw.osmesa.handle);
+        _glfw.osmesa.handle = NULL;</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+#define setAttrib(a, v) \
+{ \
+    assert(((size_t) index + 1) &lt; sizeof(attribs) / sizeof(attribs[0])); \
+    attribs[index++] = a; \
+    attribs[index++] = v; \
+}
+
+GLFWbool _glfwCreateContextOSMesa(_GLFWwindow* window,
+                                  const _GLFWctxconfig* ctxconfig,
+                                  const _GLFWfbconfig* fbconfig)
+<span style = "background-color:#fdd">{
+    OSMesaContext share = NULL;
+    const int accumBits = fbconfig-&gt;accumRedBits +</span>
+                          fbconfig-&gt;accumGreenBits +
+                          fbconfig-&gt;accumBlueBits +
+                          fbconfig-&gt;accumAlphaBits;
+
+<span style = "background-color:#fdd">    if (ctxconfig-&gt;client == GLFW_OPENGL_ES_API)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_API_UNAVAILABLE,</span>
+                        "OSMesa: OpenGL ES is not available on OSMesa");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    if (ctxconfig-&gt;share)
+        share = ctxconfig-&gt;share-&gt;context.osmesa.handle;</span>
+
+<span style = "background-color:#fdd">    if (OSMesaCreateContextAttribs)</span>
+    {
+<span style = "background-color:#fdd">        int index = 0, attribs[40];</span>
+
+<span style = "background-color:#fdd">        setAttrib(OSMESA_FORMAT, OSMESA_RGBA);
+        setAttrib(OSMESA_DEPTH_BITS, fbconfig-&gt;depthBits);
+        setAttrib(OSMESA_STENCIL_BITS, fbconfig-&gt;stencilBits);
+        setAttrib(OSMESA_ACCUM_BITS, accumBits);</span>
+
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;profile == GLFW_OPENGL_CORE_PROFILE)</span>
+        {
+<span style = "background-color:#fdd">            setAttrib(OSMESA_PROFILE, OSMESA_CORE_PROFILE);
+        }
+        else if (ctxconfig-&gt;profile == GLFW_OPENGL_COMPAT_PROFILE)</span>
+        {
+<span style = "background-color:#fdd">            setAttrib(OSMESA_PROFILE, OSMESA_COMPAT_PROFILE);</span>
+        }
+
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;major != 1 || ctxconfig-&gt;minor != 0)</span>
+        {
+<span style = "background-color:#fdd">            setAttrib(OSMESA_CONTEXT_MAJOR_VERSION, ctxconfig-&gt;major);
+            setAttrib(OSMESA_CONTEXT_MINOR_VERSION, ctxconfig-&gt;minor);</span>
+        }
+
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;forward)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                            "OSMesa: Forward-compatible contexts not supported");
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+
+<span style = "background-color:#fdd">        setAttrib(0, 0);</span>
+
+<span style = "background-color:#fdd">        window-&gt;context.osmesa.handle =</span>
+            OSMesaCreateContextAttribs(attribs, share);
+<span style = "background-color:#fdd">    }</span>
+    else
+    {
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;profile)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                            "OSMesa: OpenGL profiles unavailable");
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+
+<span style = "background-color:#fdd">        window-&gt;context.osmesa.handle =</span>
+            OSMesaCreateContextExt(OSMESA_RGBA,
+                                   fbconfig-&gt;depthBits,
+                                   fbconfig-&gt;stencilBits,
+                                   accumBits,
+                                   share);
+    }
+
+<span style = "background-color:#fdd">    if (window-&gt;context.osmesa.handle == NULL)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                        "OSMesa: Failed to create context");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    window-&gt;context.makeCurrent = makeContextCurrentOSMesa;
+    window-&gt;context.swapBuffers = swapBuffersOSMesa;
+    window-&gt;context.swapInterval = swapIntervalOSMesa;
+    window-&gt;context.extensionSupported = extensionSupportedOSMesa;
+    window-&gt;context.getProcAddress = getProcAddressOSMesa;
+    window-&gt;context.destroy = destroyContextOSMesa;</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+#undef setAttrib
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW native API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI int glfwGetOSMesaColorBuffer(GLFWwindow* handle, int* width,
+                                     int* height, int* format, void** buffer)
+<span style = "background-color:#fdd">{</span>
+    void* mesaBuffer;
+    GLint mesaWidth, mesaHeight, mesaFormat;
+<span style = "background-color:#fdd">    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#fdd">    if (!OSMesaGetColorBuffer(window-&gt;context.osmesa.handle,</span>
+                              &amp;mesaWidth, &amp;mesaHeight,
+                              &amp;mesaFormat, &amp;mesaBuffer))
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                        "OSMesa: Failed to retrieve color buffer");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    if (width)
+        *width = mesaWidth;
+    if (height)
+        *height = mesaHeight;
+    if (format)
+        *format = mesaFormat;
+    if (buffer)
+        *buffer = mesaBuffer;</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+GLFWAPI int glfwGetOSMesaDepthBuffer(GLFWwindow* handle,
+                                     int* width, int* height,
+                                     int* bytesPerValue,
+                                     void** buffer)
+<span style = "background-color:#fdd">{</span>
+    void* mesaBuffer;
+    GLint mesaWidth, mesaHeight, mesaBytes;
+<span style = "background-color:#fdd">    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#fdd">    if (!OSMesaGetDepthBuffer(window-&gt;context.osmesa.handle,</span>
+                              &amp;mesaWidth, &amp;mesaHeight,
+                              &amp;mesaBytes, &amp;mesaBuffer))
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                        "OSMesa: Failed to retrieve depth buffer");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    if (width)
+        *width = mesaWidth;
+    if (height)
+        *height = mesaHeight;
+    if (bytesPerValue)
+        *bytesPerValue = mesaBytes;
+    if (buffer)
+        *buffer = mesaBuffer;</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+GLFWAPI OSMesaContext glfwGetOSMesaContext(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;context.client == GLFW_NO_API)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_NO_WINDOW_CONTEXT, NULL);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    return window-&gt;context.osmesa.handle;
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

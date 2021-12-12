@@ -1,0 +1,411 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>impl.h</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#ifndef NODE_IMPL_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+#define NODE_IMPL_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+
+#if defined(_MSC_VER) ||                                            \
+    (defined(__GNUC__) &amp;&amp; (__GNUC__ == 3 &amp;&amp; __GNUC_MINOR__ &gt;= 4) || \
+     (__GNUC__ &gt;= 4))  // GCC supports "pragma once" correctly since 3.4
+#pragma once
+#endif
+
+#include "yaml-cpp/exceptions.h"
+#include "yaml-cpp/node/detail/memory.h"
+#include "yaml-cpp/node/detail/node.h"
+#include "yaml-cpp/node/iterator.h"
+#include "yaml-cpp/node/node.h"
+#include &lt;sstream&gt;
+#include &lt;string&gt;
+
+namespace YAML {
+inline Node::Node()
+<span style = "background-color:#fdd">    : m_isValid(true), m_invalidKey{}, m_pMemory(nullptr), m_pNode(nullptr) {}</span>
+
+inline Node::Node(NodeType::value type)
+    : m_isValid(true),
+      m_invalidKey{},
+      m_pMemory(new detail::memory_holder),
+      m_pNode(&amp;m_pMemory-&gt;create_node()) {
+  m_pNode-&gt;set_type(type);
+}
+
+template &lt;typename T&gt;
+inline Node::Node(const T&amp; rhs)
+<span style = "background-color:#fdd">    : m_isValid(true),
+      m_invalidKey{},
+      m_pMemory(new detail::memory_holder),
+      m_pNode(&amp;m_pMemory-&gt;create_node()) {
+  Assign(rhs);
+}</span>
+
+inline Node::Node(const detail::iterator_value&amp; rhs)
+    : m_isValid(rhs.m_isValid),
+      m_invalidKey(rhs.m_invalidKey),
+      m_pMemory(rhs.m_pMemory),
+      m_pNode(rhs.m_pNode) {}
+
+<span style = "background-color:#dfd">inline Node::Node(const Node&amp;) = default;</span>
+
+inline Node::Node(Zombie)
+<span style = "background-color:#dfd">    : m_isValid(false), m_invalidKey{}, m_pMemory{}, m_pNode(nullptr) {}</span>
+
+inline Node::Node(Zombie, const std::string&amp; key)
+    : m_isValid(false), m_invalidKey(key), m_pMemory{}, m_pNode(nullptr) {}
+
+inline Node::Node(detail::node&amp; node, detail::shared_memory_holder pMemory)
+<span style = "background-color:#dfd">    : m_isValid(true), m_invalidKey{}, m_pMemory(pMemory), m_pNode(&amp;node) {}</span>
+
+<span style = "background-color:#dfd">inline Node::~Node() = default;</span>
+
+<span style = "background-color:#dfd">inline void Node::EnsureNodeExists() const {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    throw InvalidNode(m_invalidKey);</span>
+<span style = "background-color:#dfd">  if (!m_pNode) {</span>
+<span style = "background-color:#fdd">    m_pMemory.reset(new detail::memory_holder);
+    m_pNode = &amp;m_pMemory-&gt;create_node();
+    m_pNode-&gt;set_null();</span>
+  }
+<span style = "background-color:#dfd">}</span>
+
+inline bool Node::IsDefined() const {
+  if (!m_isValid) {
+    return false;
+  }
+  return m_pNode ? m_pNode-&gt;is_defined() : true;
+}
+
+<span style = "background-color:#fdd">inline Mark Node::Mark() const {
+  if (!m_isValid) {
+    throw InvalidNode(m_invalidKey);</span>
+  }
+<span style = "background-color:#fdd">  return m_pNode ? m_pNode-&gt;mark() : Mark::null_mark();
+}</span>
+
+<span style = "background-color:#dfd">inline NodeType::value Node::Type() const {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    throw InvalidNode(m_invalidKey);</span>
+<span style = "background-color:#dfd">  return m_pNode ? m_pNode-&gt;type() : NodeType::Null;
+}</span>
+
+// access
+
+// template helpers
+template &lt;typename T, typename S&gt;
+struct as_if {
+  explicit as_if(const Node&amp; node_) : node(node_) {}
+  const Node&amp; node;
+
+  T operator()(const S&amp; fallback) const {
+    if (!node.m_pNode)
+      return fallback;
+
+    T t;
+    if (convert&lt;T&gt;::decode(node, t))
+      return t;
+    return fallback;
+  }
+};
+
+template &lt;typename S&gt;
+struct as_if&lt;std::string, S&gt; {
+  explicit as_if(const Node&amp; node_) : node(node_) {}
+  const Node&amp; node;
+
+  std::string operator()(const S&amp; fallback) const {
+    if (node.Type() == NodeType::Null)
+      return "null";
+    if (node.Type() != NodeType::Scalar)
+      return fallback;
+    return node.Scalar();
+  }
+};
+
+template &lt;typename T&gt;
+struct as_if&lt;T, void&gt; {
+<span style = "background-color:#dfd">  explicit as_if(const Node&amp; node_) : node(node_) {}</span>
+  const Node&amp; node;
+
+<span style = "background-color:#dfd">  T operator()() const {
+    if (!node.m_pNode)</span>
+<span style = "background-color:#fdd">      throw TypedBadConversion&lt;T&gt;(node.Mark());</span>
+
+<span style = "background-color:#dfd">    T t;
+    if (convert&lt;T&gt;::decode(node, t))
+      return t;</span>
+<span style = "background-color:#fdd">    throw TypedBadConversion&lt;T&gt;(node.Mark());</span>
+<span style = "background-color:#dfd">  }</span>
+};
+
+template &lt;&gt;
+struct as_if&lt;std::string, void&gt; {
+<span style = "background-color:#dfd">  explicit as_if(const Node&amp; node_) : node(node_) {}</span>
+  const Node&amp; node;
+
+<span style = "background-color:#dfd">  std::string operator()() const {
+    if (node.Type() == NodeType::Null)</span>
+<span style = "background-color:#fdd">      return "null";</span>
+<span style = "background-color:#dfd">    if (node.Type() != NodeType::Scalar)</span>
+<span style = "background-color:#fdd">      throw TypedBadConversion&lt;std::string&gt;(node.Mark());</span>
+<span style = "background-color:#dfd">    return node.Scalar();
+  }</span>
+};
+
+// access functions
+template &lt;typename T&gt;
+<span style = "background-color:#dfd">inline T Node::as() const {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    throw InvalidNode(m_invalidKey);</span>
+<span style = "background-color:#dfd">  return as_if&lt;T, void&gt;(*this)();
+}</span>
+
+template &lt;typename T, typename S&gt;
+inline T Node::as(const S&amp; fallback) const {
+  if (!m_isValid)
+    return fallback;
+  return as_if&lt;T, S&gt;(*this)(fallback);
+}
+
+<span style = "background-color:#dfd">inline const std::string&amp; Node::Scalar() const {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    throw InvalidNode(m_invalidKey);</span>
+<span style = "background-color:#dfd">  return m_pNode ? m_pNode-&gt;scalar() : detail::node_data::empty_scalar();
+}</span>
+
+inline const std::string&amp; Node::Tag() const {
+  if (!m_isValid)
+    throw InvalidNode(m_invalidKey);
+  return m_pNode ? m_pNode-&gt;tag() : detail::node_data::empty_scalar();
+}
+
+inline void Node::SetTag(const std::string&amp; tag) {
+  EnsureNodeExists();
+  m_pNode-&gt;set_tag(tag);
+}
+
+inline EmitterStyle::value Node::Style() const {
+  if (!m_isValid)
+    throw InvalidNode(m_invalidKey);
+  return m_pNode ? m_pNode-&gt;style() : EmitterStyle::Default;
+}
+
+inline void Node::SetStyle(EmitterStyle::value style) {
+  EnsureNodeExists();
+  m_pNode-&gt;set_style(style);
+}
+
+// assignment
+inline bool Node::is(const Node&amp; rhs) const {
+  if (!m_isValid || !rhs.m_isValid)
+    throw InvalidNode(m_invalidKey);
+  if (!m_pNode || !rhs.m_pNode)
+    return false;
+  return m_pNode-&gt;is(*rhs.m_pNode);
+}
+
+template &lt;typename T&gt;
+inline Node&amp; Node::operator=(const T&amp; rhs) {
+  Assign(rhs);
+  return *this;
+}
+
+inline Node&amp; Node::operator=(const Node&amp; rhs) {
+  if (is(rhs))
+    return *this;
+  AssignNode(rhs);
+  return *this;
+}
+
+inline void Node::reset(const YAML::Node&amp; rhs) {
+  if (!m_isValid || !rhs.m_isValid)
+    throw InvalidNode(m_invalidKey);
+  m_pMemory = rhs.m_pMemory;
+  m_pNode = rhs.m_pNode;
+}
+
+template &lt;typename T&gt;
+inline void Node::Assign(const T&amp; rhs) {
+  if (!m_isValid)
+    throw InvalidNode(m_invalidKey);
+  AssignData(convert&lt;T&gt;::encode(rhs));
+}
+
+template &lt;&gt;
+inline void Node::Assign(const std::string&amp; rhs) {
+  EnsureNodeExists();
+  m_pNode-&gt;set_scalar(rhs);
+}
+
+<span style = "background-color:#fdd">inline void Node::Assign(const char* rhs) {
+  EnsureNodeExists();
+  m_pNode-&gt;set_scalar(rhs);
+}</span>
+
+inline void Node::Assign(char* rhs) {
+  EnsureNodeExists();
+  m_pNode-&gt;set_scalar(rhs);
+}
+
+inline void Node::AssignData(const Node&amp; rhs) {
+  EnsureNodeExists();
+  rhs.EnsureNodeExists();
+
+  m_pNode-&gt;set_data(*rhs.m_pNode);
+  m_pMemory-&gt;merge(*rhs.m_pMemory);
+}
+
+inline void Node::AssignNode(const Node&amp; rhs) {
+  if (!m_isValid)
+    throw InvalidNode(m_invalidKey);
+  rhs.EnsureNodeExists();
+
+  if (!m_pNode) {
+    m_pNode = rhs.m_pNode;
+    m_pMemory = rhs.m_pMemory;
+    return;
+  }
+
+  m_pNode-&gt;set_ref(*rhs.m_pNode);
+  m_pMemory-&gt;merge(*rhs.m_pMemory);
+  m_pNode = rhs.m_pNode;
+}
+
+// size/iterator
+inline std::size_t Node::size() const {
+  if (!m_isValid)
+    throw InvalidNode(m_invalidKey);
+  return m_pNode ? m_pNode-&gt;size() : 0;
+}
+
+<span style = "background-color:#dfd">inline const_iterator Node::begin() const {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    return const_iterator();</span>
+<span style = "background-color:#dfd">  return m_pNode ? const_iterator(m_pNode-&gt;begin(), m_pMemory)</span>
+                 : const_iterator();
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#dfd">inline iterator Node::begin() {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    return iterator();</span>
+<span style = "background-color:#dfd">  return m_pNode ? iterator(m_pNode-&gt;begin(), m_pMemory) : iterator();
+}</span>
+
+<span style = "background-color:#dfd">inline const_iterator Node::end() const {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    return const_iterator();</span>
+<span style = "background-color:#dfd">  return m_pNode ? const_iterator(m_pNode-&gt;end(), m_pMemory) : const_iterator();
+}</span>
+
+<span style = "background-color:#dfd">inline iterator Node::end() {
+  if (!m_isValid)</span>
+<span style = "background-color:#fdd">    return iterator();</span>
+<span style = "background-color:#dfd">  return m_pNode ? iterator(m_pNode-&gt;end(), m_pMemory) : iterator();
+}</span>
+
+// sequence
+template &lt;typename T&gt;
+inline void Node::push_back(const T&amp; rhs) {
+  if (!m_isValid)
+    throw InvalidNode(m_invalidKey);
+  push_back(Node(rhs));
+}
+
+inline void Node::push_back(const Node&amp; rhs) {
+  EnsureNodeExists();
+  rhs.EnsureNodeExists();
+
+  m_pNode-&gt;push_back(*rhs.m_pNode, m_pMemory);
+  m_pMemory-&gt;merge(*rhs.m_pMemory);
+}
+
+template&lt;typename Key&gt;
+std::string key_to_string(const Key&amp; key) {
+  return streamable_to_string&lt;Key, is_streamable&lt;std::stringstream, Key&gt;::value&gt;().impl(key);
+}
+
+// indexing
+template &lt;typename Key&gt;
+inline const Node Node::operator[](const Key&amp; key) const {
+  EnsureNodeExists();
+  detail::node* value =
+      static_cast&lt;const detail::node&amp;&gt;(*m_pNode).get(key, m_pMemory);
+  if (!value) {
+    return Node(ZombieNode, key_to_string(key));
+  }
+  return Node(*value, m_pMemory);
+}
+
+template &lt;typename Key&gt;
+<span style = "background-color:#dfd">inline Node Node::operator[](const Key&amp; key) {
+  EnsureNodeExists();
+  detail::node&amp; value = m_pNode-&gt;get(key, m_pMemory);
+  return Node(value, m_pMemory);
+}</span>
+
+template &lt;typename Key&gt;
+inline bool Node::remove(const Key&amp; key) {
+  EnsureNodeExists();
+  return m_pNode-&gt;remove(key, m_pMemory);
+}
+
+inline const Node Node::operator[](const Node&amp; key) const {
+  EnsureNodeExists();
+  key.EnsureNodeExists();
+  m_pMemory-&gt;merge(*key.m_pMemory);
+  detail::node* value =
+      static_cast&lt;const detail::node&amp;&gt;(*m_pNode).get(*key.m_pNode, m_pMemory);
+  if (!value) {
+    return Node(ZombieNode, key_to_string(key));
+  }
+  return Node(*value, m_pMemory);
+}
+
+inline Node Node::operator[](const Node&amp; key) {
+  EnsureNodeExists();
+  key.EnsureNodeExists();
+  m_pMemory-&gt;merge(*key.m_pMemory);
+  detail::node&amp; value = m_pNode-&gt;get(*key.m_pNode, m_pMemory);
+  return Node(value, m_pMemory);
+}
+
+inline bool Node::remove(const Node&amp; key) {
+  EnsureNodeExists();
+  key.EnsureNodeExists();
+  return m_pNode-&gt;remove(*key.m_pNode, m_pMemory);
+}
+
+// map
+template &lt;typename Key, typename Value&gt;
+inline void Node::force_insert(const Key&amp; key, const Value&amp; value) {
+  EnsureNodeExists();
+  m_pNode-&gt;force_insert(key, value, m_pMemory);
+}
+
+// free functions
+inline bool operator==(const Node&amp; lhs, const Node&amp; rhs) { return lhs.is(rhs); }
+}  // namespace YAML
+
+#endif  // NODE_IMPL_H_62B23520_7C8E_11DE_8A39_0800200C9A66</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,87 @@
+[2021-12-12 17:36:17] [info] Start Program:
+Path:"Debug/VGI.exe"
+Arguments:
+Working directory: not set.
+Modules: Selected: * Excluded: 
+Sources: Selected: VGI Excluded: 
+Log Level: Normal
+Cover Children: 0
+Aggregate by file: 1
+Continue after C++ exception: 0
+Optimized build support: 0
+Export: html 
+Input coverage: 
+Unified diff: 
+Excluded line regular expressions: 
+Substitute pdb source paths: 
+[2021-12-12 17:36:17] [info] Module: C:\Users\anton\OneDrive\Escritorio\Archivos\UNI\VGI\Debug\VGI.exe is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ntdll.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\kernel32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\KernelBase.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\user32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\win32u.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\gdi32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\gdi32full.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\msvcp_win.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ucrtbase.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\shell32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\imm32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\vcruntime140_1d.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\vcruntime140d.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\msvcp140d.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ucrtbased.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ucrtbased.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ucrtbased.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ucrtbased.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\winmm.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\msvcrt.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\dinput8.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\advapi32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\sechost.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\rpcrt4.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\XInput1_4.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\combase.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\cfgmgr32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\devobj.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\dwmapi.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\InputHost.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\SHCore.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\oleaut32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\propsys.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\WinTypes.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\CoreUIComponents.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\bcryptprimitives.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ntmarta.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\CoreMessaging.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\CoreMessaging.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\kernel.appcore.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\kernel.appcore.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ws2_32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\uxtheme.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\msctf.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\opengl32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\glu32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\clbcatq.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\AppXDeploymentClient.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\DriverStore\FileRepository\u0360470.inf_amd64_35c64671e7fac064\B360357\atig6pxx.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\DriverStore\FileRepository\u0360470.inf_amd64_35c64671e7fac064\B360357\atio6axx.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\setupapi.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\version.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\dxva2.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\bcrypt.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\ole32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\DriverStore\FileRepository\u0360470.inf_amd64_35c64671e7fac064\B360357\atig6txx.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\atiadlxx.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\psapi.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\wintrust.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\crypt32.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\msasn1.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\windows.storage.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\wldp.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:19] [info] Module: C:\Windows\System32\shlwapi.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:20] [info] Module: C:\Windows\System32\DXCore.dll is selected because it matches selected pattern: *
+[2021-12-12 17:36:20] [info] Module: C:\Windows\System32\TextInputFramework.dll is selected because it matches selected pattern: *
+[2021-12-12 17:38:27] [info] ----------------------------------------------------
+[2021-12-12 17:38:27] [info] Coverage generated in Folder C:\Users\anton\OneDrive\Escritorio\Archivos\UNI\VGI\CoverageReport-2021-12-12-17h38m26s
+[2021-12-12 17:38:27] [info] ----------------------------------------------------
+[2021-12-12 17:38:27] [info] The code coverage report is not what you expect? See the FAQ https://github.com/OpenCppCoverage/OpenCppCoverage/wiki/FAQ.

@@ -1,0 +1,1140 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>window.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2019 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+// Copyright (c) 2012 Torsten Walluhn &lt;tw@mad-cad.net&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;assert.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;float.h&gt;
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                         GLFW event API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+// Notifies shared code that a window has lost or received input focus
+//
+void _glfwInputWindowFocus(_GLFWwindow* window, GLFWbool focused)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.focus)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.focus((GLFWwindow*) window, focused);</span>
+
+<span style = "background-color:#dfd">    if (!focused)</span>
+    {
+        int key, button;
+
+<span style = "background-color:#fdd">        for (key = 0;  key &lt;= GLFW_KEY_LAST;  key++)</span>
+        {
+<span style = "background-color:#fdd">            if (window-&gt;keys[key] == GLFW_PRESS)</span>
+            {
+<span style = "background-color:#fdd">                const int scancode = _glfwPlatformGetKeyScancode(key);
+                _glfwInputKey(window, key, scancode, GLFW_RELEASE, 0);</span>
+            }
+<span style = "background-color:#fdd">        }</span>
+
+<span style = "background-color:#fdd">        for (button = 0;  button &lt;= GLFW_MOUSE_BUTTON_LAST;  button++)</span>
+        {
+<span style = "background-color:#fdd">            if (window-&gt;mouseButtons[button] == GLFW_PRESS)
+                _glfwInputMouseClick(window, button, GLFW_RELEASE, 0);
+        }</span>
+    }
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that a window has moved
+// The position is specified in content area relative screen coordinates
+//
+void _glfwInputWindowPos(_GLFWwindow* window, int x, int y)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.pos)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.pos((GLFWwindow*) window, x, y);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that a window has been resized
+// The size is specified in screen coordinates
+//
+void _glfwInputWindowSize(_GLFWwindow* window, int width, int height)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.size)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.size((GLFWwindow*) window, width, height);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that a window has been iconified or restored
+//
+void _glfwInputWindowIconify(_GLFWwindow* window, GLFWbool iconified)
+<span style = "background-color:#fdd">{
+    if (window-&gt;callbacks.iconify)
+        window-&gt;callbacks.iconify((GLFWwindow*) window, iconified);
+}</span>
+
+// Notifies shared code that a window has been maximized or restored
+//
+void _glfwInputWindowMaximize(_GLFWwindow* window, GLFWbool maximized)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.maximize)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.maximize((GLFWwindow*) window, maximized);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that a window framebuffer has been resized
+// The size is specified in pixels
+//
+void _glfwInputFramebufferSize(_GLFWwindow* window, int width, int height)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.fbsize)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.fbsize((GLFWwindow*) window, width, height);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that a window content scale has changed
+// The scale is specified as the ratio between the current and default DPI
+//
+void _glfwInputWindowContentScale(_GLFWwindow* window, float xscale, float yscale)
+<span style = "background-color:#fdd">{
+    if (window-&gt;callbacks.scale)
+        window-&gt;callbacks.scale((GLFWwindow*) window, xscale, yscale);
+}</span>
+
+// Notifies shared code that the window contents needs updating
+//
+void _glfwInputWindowDamage(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.refresh)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.refresh((GLFWwindow*) window);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that the user wishes to close a window
+//
+void _glfwInputWindowCloseRequest(_GLFWwindow* window)
+<span style = "background-color:#dfd">{
+    window-&gt;shouldClose = GLFW_TRUE;</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;callbacks.close)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.close((GLFWwindow*) window);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that a window has changed its desired monitor
+//
+void _glfwInputWindowMonitor(_GLFWwindow* window, _GLFWmonitor* monitor)
+<span style = "background-color:#fdd">{
+    window-&gt;monitor = monitor;
+}</span>
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW public API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI GLFWwindow* glfwCreateWindow(int width, int height,
+                                     const char* title,
+                                     GLFWmonitor* monitor,
+                                     GLFWwindow* share)
+<span style = "background-color:#dfd">{</span>
+    _GLFWfbconfig fbconfig;
+    _GLFWctxconfig ctxconfig;
+    _GLFWwndconfig wndconfig;
+    _GLFWwindow* window;
+
+<span style = "background-color:#dfd">    assert(title != NULL);
+    assert(width &gt;= 0);
+    assert(height &gt;= 0);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#dfd">    if (width &lt;= 0 || height &lt;= 0)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE,</span>
+                        "Invalid window size %ix%i",
+                        width, height);
+
+<span style = "background-color:#fdd">        return NULL;</span>
+    }
+
+<span style = "background-color:#dfd">    fbconfig  = _glfw.hints.framebuffer;
+    ctxconfig = _glfw.hints.context;
+    wndconfig = _glfw.hints.window;</span>
+
+<span style = "background-color:#dfd">    wndconfig.width   = width;
+    wndconfig.height  = height;
+    wndconfig.title   = title;
+    ctxconfig.share   = (_GLFWwindow*) share;</span>
+
+<span style = "background-color:#dfd">    if (!_glfwIsValidContextConfig(&amp;ctxconfig))</span>
+<span style = "background-color:#fdd">        return NULL;</span>
+
+<span style = "background-color:#dfd">    window = _glfw_calloc(1, sizeof(_GLFWwindow));
+    window-&gt;next = _glfw.windowListHead;
+    _glfw.windowListHead = window;</span>
+
+<span style = "background-color:#dfd">    window-&gt;videoMode.width       = width;
+    window-&gt;videoMode.height      = height;
+    window-&gt;videoMode.redBits     = fbconfig.redBits;
+    window-&gt;videoMode.greenBits   = fbconfig.greenBits;
+    window-&gt;videoMode.blueBits    = fbconfig.blueBits;
+    window-&gt;videoMode.refreshRate = _glfw.hints.refreshRate;</span>
+
+<span style = "background-color:#dfd">    window-&gt;monitor          = (_GLFWmonitor*) monitor;
+    window-&gt;resizable        = wndconfig.resizable;
+    window-&gt;decorated        = wndconfig.decorated;
+    window-&gt;autoIconify      = wndconfig.autoIconify;
+    window-&gt;floating         = wndconfig.floating;
+    window-&gt;focusOnShow      = wndconfig.focusOnShow;
+    window-&gt;mousePassthrough = wndconfig.mousePassthrough;
+    window-&gt;cursorMode       = GLFW_CURSOR_NORMAL;</span>
+
+<span style = "background-color:#dfd">    window-&gt;doublebuffer = fbconfig.doublebuffer;</span>
+
+<span style = "background-color:#dfd">    window-&gt;minwidth    = GLFW_DONT_CARE;
+    window-&gt;minheight   = GLFW_DONT_CARE;
+    window-&gt;maxwidth    = GLFW_DONT_CARE;
+    window-&gt;maxheight   = GLFW_DONT_CARE;
+    window-&gt;numer       = GLFW_DONT_CARE;
+    window-&gt;denom       = GLFW_DONT_CARE;</span>
+
+    // Open the actual window and create its context
+<span style = "background-color:#dfd">    if (!_glfwPlatformCreateWindow(window, &amp;wndconfig, &amp;ctxconfig, &amp;fbconfig))</span>
+    {
+<span style = "background-color:#fdd">        glfwDestroyWindow((GLFWwindow*) window);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#dfd">    if (ctxconfig.client != GLFW_NO_API)</span>
+    {
+<span style = "background-color:#dfd">        if (!_glfwRefreshContextAttribs(window, &amp;ctxconfig))</span>
+        {
+<span style = "background-color:#fdd">            glfwDestroyWindow((GLFWwindow*) window);
+            return NULL;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    if (wndconfig.mousePassthrough)</span>
+<span style = "background-color:#fdd">        _glfwPlatformSetWindowMousePassthrough(window, GLFW_TRUE);</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;monitor)</span>
+    {
+<span style = "background-color:#fdd">        if (wndconfig.centerCursor)
+            _glfwCenterCursorInContentArea(window);
+    }</span>
+    else
+    {
+<span style = "background-color:#dfd">        if (wndconfig.visible)</span>
+        {
+<span style = "background-color:#dfd">            _glfwPlatformShowWindow(window);
+            if (wndconfig.focused)
+                _glfwPlatformFocusWindow(window);</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    return (GLFWwindow*) window;
+}</span>
+
+void glfwDefaultWindowHints(void)
+<span style = "background-color:#dfd">{
+    _GLFW_REQUIRE_INIT();</span>
+
+    // The default is OpenGL with minimum version 1.0
+<span style = "background-color:#dfd">    memset(&amp;_glfw.hints.context, 0, sizeof(_glfw.hints.context));
+    _glfw.hints.context.client = GLFW_OPENGL_API;
+    _glfw.hints.context.source = GLFW_NATIVE_CONTEXT_API;
+    _glfw.hints.context.major  = 1;
+    _glfw.hints.context.minor  = 0;</span>
+
+    // The default is a focused, visible, resizable window with decorations
+<span style = "background-color:#dfd">    memset(&amp;_glfw.hints.window, 0, sizeof(_glfw.hints.window));
+    _glfw.hints.window.resizable    = GLFW_TRUE;
+    _glfw.hints.window.visible      = GLFW_TRUE;
+    _glfw.hints.window.decorated    = GLFW_TRUE;
+    _glfw.hints.window.focused      = GLFW_TRUE;
+    _glfw.hints.window.autoIconify  = GLFW_TRUE;
+    _glfw.hints.window.centerCursor = GLFW_TRUE;
+    _glfw.hints.window.focusOnShow  = GLFW_TRUE;</span>
+
+    // The default is 24 bits of color, 24 bits of depth and 8 bits of stencil,
+    // double buffered
+<span style = "background-color:#dfd">    memset(&amp;_glfw.hints.framebuffer, 0, sizeof(_glfw.hints.framebuffer));
+    _glfw.hints.framebuffer.redBits      = 8;
+    _glfw.hints.framebuffer.greenBits    = 8;
+    _glfw.hints.framebuffer.blueBits     = 8;
+    _glfw.hints.framebuffer.alphaBits    = 8;
+    _glfw.hints.framebuffer.depthBits    = 24;
+    _glfw.hints.framebuffer.stencilBits  = 8;
+    _glfw.hints.framebuffer.doublebuffer = GLFW_TRUE;</span>
+
+    // The default is to select the highest available refresh rate
+<span style = "background-color:#dfd">    _glfw.hints.refreshRate = GLFW_DONT_CARE;</span>
+
+    // The default is to use full Retina resolution framebuffers
+<span style = "background-color:#dfd">    _glfw.hints.window.ns.retina = GLFW_TRUE;
+}</span>
+
+GLFWAPI void glfwWindowHint(int hint, int value)
+<span style = "background-color:#dfd">{
+    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#dfd">    switch (hint)</span>
+    {
+        case GLFW_RED_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.redBits = value;
+            return;</span>
+        case GLFW_GREEN_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.greenBits = value;
+            return;</span>
+        case GLFW_BLUE_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.blueBits = value;
+            return;</span>
+        case GLFW_ALPHA_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.alphaBits = value;
+            return;</span>
+        case GLFW_DEPTH_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.depthBits = value;
+            return;</span>
+        case GLFW_STENCIL_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.stencilBits = value;
+            return;</span>
+        case GLFW_ACCUM_RED_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.accumRedBits = value;
+            return;</span>
+        case GLFW_ACCUM_GREEN_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.accumGreenBits = value;
+            return;</span>
+        case GLFW_ACCUM_BLUE_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.accumBlueBits = value;
+            return;</span>
+        case GLFW_ACCUM_ALPHA_BITS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.accumAlphaBits = value;
+            return;</span>
+        case GLFW_AUX_BUFFERS:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.auxBuffers = value;
+            return;</span>
+        case GLFW_STEREO:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.stereo = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_DOUBLEBUFFER:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.doublebuffer = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_TRANSPARENT_FRAMEBUFFER:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.transparent = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_SAMPLES:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.samples = value;
+            return;</span>
+        case GLFW_SRGB_CAPABLE:
+<span style = "background-color:#fdd">            _glfw.hints.framebuffer.sRGB = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_RESIZABLE:
+<span style = "background-color:#fdd">            _glfw.hints.window.resizable = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_DECORATED:
+<span style = "background-color:#fdd">            _glfw.hints.window.decorated = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_FOCUSED:
+<span style = "background-color:#fdd">            _glfw.hints.window.focused = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_AUTO_ICONIFY:
+<span style = "background-color:#fdd">            _glfw.hints.window.autoIconify = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_FLOATING:
+<span style = "background-color:#fdd">            _glfw.hints.window.floating = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_MAXIMIZED:
+<span style = "background-color:#fdd">            _glfw.hints.window.maximized = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_VISIBLE:
+<span style = "background-color:#fdd">            _glfw.hints.window.visible = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_COCOA_RETINA_FRAMEBUFFER:
+<span style = "background-color:#fdd">            _glfw.hints.window.ns.retina = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_WIN32_KEYBOARD_MENU:
+<span style = "background-color:#fdd">            _glfw.hints.window.win32.keymenu = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_COCOA_GRAPHICS_SWITCHING:
+<span style = "background-color:#fdd">            _glfw.hints.context.nsgl.offline = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_SCALE_TO_MONITOR:
+<span style = "background-color:#fdd">            _glfw.hints.window.scaleToMonitor = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_CENTER_CURSOR:
+<span style = "background-color:#fdd">            _glfw.hints.window.centerCursor = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_FOCUS_ON_SHOW:
+<span style = "background-color:#fdd">            _glfw.hints.window.focusOnShow = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_MOUSE_PASSTHROUGH:
+<span style = "background-color:#fdd">            _glfw.hints.window.mousePassthrough = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_CLIENT_API:
+<span style = "background-color:#fdd">            _glfw.hints.context.client = value;
+            return;</span>
+        case GLFW_CONTEXT_CREATION_API:
+<span style = "background-color:#fdd">            _glfw.hints.context.source = value;
+            return;</span>
+        case GLFW_CONTEXT_VERSION_MAJOR:
+<span style = "background-color:#dfd">            _glfw.hints.context.major = value;
+            return;</span>
+        case GLFW_CONTEXT_VERSION_MINOR:
+<span style = "background-color:#dfd">            _glfw.hints.context.minor = value;
+            return;</span>
+        case GLFW_CONTEXT_ROBUSTNESS:
+<span style = "background-color:#fdd">            _glfw.hints.context.robustness = value;
+            return;</span>
+        case GLFW_OPENGL_FORWARD_COMPAT:
+<span style = "background-color:#fdd">            _glfw.hints.context.forward = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_CONTEXT_DEBUG:
+<span style = "background-color:#fdd">            _glfw.hints.context.debug = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_CONTEXT_NO_ERROR:
+<span style = "background-color:#fdd">            _glfw.hints.context.noerror = value ? GLFW_TRUE : GLFW_FALSE;
+            return;</span>
+        case GLFW_OPENGL_PROFILE:
+<span style = "background-color:#dfd">            _glfw.hints.context.profile = value;
+            return;</span>
+        case GLFW_CONTEXT_RELEASE_BEHAVIOR:
+<span style = "background-color:#fdd">            _glfw.hints.context.release = value;
+            return;</span>
+        case GLFW_REFRESH_RATE:
+<span style = "background-color:#fdd">            _glfw.hints.refreshRate = value;
+            return;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwInputError(GLFW_INVALID_ENUM, "Invalid window hint 0x%08X", hint);</span>
+<span style = "background-color:#dfd">}</span>
+
+GLFWAPI void glfwWindowHintString(int hint, const char* value)
+<span style = "background-color:#fdd">{
+    assert(value != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    switch (hint)</span>
+    {
+        case GLFW_COCOA_FRAME_NAME:
+<span style = "background-color:#fdd">            strncpy(_glfw.hints.window.ns.frameName, value,</span>
+                    sizeof(_glfw.hints.window.ns.frameName) - 1);
+<span style = "background-color:#fdd">            return;</span>
+        case GLFW_X11_CLASS_NAME:
+<span style = "background-color:#fdd">            strncpy(_glfw.hints.window.x11.className, value,</span>
+                    sizeof(_glfw.hints.window.x11.className) - 1);
+<span style = "background-color:#fdd">            return;</span>
+        case GLFW_X11_INSTANCE_NAME:
+<span style = "background-color:#fdd">            strncpy(_glfw.hints.window.x11.instanceName, value,</span>
+                    sizeof(_glfw.hints.window.x11.instanceName) - 1);
+<span style = "background-color:#fdd">            return;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwInputError(GLFW_INVALID_ENUM, "Invalid window hint string 0x%08X", hint);
+}</span>
+
+GLFWAPI void glfwDestroyWindow(GLFWwindow* handle)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();</span>
+
+    // Allow closing of NULL (to match the behavior of free)
+<span style = "background-color:#dfd">    if (window == NULL)</span>
+<span style = "background-color:#fdd">        return;</span>
+
+    // Clear all callbacks to avoid exposing a half torn-down window object
+<span style = "background-color:#dfd">    memset(&amp;window-&gt;callbacks, 0, sizeof(window-&gt;callbacks));</span>
+
+    // The window's context must not be current on another thread when the
+    // window is destroyed
+<span style = "background-color:#dfd">    if (window == _glfwPlatformGetTls(&amp;_glfw.contextSlot))
+        glfwMakeContextCurrent(NULL);</span>
+
+<span style = "background-color:#dfd">    _glfwPlatformDestroyWindow(window);</span>
+
+    // Unlink window from global linked list
+    {
+<span style = "background-color:#dfd">        _GLFWwindow** prev = &amp;_glfw.windowListHead;</span>
+
+<span style = "background-color:#dfd">        while (*prev != window)</span>
+<span style = "background-color:#fdd">            prev = &amp;((*prev)-&gt;next);</span>
+
+<span style = "background-color:#dfd">        *prev = window-&gt;next;</span>
+    }
+
+<span style = "background-color:#dfd">    _glfw_free(window);
+}</span>
+
+GLFWAPI int glfwWindowShouldClose(GLFWwindow* handle)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(0);
+    return window-&gt;shouldClose;
+}</span>
+
+GLFWAPI void glfwSetWindowShouldClose(GLFWwindow* handle, int value)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    window-&gt;shouldClose = value;
+}</span>
+
+GLFWAPI void glfwSetWindowTitle(GLFWwindow* handle, const char* title)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+    assert(title != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformSetWindowTitle(window, title);
+}</span>
+
+GLFWAPI void glfwSetWindowIcon(GLFWwindow* handle,
+                               int count, const GLFWimage* images)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+    assert(count &gt;= 0);
+    assert(count == 0 || images != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformSetWindowIcon(window, count, images);
+}</span>
+
+GLFWAPI void glfwGetWindowPos(GLFWwindow* handle, int* xpos, int* ypos)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    if (xpos)
+        *xpos = 0;
+    if (ypos)
+        *ypos = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformGetWindowPos(window, xpos, ypos);
+}</span>
+
+GLFWAPI void glfwSetWindowPos(GLFWwindow* handle, int xpos, int ypos)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor)
+        return;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformSetWindowPos(window, xpos, ypos);
+}</span>
+
+GLFWAPI void glfwGetWindowSize(GLFWwindow* handle, int* width, int* height)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    if (width)
+        *width = 0;
+    if (height)
+        *height = 0;</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformGetWindowSize(window, width, height);
+}</span>
+
+GLFWAPI void glfwSetWindowSize(GLFWwindow* handle, int width, int height)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+    assert(width &gt;= 0);
+    assert(height &gt;= 0);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    window-&gt;videoMode.width  = width;
+    window-&gt;videoMode.height = height;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformSetWindowSize(window, width, height);
+}</span>
+
+GLFWAPI void glfwSetWindowSizeLimits(GLFWwindow* handle,
+                                     int minwidth, int minheight,
+                                     int maxwidth, int maxheight)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (minwidth != GLFW_DONT_CARE &amp;&amp; minheight != GLFW_DONT_CARE)</span>
+    {
+<span style = "background-color:#fdd">        if (minwidth &lt; 0 || minheight &lt; 0)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE,</span>
+                            "Invalid window minimum size %ix%i",
+                            minwidth, minheight);
+<span style = "background-color:#fdd">            return;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    if (maxwidth != GLFW_DONT_CARE &amp;&amp; maxheight != GLFW_DONT_CARE)</span>
+    {
+        if (maxwidth &lt; 0 || maxheight &lt; 0 ||
+<span style = "background-color:#fdd">            maxwidth &lt; minwidth || maxheight &lt; minheight)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE,</span>
+                            "Invalid window maximum size %ix%i",
+                            maxwidth, maxheight);
+<span style = "background-color:#fdd">            return;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    window-&gt;minwidth  = minwidth;
+    window-&gt;minheight = minheight;
+    window-&gt;maxwidth  = maxwidth;
+    window-&gt;maxheight = maxheight;</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor || !window-&gt;resizable)
+        return;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformSetWindowSizeLimits(window,</span>
+                                     minwidth, minheight,
+                                     maxwidth, maxheight);
+<span style = "background-color:#fdd">}</span>
+
+GLFWAPI void glfwSetWindowAspectRatio(GLFWwindow* handle, int numer, int denom)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+    assert(numer != 0);
+    assert(denom != 0);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (numer != GLFW_DONT_CARE &amp;&amp; denom != GLFW_DONT_CARE)</span>
+    {
+<span style = "background-color:#fdd">        if (numer &lt;= 0 || denom &lt;= 0)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE,</span>
+                            "Invalid window aspect ratio %i:%i",
+                            numer, denom);
+<span style = "background-color:#fdd">            return;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    window-&gt;numer = numer;
+    window-&gt;denom = denom;</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor || !window-&gt;resizable)
+        return;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformSetWindowAspectRatio(window, numer, denom);
+}</span>
+
+GLFWAPI void glfwGetFramebufferSize(GLFWwindow* handle, int* width, int* height)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    if (width)
+        *width = 0;
+    if (height)
+        *height = 0;</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformGetFramebufferSize(window, width, height);
+}</span>
+
+GLFWAPI void glfwGetWindowFrameSize(GLFWwindow* handle,
+                                    int* left, int* top,
+                                    int* right, int* bottom)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    if (left)
+        *left = 0;
+    if (top)
+        *top = 0;
+    if (right)
+        *right = 0;
+    if (bottom)
+        *bottom = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformGetWindowFrameSize(window, left, top, right, bottom);
+}</span>
+
+GLFWAPI void glfwGetWindowContentScale(GLFWwindow* handle,
+                                       float* xscale, float* yscale)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    if (xscale)
+        *xscale = 0.f;
+    if (yscale)
+        *yscale = 0.f;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformGetWindowContentScale(window, xscale, yscale);
+}</span>
+
+GLFWAPI float glfwGetWindowOpacity(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(1.f);
+    return _glfwPlatformGetWindowOpacity(window);
+}</span>
+
+GLFWAPI void glfwSetWindowOpacity(GLFWwindow* handle, float opacity)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);
+    assert(opacity == opacity);
+    assert(opacity &gt;= 0.f);
+    assert(opacity &lt;= 1.f);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (opacity != opacity || opacity &lt; 0.f || opacity &gt; 1.f)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, "Invalid window opacity %f", opacity);
+        return;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwPlatformSetWindowOpacity(window, opacity);
+}</span>
+
+GLFWAPI void glfwIconifyWindow(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformIconifyWindow(window);
+}</span>
+
+GLFWAPI void glfwRestoreWindow(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformRestoreWindow(window);
+}</span>
+
+GLFWAPI void glfwMaximizeWindow(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor)
+        return;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformMaximizeWindow(window);
+}</span>
+
+GLFWAPI void glfwShowWindow(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor)
+        return;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformShowWindow(window);</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;focusOnShow)
+        _glfwPlatformFocusWindow(window);
+}</span>
+
+GLFWAPI void glfwRequestWindowAttention(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformRequestWindowAttention(window);
+}</span>
+
+GLFWAPI void glfwHideWindow(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;monitor)
+        return;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformHideWindow(window);
+}</span>
+
+GLFWAPI void glfwFocusWindow(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformFocusWindow(window);
+}</span>
+
+GLFWAPI int glfwGetWindowAttrib(GLFWwindow* handle, int attrib)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(0);</span>
+
+<span style = "background-color:#dfd">    switch (attrib)</span>
+    {
+        case GLFW_FOCUSED:
+<span style = "background-color:#dfd">            return _glfwPlatformWindowFocused(window);</span>
+        case GLFW_ICONIFIED:
+<span style = "background-color:#fdd">            return _glfwPlatformWindowIconified(window);</span>
+        case GLFW_VISIBLE:
+<span style = "background-color:#fdd">            return _glfwPlatformWindowVisible(window);</span>
+        case GLFW_MAXIMIZED:
+<span style = "background-color:#fdd">            return _glfwPlatformWindowMaximized(window);</span>
+        case GLFW_HOVERED:
+<span style = "background-color:#fdd">            return _glfwPlatformWindowHovered(window);</span>
+        case GLFW_FOCUS_ON_SHOW:
+<span style = "background-color:#fdd">            return window-&gt;focusOnShow;</span>
+        case GLFW_MOUSE_PASSTHROUGH:
+<span style = "background-color:#fdd">            return window-&gt;mousePassthrough;</span>
+        case GLFW_TRANSPARENT_FRAMEBUFFER:
+<span style = "background-color:#fdd">            return _glfwPlatformFramebufferTransparent(window);</span>
+        case GLFW_RESIZABLE:
+<span style = "background-color:#fdd">            return window-&gt;resizable;</span>
+        case GLFW_DECORATED:
+<span style = "background-color:#fdd">            return window-&gt;decorated;</span>
+        case GLFW_FLOATING:
+<span style = "background-color:#fdd">            return window-&gt;floating;</span>
+        case GLFW_AUTO_ICONIFY:
+<span style = "background-color:#fdd">            return window-&gt;autoIconify;</span>
+        case GLFW_DOUBLEBUFFER:
+<span style = "background-color:#fdd">            return window-&gt;doublebuffer;</span>
+        case GLFW_CLIENT_API:
+<span style = "background-color:#fdd">            return window-&gt;context.client;</span>
+        case GLFW_CONTEXT_CREATION_API:
+<span style = "background-color:#fdd">            return window-&gt;context.source;</span>
+        case GLFW_CONTEXT_VERSION_MAJOR:
+<span style = "background-color:#fdd">            return window-&gt;context.major;</span>
+        case GLFW_CONTEXT_VERSION_MINOR:
+<span style = "background-color:#fdd">            return window-&gt;context.minor;</span>
+        case GLFW_CONTEXT_REVISION:
+<span style = "background-color:#fdd">            return window-&gt;context.revision;</span>
+        case GLFW_CONTEXT_ROBUSTNESS:
+<span style = "background-color:#fdd">            return window-&gt;context.robustness;</span>
+        case GLFW_OPENGL_FORWARD_COMPAT:
+<span style = "background-color:#fdd">            return window-&gt;context.forward;</span>
+        case GLFW_CONTEXT_DEBUG:
+<span style = "background-color:#fdd">            return window-&gt;context.debug;</span>
+        case GLFW_OPENGL_PROFILE:
+<span style = "background-color:#fdd">            return window-&gt;context.profile;</span>
+        case GLFW_CONTEXT_RELEASE_BEHAVIOR:
+<span style = "background-color:#fdd">            return window-&gt;context.release;</span>
+        case GLFW_CONTEXT_NO_ERROR:
+<span style = "background-color:#fdd">            return window-&gt;context.noerror;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwInputError(GLFW_INVALID_ENUM, "Invalid window attribute 0x%08X", attrib);
+    return 0;</span>
+<span style = "background-color:#dfd">}</span>
+
+GLFWAPI void glfwSetWindowAttrib(GLFWwindow* handle, int attrib, int value)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    value = value ? GLFW_TRUE : GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (attrib == GLFW_AUTO_ICONIFY)
+        window-&gt;autoIconify = value;
+    else if (attrib == GLFW_RESIZABLE)</span>
+    {
+<span style = "background-color:#fdd">        window-&gt;resizable = value;
+        if (!window-&gt;monitor)
+            _glfwPlatformSetWindowResizable(window, value);
+    }
+    else if (attrib == GLFW_DECORATED)</span>
+    {
+<span style = "background-color:#fdd">        window-&gt;decorated = value;
+        if (!window-&gt;monitor)
+            _glfwPlatformSetWindowDecorated(window, value);
+    }
+    else if (attrib == GLFW_FLOATING)</span>
+    {
+<span style = "background-color:#fdd">        window-&gt;floating = value;
+        if (!window-&gt;monitor)
+            _glfwPlatformSetWindowFloating(window, value);
+    }
+    else if (attrib == GLFW_FOCUS_ON_SHOW)
+        window-&gt;focusOnShow = value;
+    else if (attrib == GLFW_MOUSE_PASSTHROUGH)</span>
+    {
+<span style = "background-color:#fdd">        window-&gt;mousePassthrough = value;
+        _glfwPlatformSetWindowMousePassthrough(window, value);
+    }</span>
+    else
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid window attribute 0x%08X", attrib);
+}</span>
+
+GLFWAPI GLFWmonitor* glfwGetWindowMonitor(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return (GLFWmonitor*) window-&gt;monitor;
+}</span>
+
+GLFWAPI void glfwSetWindowMonitor(GLFWwindow* wh,
+                                  GLFWmonitor* mh,
+                                  int xpos, int ypos,
+                                  int width, int height,
+                                  int refreshRate)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) wh;
+    _GLFWmonitor* monitor = (_GLFWmonitor*) mh;
+    assert(window != NULL);
+    assert(width &gt;= 0);
+    assert(height &gt;= 0);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (width &lt;= 0 || height &lt;= 0)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE,</span>
+                        "Invalid window size %ix%i",
+                        width, height);
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    if (refreshRate &lt; 0 &amp;&amp; refreshRate != GLFW_DONT_CARE)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE,</span>
+                        "Invalid refresh rate %i",
+                        refreshRate);
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    window-&gt;videoMode.width       = width;
+    window-&gt;videoMode.height      = height;
+    window-&gt;videoMode.refreshRate = refreshRate;</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformSetWindowMonitor(window, monitor,</span>
+                                  xpos, ypos, width, height,
+                                  refreshRate);
+<span style = "background-color:#fdd">}</span>
+
+GLFWAPI void glfwSetWindowUserPointer(GLFWwindow* handle, void* pointer)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    window-&gt;userPointer = pointer;
+}</span>
+
+GLFWAPI void* glfwGetWindowUserPointer(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return window-&gt;userPointer;
+}</span>
+
+GLFWAPI GLFWwindowposfun glfwSetWindowPosCallback(GLFWwindow* handle,
+                                                  GLFWwindowposfun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.pos, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWwindowsizefun glfwSetWindowSizeCallback(GLFWwindow* handle,
+                                                    GLFWwindowsizefun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.size, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWwindowclosefun glfwSetWindowCloseCallback(GLFWwindow* handle,
+                                                      GLFWwindowclosefun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.close, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWwindowrefreshfun glfwSetWindowRefreshCallback(GLFWwindow* handle,
+                                                          GLFWwindowrefreshfun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.refresh, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWwindowfocusfun glfwSetWindowFocusCallback(GLFWwindow* handle,
+                                                      GLFWwindowfocusfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.focus, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWwindowiconifyfun glfwSetWindowIconifyCallback(GLFWwindow* handle,
+                                                          GLFWwindowiconifyfun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.iconify, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWwindowmaximizefun glfwSetWindowMaximizeCallback(GLFWwindow* handle,
+                                                            GLFWwindowmaximizefun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.maximize, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWframebuffersizefun glfwSetFramebufferSizeCallback(GLFWwindow* handle,
+                                                              GLFWframebuffersizefun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.fbsize, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWwindowcontentscalefun glfwSetWindowContentScaleCallback(GLFWwindow* handle,
+                                                                    GLFWwindowcontentscalefun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.scale, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI void glfwPollEvents(void)
+<span style = "background-color:#dfd">{
+    _GLFW_REQUIRE_INIT();
+    _glfwPlatformPollEvents();
+}</span>
+
+GLFWAPI void glfwWaitEvents(void)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT();
+    _glfwPlatformWaitEvents();
+}</span>
+
+GLFWAPI void glfwWaitEventsTimeout(double timeout)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT();
+    assert(timeout == timeout);
+    assert(timeout &gt;= 0.0);
+    assert(timeout &lt;= DBL_MAX);</span>
+
+<span style = "background-color:#fdd">    if (timeout != timeout || timeout &lt; 0.0 || timeout &gt; DBL_MAX)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, "Invalid time %f", timeout);
+        return;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwPlatformWaitEventsTimeout(timeout);
+}</span>
+
+GLFWAPI void glfwPostEmptyEvent(void)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT();
+    _glfwPlatformPostEmptyEvent();
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,1436 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>input.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2019 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+#include "mappings.h"
+
+#include &lt;assert.h&gt;
+#include &lt;float.h&gt;
+#include &lt;math.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+// Internal key state used for sticky keys
+#define _GLFW_STICK 3
+
+// Internal constants for gamepad mapping source types
+#define _GLFW_JOYSTICK_AXIS     1
+#define _GLFW_JOYSTICK_BUTTON   2
+#define _GLFW_JOYSTICK_HATBIT   3
+
+// Initializes the platform joystick API if it has not been already
+//
+static GLFWbool initJoysticks(void)
+<span style = "background-color:#fdd">{
+    if (!_glfw.joysticksInitialized)</span>
+    {
+<span style = "background-color:#fdd">        if (!_glfwPlatformInitJoysticks())</span>
+        {
+<span style = "background-color:#fdd">            _glfwPlatformTerminateJoysticks();
+            return GLFW_FALSE;</span>
+        }
+    }
+
+<span style = "background-color:#fdd">    return _glfw.joysticksInitialized = GLFW_TRUE;
+}</span>
+
+// Finds a mapping based on joystick GUID
+//
+static _GLFWmapping* findMapping(const char* guid)
+<span style = "background-color:#fdd">{</span>
+    int i;
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt; _glfw.mappingCount;  i++)</span>
+    {
+<span style = "background-color:#fdd">        if (strcmp(_glfw.mappings[i].guid, guid) == 0)
+            return _glfw.mappings + i;
+    }</span>
+
+<span style = "background-color:#fdd">    return NULL;
+}</span>
+
+// Checks whether a gamepad mapping element is present in the hardware
+//
+static GLFWbool isValidElementForJoystick(const _GLFWmapelement* e,
+                                          const _GLFWjoystick* js)
+<span style = "background-color:#fdd">{
+    if (e-&gt;type == _GLFW_JOYSTICK_HATBIT &amp;&amp; (e-&gt;index &gt;&gt; 4) &gt;= js-&gt;hatCount)
+        return GLFW_FALSE;
+    else if (e-&gt;type == _GLFW_JOYSTICK_BUTTON &amp;&amp; e-&gt;index &gt;= js-&gt;buttonCount)
+        return GLFW_FALSE;
+    else if (e-&gt;type == _GLFW_JOYSTICK_AXIS &amp;&amp; e-&gt;index &gt;= js-&gt;axisCount)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+// Finds a mapping based on joystick GUID and verifies element indices
+//
+static _GLFWmapping* findValidMapping(const _GLFWjoystick* js)
+<span style = "background-color:#fdd">{
+    _GLFWmapping* mapping = findMapping(js-&gt;guid);
+    if (mapping)</span>
+    {
+        int i;
+
+<span style = "background-color:#fdd">        for (i = 0;  i &lt;= GLFW_GAMEPAD_BUTTON_LAST;  i++)</span>
+        {
+<span style = "background-color:#fdd">            if (!isValidElementForJoystick(mapping-&gt;buttons + i, js))
+                return NULL;
+        }</span>
+
+<span style = "background-color:#fdd">        for (i = 0;  i &lt;= GLFW_GAMEPAD_AXIS_LAST;  i++)</span>
+        {
+<span style = "background-color:#fdd">            if (!isValidElementForJoystick(mapping-&gt;axes + i, js))
+                return NULL;
+        }</span>
+    }
+
+<span style = "background-color:#fdd">    return mapping;
+}</span>
+
+// Parses an SDL_GameControllerDB line and adds it to the mapping list
+//
+static GLFWbool parseMapping(_GLFWmapping* mapping, const char* string)
+<span style = "background-color:#dfd">{
+    const char* c = string;</span>
+    size_t i, length;
+    struct
+    {
+        const char* name;
+        _GLFWmapelement* element;
+<span style = "background-color:#dfd">    } fields[] =</span>
+    {
+        { "platform",      NULL },
+        { "a",             mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_A },
+        { "b",             mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_B },
+        { "x",             mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_X },
+        { "y",             mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_Y },
+        { "back",          mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_BACK },
+        { "start",         mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_START },
+        { "guide",         mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_GUIDE },
+        { "leftshoulder",  mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_LEFT_BUMPER },
+        { "rightshoulder", mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER },
+        { "leftstick",     mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_LEFT_THUMB },
+        { "rightstick",    mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_RIGHT_THUMB },
+        { "dpup",          mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_DPAD_UP },
+        { "dpright",       mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_DPAD_RIGHT },
+        { "dpdown",        mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_DPAD_DOWN },
+        { "dpleft",        mapping-&gt;buttons + GLFW_GAMEPAD_BUTTON_DPAD_LEFT },
+        { "lefttrigger",   mapping-&gt;axes + GLFW_GAMEPAD_AXIS_LEFT_TRIGGER },
+        { "righttrigger",  mapping-&gt;axes + GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER },
+        { "leftx",         mapping-&gt;axes + GLFW_GAMEPAD_AXIS_LEFT_X },
+        { "lefty",         mapping-&gt;axes + GLFW_GAMEPAD_AXIS_LEFT_Y },
+        { "rightx",        mapping-&gt;axes + GLFW_GAMEPAD_AXIS_RIGHT_X },
+        { "righty",        mapping-&gt;axes + GLFW_GAMEPAD_AXIS_RIGHT_Y }
+    };
+
+<span style = "background-color:#dfd">    length = strcspn(c, ",");
+    if (length != 32 || c[length] != ',')</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, NULL);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    memcpy(mapping-&gt;guid, c, length);
+    c += length + 1;</span>
+
+<span style = "background-color:#dfd">    length = strcspn(c, ",");
+    if (length &gt;= sizeof(mapping-&gt;name) || c[length] != ',')</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, NULL);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    memcpy(mapping-&gt;name, c, length);
+    c += length + 1;</span>
+
+<span style = "background-color:#dfd">    while (*c)</span>
+    {
+        // TODO: Implement output modifiers
+<span style = "background-color:#dfd">        if (*c == '+' || *c == '-')
+            return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">        for (i = 0;  i &lt; sizeof(fields) / sizeof(fields[0]);  i++)</span>
+        {
+<span style = "background-color:#dfd">            length = strlen(fields[i].name);
+            if (strncmp(c, fields[i].name, length) != 0 || c[length] != ':')
+                continue;</span>
+
+<span style = "background-color:#dfd">            c += length + 1;</span>
+
+<span style = "background-color:#dfd">            if (fields[i].element)</span>
+            {
+<span style = "background-color:#dfd">                _GLFWmapelement* e = fields[i].element;
+                int8_t minimum = -1;
+                int8_t maximum = 1;</span>
+
+<span style = "background-color:#dfd">                if (*c == '+')</span>
+                {
+<span style = "background-color:#dfd">                    minimum = 0;
+                    c += 1;
+                }
+                else if (*c == '-')</span>
+                {
+<span style = "background-color:#dfd">                    maximum = 0;
+                    c += 1;</span>
+                }
+
+<span style = "background-color:#dfd">                if (*c == 'a')
+                    e-&gt;type = _GLFW_JOYSTICK_AXIS;
+                else if (*c == 'b')
+                    e-&gt;type = _GLFW_JOYSTICK_BUTTON;
+                else if (*c == 'h')
+                    e-&gt;type = _GLFW_JOYSTICK_HATBIT;</span>
+                else
+<span style = "background-color:#fdd">                    break;</span>
+
+<span style = "background-color:#dfd">                if (e-&gt;type == _GLFW_JOYSTICK_HATBIT)</span>
+                {
+<span style = "background-color:#dfd">                    const unsigned long hat = strtoul(c + 1, (char**) &amp;c, 10);
+                    const unsigned long bit = strtoul(c + 1, (char**) &amp;c, 10);
+                    e-&gt;index = (uint8_t) ((hat &lt;&lt; 4) | bit);
+                }</span>
+                else
+<span style = "background-color:#dfd">                    e-&gt;index = (uint8_t) strtoul(c + 1, (char**) &amp;c, 10);</span>
+
+<span style = "background-color:#dfd">                if (e-&gt;type == _GLFW_JOYSTICK_AXIS)</span>
+                {
+<span style = "background-color:#dfd">                    e-&gt;axisScale = 2 / (maximum - minimum);
+                    e-&gt;axisOffset = -(maximum + minimum);</span>
+
+<span style = "background-color:#dfd">                    if (*c == '~')</span>
+                    {
+<span style = "background-color:#dfd">                        e-&gt;axisScale = -e-&gt;axisScale;
+                        e-&gt;axisOffset = -e-&gt;axisOffset;</span>
+                    }
+                }
+<span style = "background-color:#dfd">            }</span>
+            else
+            {
+<span style = "background-color:#dfd">                length = strlen(_GLFW_PLATFORM_MAPPING_NAME);
+                if (strncmp(c, _GLFW_PLATFORM_MAPPING_NAME, length) != 0)</span>
+<span style = "background-color:#fdd">                    return GLFW_FALSE;</span>
+            }
+
+<span style = "background-color:#dfd">            break;</span>
+<span style = "background-color:#fdd">        }</span>
+
+<span style = "background-color:#dfd">        c += strcspn(c, ",");
+        c += strspn(c, ",");
+    }</span>
+
+<span style = "background-color:#dfd">    for (i = 0;  i &lt; 32;  i++)</span>
+    {
+<span style = "background-color:#dfd">        if (mapping-&gt;guid[i] &gt;= 'A' &amp;&amp; mapping-&gt;guid[i] &lt;= 'F')</span>
+<span style = "background-color:#fdd">            mapping-&gt;guid[i] += 'a' - 'A';</span>
+<span style = "background-color:#dfd">    }</span>
+
+<span style = "background-color:#dfd">    _glfwPlatformUpdateGamepadGUID(mapping-&gt;guid);
+    return GLFW_TRUE;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                         GLFW event API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+// Notifies shared code of a physical key event
+//
+void _glfwInputKey(_GLFWwindow* window, int key, int scancode, int action, int mods)
+<span style = "background-color:#dfd">{
+    if (key &gt;= 0 &amp;&amp; key &lt;= GLFW_KEY_LAST)</span>
+    {
+<span style = "background-color:#dfd">        GLFWbool repeated = GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">        if (action == GLFW_RELEASE &amp;&amp; window-&gt;keys[key] == GLFW_RELEASE)
+            return;</span>
+
+<span style = "background-color:#dfd">        if (action == GLFW_PRESS &amp;&amp; window-&gt;keys[key] == GLFW_PRESS)
+            repeated = GLFW_TRUE;</span>
+
+<span style = "background-color:#dfd">        if (action == GLFW_RELEASE &amp;&amp; window-&gt;stickyKeys)</span>
+<span style = "background-color:#fdd">            window-&gt;keys[key] = _GLFW_STICK;</span>
+        else
+<span style = "background-color:#dfd">            window-&gt;keys[key] = (char) action;</span>
+
+<span style = "background-color:#dfd">        if (repeated)
+            action = GLFW_REPEAT;</span>
+    }
+
+<span style = "background-color:#dfd">    if (!window-&gt;lockKeyMods)
+        mods &amp;= ~(GLFW_MOD_CAPS_LOCK | GLFW_MOD_NUM_LOCK);</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;callbacks.key)
+        window-&gt;callbacks.key((GLFWwindow*) window, key, scancode, action, mods);
+}</span>
+
+// Notifies shared code of a Unicode codepoint input event
+// The 'plain' parameter determines whether to emit a regular character event
+//
+void _glfwInputChar(_GLFWwindow* window, unsigned int codepoint, int mods, GLFWbool plain)
+<span style = "background-color:#dfd">{
+    if (codepoint &lt; 32 || (codepoint &gt; 126 &amp;&amp; codepoint &lt; 160))
+        return;</span>
+
+<span style = "background-color:#dfd">    if (!window-&gt;lockKeyMods)
+        mods &amp;= ~(GLFW_MOD_CAPS_LOCK | GLFW_MOD_NUM_LOCK);</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;callbacks.charmods)</span>
+<span style = "background-color:#fdd">        window-&gt;callbacks.charmods((GLFWwindow*) window, codepoint, mods);</span>
+
+<span style = "background-color:#dfd">    if (plain)</span>
+    {
+<span style = "background-color:#dfd">        if (window-&gt;callbacks.character)
+            window-&gt;callbacks.character((GLFWwindow*) window, codepoint);</span>
+    }
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code of a scroll event
+//
+void _glfwInputScroll(_GLFWwindow* window, double xoffset, double yoffset)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.scroll)
+        window-&gt;callbacks.scroll((GLFWwindow*) window, xoffset, yoffset);
+}</span>
+
+// Notifies shared code of a mouse button click event
+//
+void _glfwInputMouseClick(_GLFWwindow* window, int button, int action, int mods)
+<span style = "background-color:#dfd">{
+    if (button &lt; 0 || button &gt; GLFW_MOUSE_BUTTON_LAST)</span>
+<span style = "background-color:#fdd">        return;</span>
+
+<span style = "background-color:#dfd">    if (!window-&gt;lockKeyMods)
+        mods &amp;= ~(GLFW_MOD_CAPS_LOCK | GLFW_MOD_NUM_LOCK);</span>
+
+<span style = "background-color:#dfd">    if (action == GLFW_RELEASE &amp;&amp; window-&gt;stickyMouseButtons)</span>
+<span style = "background-color:#fdd">        window-&gt;mouseButtons[button] = _GLFW_STICK;</span>
+    else
+<span style = "background-color:#dfd">        window-&gt;mouseButtons[button] = (char) action;</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;callbacks.mouseButton)
+        window-&gt;callbacks.mouseButton((GLFWwindow*) window, button, action, mods);
+}</span>
+
+// Notifies shared code of a cursor motion event
+// The position is specified in content area relative screen coordinates
+//
+void _glfwInputCursorPos(_GLFWwindow* window, double xpos, double ypos)
+<span style = "background-color:#dfd">{
+    if (window-&gt;virtualCursorPosX == xpos &amp;&amp; window-&gt;virtualCursorPosY == ypos)
+        return;</span>
+
+<span style = "background-color:#dfd">    window-&gt;virtualCursorPosX = xpos;
+    window-&gt;virtualCursorPosY = ypos;</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;callbacks.cursorPos)
+        window-&gt;callbacks.cursorPos((GLFWwindow*) window, xpos, ypos);
+}</span>
+
+// Notifies shared code of a cursor enter/leave event
+//
+void _glfwInputCursorEnter(_GLFWwindow* window, GLFWbool entered)
+<span style = "background-color:#dfd">{
+    if (window-&gt;callbacks.cursorEnter)
+        window-&gt;callbacks.cursorEnter((GLFWwindow*) window, entered);
+}</span>
+
+// Notifies shared code of files or directories dropped on a window
+//
+void _glfwInputDrop(_GLFWwindow* window, int count, const char** paths)
+<span style = "background-color:#fdd">{
+    if (window-&gt;callbacks.drop)
+        window-&gt;callbacks.drop((GLFWwindow*) window, count, paths);
+}</span>
+
+// Notifies shared code of a joystick connection or disconnection
+//
+void _glfwInputJoystick(_GLFWjoystick* js, int event)
+<span style = "background-color:#dfd">{
+    const int jid = (int) (js - _glfw.joysticks);</span>
+
+<span style = "background-color:#dfd">    if (_glfw.callbacks.joystick)</span>
+<span style = "background-color:#fdd">        _glfw.callbacks.joystick(jid, event);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code of the new value of a joystick axis
+//
+void _glfwInputJoystickAxis(_GLFWjoystick* js, int axis, float value)
+<span style = "background-color:#fdd">{
+    js-&gt;axes[axis] = value;
+}</span>
+
+// Notifies shared code of the new value of a joystick button
+//
+void _glfwInputJoystickButton(_GLFWjoystick* js, int button, char value)
+<span style = "background-color:#fdd">{
+    js-&gt;buttons[button] = value;
+}</span>
+
+// Notifies shared code of the new value of a joystick hat
+//
+void _glfwInputJoystickHat(_GLFWjoystick* js, int hat, char value)
+<span style = "background-color:#fdd">{
+    const int base = js-&gt;buttonCount + hat * 4;</span>
+
+<span style = "background-color:#fdd">    js-&gt;buttons[base + 0] = (value &amp; 0x01) ? GLFW_PRESS : GLFW_RELEASE;
+    js-&gt;buttons[base + 1] = (value &amp; 0x02) ? GLFW_PRESS : GLFW_RELEASE;
+    js-&gt;buttons[base + 2] = (value &amp; 0x04) ? GLFW_PRESS : GLFW_RELEASE;
+    js-&gt;buttons[base + 3] = (value &amp; 0x08) ? GLFW_PRESS : GLFW_RELEASE;</span>
+
+<span style = "background-color:#fdd">    js-&gt;hats[hat] = value;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+// Adds the built-in set of gamepad mappings
+//
+void _glfwInitGamepadMappings(void)
+<span style = "background-color:#dfd">{</span>
+    size_t i;
+<span style = "background-color:#dfd">    const size_t count = sizeof(_glfwDefaultMappings) / sizeof(char*);
+    _glfw.mappings = _glfw_calloc(count, sizeof(_GLFWmapping));</span>
+
+<span style = "background-color:#dfd">    for (i = 0;  i &lt; count;  i++)</span>
+    {
+<span style = "background-color:#dfd">        if (parseMapping(&amp;_glfw.mappings[_glfw.mappingCount], _glfwDefaultMappings[i]))
+            _glfw.mappingCount++;
+    }
+}</span>
+
+// Returns an available joystick object with arrays and name allocated
+//
+_GLFWjoystick* _glfwAllocJoystick(const char* name,
+                                  const char* guid,
+                                  int axisCount,
+                                  int buttonCount,
+                                  int hatCount)
+<span style = "background-color:#fdd">{</span>
+    int jid;
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    for (jid = 0;  jid &lt;= GLFW_JOYSTICK_LAST;  jid++)</span>
+    {
+<span style = "background-color:#fdd">        if (!_glfw.joysticks[jid].present)
+            break;
+    }</span>
+
+<span style = "background-color:#fdd">    if (jid &gt; GLFW_JOYSTICK_LAST)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    js-&gt;present     = GLFW_TRUE;
+    js-&gt;axes        = _glfw_calloc(axisCount, sizeof(float));
+    js-&gt;buttons     = _glfw_calloc(buttonCount + (size_t) hatCount * 4, 1);
+    js-&gt;hats        = _glfw_calloc(hatCount, 1);
+    js-&gt;axisCount   = axisCount;
+    js-&gt;buttonCount = buttonCount;
+    js-&gt;hatCount    = hatCount;</span>
+
+<span style = "background-color:#fdd">    strncpy(js-&gt;name, name, sizeof(js-&gt;name) - 1);
+    strncpy(js-&gt;guid, guid, sizeof(js-&gt;guid) - 1);
+    js-&gt;mapping = findValidMapping(js);</span>
+
+<span style = "background-color:#fdd">    return js;
+}</span>
+
+// Frees arrays and name and flags the joystick object as unused
+//
+void _glfwFreeJoystick(_GLFWjoystick* js)
+<span style = "background-color:#dfd">{
+    _glfw_free(js-&gt;axes);
+    _glfw_free(js-&gt;buttons);
+    _glfw_free(js-&gt;hats);
+    memset(js, 0, sizeof(_GLFWjoystick));
+}</span>
+
+// Center the cursor in the content area of the specified window
+//
+void _glfwCenterCursorInContentArea(_GLFWwindow* window)
+<span style = "background-color:#dfd">{</span>
+    int width, height;
+
+<span style = "background-color:#dfd">    _glfwPlatformGetWindowSize(window, &amp;width, &amp;height);
+    _glfwPlatformSetCursorPos(window, width / 2.0, height / 2.0);
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW public API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI int glfwGetInputMode(GLFWwindow* handle, int mode)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(0);</span>
+
+<span style = "background-color:#dfd">    switch (mode)</span>
+    {
+        case GLFW_CURSOR:
+<span style = "background-color:#dfd">            return window-&gt;cursorMode;</span>
+        case GLFW_STICKY_KEYS:
+<span style = "background-color:#fdd">            return window-&gt;stickyKeys;</span>
+        case GLFW_STICKY_MOUSE_BUTTONS:
+<span style = "background-color:#fdd">            return window-&gt;stickyMouseButtons;</span>
+        case GLFW_LOCK_KEY_MODS:
+<span style = "background-color:#fdd">            return window-&gt;lockKeyMods;</span>
+        case GLFW_RAW_MOUSE_MOTION:
+<span style = "background-color:#fdd">            return window-&gt;rawMouseMotion;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwInputError(GLFW_INVALID_ENUM, "Invalid input mode 0x%08X", mode);
+    return 0;</span>
+<span style = "background-color:#dfd">}</span>
+
+GLFWAPI void glfwSetInputMode(GLFWwindow* handle, int mode, int value)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#dfd">    if (mode == GLFW_CURSOR)</span>
+    {
+        if (value != GLFW_CURSOR_NORMAL &amp;&amp;
+<span style = "background-color:#dfd">            value != GLFW_CURSOR_HIDDEN &amp;&amp;</span>
+            value != GLFW_CURSOR_DISABLED)
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_ENUM,</span>
+                            "Invalid cursor mode 0x%08X",
+                            value);
+<span style = "background-color:#fdd">            return;</span>
+        }
+
+<span style = "background-color:#dfd">        if (window-&gt;cursorMode == value)
+            return;</span>
+
+<span style = "background-color:#dfd">        window-&gt;cursorMode = value;</span>
+
+<span style = "background-color:#dfd">        _glfwPlatformGetCursorPos(window,</span>
+                                  &amp;window-&gt;virtualCursorPosX,
+                                  &amp;window-&gt;virtualCursorPosY);
+<span style = "background-color:#dfd">        _glfwPlatformSetCursorMode(window, value);
+    }</span>
+<span style = "background-color:#fdd">    else if (mode == GLFW_STICKY_KEYS)</span>
+    {
+<span style = "background-color:#fdd">        value = value ? GLFW_TRUE : GLFW_FALSE;
+        if (window-&gt;stickyKeys == value)
+            return;</span>
+
+<span style = "background-color:#fdd">        if (!value)</span>
+        {
+            int i;
+
+            // Release all sticky keys
+<span style = "background-color:#fdd">            for (i = 0;  i &lt;= GLFW_KEY_LAST;  i++)</span>
+            {
+<span style = "background-color:#fdd">                if (window-&gt;keys[i] == _GLFW_STICK)
+                    window-&gt;keys[i] = GLFW_RELEASE;
+            }</span>
+        }
+
+<span style = "background-color:#fdd">        window-&gt;stickyKeys = value;
+    }
+    else if (mode == GLFW_STICKY_MOUSE_BUTTONS)</span>
+    {
+<span style = "background-color:#fdd">        value = value ? GLFW_TRUE : GLFW_FALSE;
+        if (window-&gt;stickyMouseButtons == value)
+            return;</span>
+
+<span style = "background-color:#fdd">        if (!value)</span>
+        {
+            int i;
+
+            // Release all sticky mouse buttons
+<span style = "background-color:#fdd">            for (i = 0;  i &lt;= GLFW_MOUSE_BUTTON_LAST;  i++)</span>
+            {
+<span style = "background-color:#fdd">                if (window-&gt;mouseButtons[i] == _GLFW_STICK)
+                    window-&gt;mouseButtons[i] = GLFW_RELEASE;
+            }</span>
+        }
+
+<span style = "background-color:#fdd">        window-&gt;stickyMouseButtons = value;
+    }
+    else if (mode == GLFW_LOCK_KEY_MODS)</span>
+    {
+<span style = "background-color:#fdd">        window-&gt;lockKeyMods = value ? GLFW_TRUE : GLFW_FALSE;
+    }
+    else if (mode == GLFW_RAW_MOUSE_MOTION)</span>
+    {
+<span style = "background-color:#fdd">        if (!_glfwPlatformRawMouseMotionSupported())</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "Raw mouse motion is not supported on this system");
+<span style = "background-color:#fdd">            return;</span>
+        }
+
+<span style = "background-color:#fdd">        value = value ? GLFW_TRUE : GLFW_FALSE;
+        if (window-&gt;rawMouseMotion == value)
+            return;</span>
+
+<span style = "background-color:#fdd">        window-&gt;rawMouseMotion = value;
+        _glfwPlatformSetRawMouseMotion(window, value);
+    }</span>
+    else
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid input mode 0x%08X", mode);</span>
+<span style = "background-color:#dfd">}</span>
+
+GLFWAPI int glfwRawMouseMotionSupported(void)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);
+    return _glfwPlatformRawMouseMotionSupported();
+}</span>
+
+GLFWAPI const char* glfwGetKeyName(int key, int scancode)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (key != GLFW_KEY_UNKNOWN)</span>
+    {
+        if (key != GLFW_KEY_KP_EQUAL &amp;&amp;
+<span style = "background-color:#fdd">            (key &lt; GLFW_KEY_KP_0 || key &gt; GLFW_KEY_KP_ADD) &amp;&amp;</span>
+            (key &lt; GLFW_KEY_APOSTROPHE || key &gt; GLFW_KEY_WORLD_2))
+        {
+<span style = "background-color:#fdd">            return NULL;</span>
+        }
+
+<span style = "background-color:#fdd">        scancode = _glfwPlatformGetKeyScancode(key);</span>
+    }
+
+<span style = "background-color:#fdd">    return _glfwPlatformGetScancodeName(scancode);
+}</span>
+
+GLFWAPI int glfwGetKeyScancode(int key)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(-1);</span>
+
+<span style = "background-color:#fdd">    if (key &lt; GLFW_KEY_SPACE || key &gt; GLFW_KEY_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid key %i", key);
+        return GLFW_RELEASE;</span>
+    }
+
+<span style = "background-color:#fdd">    return _glfwPlatformGetKeyScancode(key);
+}</span>
+
+GLFWAPI int glfwGetKey(GLFWwindow* handle, int key)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_RELEASE);</span>
+
+<span style = "background-color:#dfd">    if (key &lt; GLFW_KEY_SPACE || key &gt; GLFW_KEY_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid key %i", key);
+        return GLFW_RELEASE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;keys[key] == _GLFW_STICK)</span>
+    {
+        // Sticky mode: release key now
+<span style = "background-color:#fdd">        window-&gt;keys[key] = GLFW_RELEASE;
+        return GLFW_PRESS;</span>
+    }
+
+<span style = "background-color:#dfd">    return (int) window-&gt;keys[key];
+}</span>
+
+GLFWAPI int glfwGetMouseButton(GLFWwindow* handle, int button)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_RELEASE);</span>
+
+<span style = "background-color:#dfd">    if (button &lt; GLFW_MOUSE_BUTTON_1 || button &gt; GLFW_MOUSE_BUTTON_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid mouse button %i", button);
+        return GLFW_RELEASE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;mouseButtons[button] == _GLFW_STICK)</span>
+    {
+        // Sticky mode: release mouse button now
+<span style = "background-color:#fdd">        window-&gt;mouseButtons[button] = GLFW_RELEASE;
+        return GLFW_PRESS;</span>
+    }
+
+<span style = "background-color:#dfd">    return (int) window-&gt;mouseButtons[button];
+}</span>
+
+GLFWAPI void glfwGetCursorPos(GLFWwindow* handle, double* xpos, double* ypos)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    if (xpos)
+        *xpos = 0;
+    if (ypos)
+        *ypos = 0;</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)</span>
+    {
+<span style = "background-color:#dfd">        if (xpos)
+            *xpos = window-&gt;virtualCursorPosX;
+        if (ypos)
+            *ypos = window-&gt;virtualCursorPosY;
+    }</span>
+    else
+<span style = "background-color:#dfd">        _glfwPlatformGetCursorPos(window, xpos, ypos);
+}</span>
+
+GLFWAPI void glfwSetCursorPos(GLFWwindow* handle, double xpos, double ypos)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+    if (xpos != xpos || xpos &lt; -DBL_MAX || xpos &gt; DBL_MAX ||
+<span style = "background-color:#fdd">        ypos != ypos || ypos &lt; -DBL_MAX || ypos &gt; DBL_MAX)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE,</span>
+                        "Invalid cursor position %f %f",
+                        xpos, ypos);
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformWindowFocused(window))
+        return;</span>
+
+<span style = "background-color:#fdd">    if (window-&gt;cursorMode == GLFW_CURSOR_DISABLED)</span>
+    {
+        // Only update the accumulated position if the cursor is disabled
+<span style = "background-color:#fdd">        window-&gt;virtualCursorPosX = xpos;
+        window-&gt;virtualCursorPosY = ypos;
+    }</span>
+    else
+    {
+        // Update system cursor position
+<span style = "background-color:#fdd">        _glfwPlatformSetCursorPos(window, xpos, ypos);</span>
+    }
+<span style = "background-color:#fdd">}</span>
+
+GLFWAPI GLFWcursor* glfwCreateCursor(const GLFWimage* image, int xhot, int yhot)
+<span style = "background-color:#fdd">{</span>
+    _GLFWcursor* cursor;
+
+<span style = "background-color:#fdd">    assert(image != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    cursor = _glfw_calloc(1, sizeof(_GLFWcursor));
+    cursor-&gt;next = _glfw.cursorListHead;
+    _glfw.cursorListHead = cursor;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformCreateCursor(cursor, image, xhot, yhot))</span>
+    {
+<span style = "background-color:#fdd">        glfwDestroyCursor((GLFWcursor*) cursor);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    return (GLFWcursor*) cursor;
+}</span>
+
+GLFWAPI GLFWcursor* glfwCreateStandardCursor(int shape)
+<span style = "background-color:#dfd">{</span>
+    _GLFWcursor* cursor;
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+    if (shape != GLFW_ARROW_CURSOR &amp;&amp;
+        shape != GLFW_IBEAM_CURSOR &amp;&amp;
+        shape != GLFW_CROSSHAIR_CURSOR &amp;&amp;
+        shape != GLFW_POINTING_HAND_CURSOR &amp;&amp;
+        shape != GLFW_RESIZE_EW_CURSOR &amp;&amp;
+        shape != GLFW_RESIZE_NS_CURSOR &amp;&amp;
+        shape != GLFW_RESIZE_NWSE_CURSOR &amp;&amp;
+        shape != GLFW_RESIZE_NESW_CURSOR &amp;&amp;
+<span style = "background-color:#dfd">        shape != GLFW_RESIZE_ALL_CURSOR &amp;&amp;</span>
+        shape != GLFW_NOT_ALLOWED_CURSOR)
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid standard cursor 0x%08X", shape);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#dfd">    cursor = _glfw_calloc(1, sizeof(_GLFWcursor));
+    cursor-&gt;next = _glfw.cursorListHead;
+    _glfw.cursorListHead = cursor;</span>
+
+<span style = "background-color:#dfd">    if (!_glfwPlatformCreateStandardCursor(cursor, shape))</span>
+    {
+<span style = "background-color:#fdd">        glfwDestroyCursor((GLFWcursor*) cursor);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#dfd">    return (GLFWcursor*) cursor;
+}</span>
+
+GLFWAPI void glfwDestroyCursor(GLFWcursor* handle)
+<span style = "background-color:#dfd">{
+    _GLFWcursor* cursor = (_GLFWcursor*) handle;</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#dfd">    if (cursor == NULL)</span>
+<span style = "background-color:#fdd">        return;</span>
+
+    // Make sure the cursor is not being used by any window
+    {
+        _GLFWwindow* window;
+
+<span style = "background-color:#dfd">        for (window = _glfw.windowListHead;  window;  window = window-&gt;next)</span>
+        {
+<span style = "background-color:#dfd">            if (window-&gt;cursor == cursor)
+                glfwSetCursor((GLFWwindow*) window, NULL);
+        }</span>
+    }
+
+<span style = "background-color:#dfd">    _glfwPlatformDestroyCursor(cursor);</span>
+
+    // Unlink cursor from global linked list
+    {
+<span style = "background-color:#dfd">        _GLFWcursor** prev = &amp;_glfw.cursorListHead;</span>
+
+<span style = "background-color:#dfd">        while (*prev != cursor)
+            prev = &amp;((*prev)-&gt;next);</span>
+
+<span style = "background-color:#dfd">        *prev = cursor-&gt;next;</span>
+    }
+
+<span style = "background-color:#dfd">    _glfw_free(cursor);
+}</span>
+
+GLFWAPI void glfwSetCursor(GLFWwindow* windowHandle, GLFWcursor* cursorHandle)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) windowHandle;
+    _GLFWcursor* cursor = (_GLFWcursor*) cursorHandle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#dfd">    window-&gt;cursor = cursor;</span>
+
+<span style = "background-color:#dfd">    _glfwPlatformSetCursor(window, cursor);
+}</span>
+
+GLFWAPI GLFWkeyfun glfwSetKeyCallback(GLFWwindow* handle, GLFWkeyfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.key, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWcharfun glfwSetCharCallback(GLFWwindow* handle, GLFWcharfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.character, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWcharmodsfun glfwSetCharModsCallback(GLFWwindow* handle, GLFWcharmodsfun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.charmods, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWmousebuttonfun glfwSetMouseButtonCallback(GLFWwindow* handle,
+                                                      GLFWmousebuttonfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.mouseButton, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWcursorposfun glfwSetCursorPosCallback(GLFWwindow* handle,
+                                                  GLFWcursorposfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.cursorPos, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWcursorenterfun glfwSetCursorEnterCallback(GLFWwindow* handle,
+                                                      GLFWcursorenterfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.cursorEnter, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWscrollfun glfwSetScrollCallback(GLFWwindow* handle,
+                                            GLFWscrollfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.scroll, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI GLFWdropfun glfwSetDropCallback(GLFWwindow* handle, GLFWdropfun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(window-&gt;callbacks.drop, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI int glfwJoystickPresent(int jid)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    return _glfwPlatformPollJoystick(js, _GLFW_POLL_PRESENCE);
+}</span>
+
+GLFWAPI const float* glfwGetJoystickAxes(int jid, int* count)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);
+    assert(count != NULL);</span>
+
+<span style = "background-color:#fdd">    *count = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_AXES))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    *count = js-&gt;axisCount;
+    return js-&gt;axes;
+}</span>
+
+GLFWAPI const unsigned char* glfwGetJoystickButtons(int jid, int* count)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);
+    assert(count != NULL);</span>
+
+<span style = "background-color:#fdd">    *count = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_BUTTONS))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (_glfw.hints.init.hatButtons)
+        *count = js-&gt;buttonCount + js-&gt;hatCount * 4;</span>
+    else
+<span style = "background-color:#fdd">        *count = js-&gt;buttonCount;</span>
+
+<span style = "background-color:#fdd">    return js-&gt;buttons;
+}</span>
+
+GLFWAPI const unsigned char* glfwGetJoystickHats(int jid, int* count)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);
+    assert(count != NULL);</span>
+
+<span style = "background-color:#fdd">    *count = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_BUTTONS))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    *count = js-&gt;hatCount;
+    return js-&gt;hats;
+}</span>
+
+GLFWAPI const char* glfwGetJoystickName(int jid)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_PRESENCE))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    return js-&gt;name;
+}</span>
+
+GLFWAPI const char* glfwGetJoystickGUID(int jid)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_PRESENCE))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    return js-&gt;guid;
+}</span>
+
+GLFWAPI void glfwSetJoystickUserPointer(int jid, void* pointer)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return;</span>
+
+<span style = "background-color:#fdd">    js-&gt;userPointer = pointer;
+}</span>
+
+GLFWAPI void* glfwGetJoystickUserPointer(int jid)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    return js-&gt;userPointer;
+}</span>
+
+GLFWAPI GLFWjoystickfun glfwSetJoystickCallback(GLFWjoystickfun cbfun)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    _GLFW_SWAP_POINTERS(_glfw.callbacks.joystick, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI int glfwUpdateGamepadMappings(const char* string)
+<span style = "background-color:#fdd">{</span>
+    int jid;
+<span style = "background-color:#fdd">    const char* c = string;</span>
+
+<span style = "background-color:#fdd">    assert(string != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#fdd">    while (*c)</span>
+    {
+        if ((*c &gt;= '0' &amp;&amp; *c &lt;= '9') ||
+<span style = "background-color:#fdd">            (*c &gt;= 'a' &amp;&amp; *c &lt;= 'f') ||</span>
+            (*c &gt;= 'A' &amp;&amp; *c &lt;= 'F'))
+        {
+            char line[1024];
+
+<span style = "background-color:#fdd">            const size_t length = strcspn(c, "\r\n");
+            if (length &lt; sizeof(line))</span>
+            {
+<span style = "background-color:#fdd">                _GLFWmapping mapping = {{0}};</span>
+
+<span style = "background-color:#fdd">                memcpy(line, c, length);
+                line[length] = '\0';</span>
+
+<span style = "background-color:#fdd">                if (parseMapping(&amp;mapping, line))</span>
+                {
+<span style = "background-color:#fdd">                    _GLFWmapping* previous = findMapping(mapping.guid);
+                    if (previous)
+                        *previous = mapping;</span>
+                    else
+                    {
+<span style = "background-color:#fdd">                        _glfw.mappingCount++;
+                        _glfw.mappings =</span>
+                            _glfw_realloc(_glfw.mappings,
+                                          sizeof(_GLFWmapping) * _glfw.mappingCount);
+<span style = "background-color:#fdd">                        _glfw.mappings[_glfw.mappingCount - 1] = mapping;</span>
+                    }
+                }
+            }
+
+<span style = "background-color:#fdd">            c += length;
+        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            c += strcspn(c, "\r\n");
+            c += strspn(c, "\r\n");</span>
+        }
+<span style = "background-color:#fdd">    }</span>
+
+<span style = "background-color:#fdd">    for (jid = 0;  jid &lt;= GLFW_JOYSTICK_LAST;  jid++)</span>
+    {
+<span style = "background-color:#fdd">        _GLFWjoystick* js = _glfw.joysticks + jid;
+        if (js-&gt;present)
+            js-&gt;mapping = findValidMapping(js);
+    }</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+GLFWAPI int glfwJoystickIsGamepad(int jid)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_PRESENCE))
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    return js-&gt;mapping != NULL;
+}</span>
+
+GLFWAPI const char* glfwGetGamepadName(int jid)
+<span style = "background-color:#fdd">{</span>
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return NULL;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_PRESENCE))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    if (!js-&gt;mapping)
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    return js-&gt;mapping-&gt;name;
+}</span>
+
+GLFWAPI int glfwGetGamepadState(int jid, GLFWgamepadstate* state)
+<span style = "background-color:#fdd">{</span>
+    int i;
+    _GLFWjoystick* js;
+
+<span style = "background-color:#fdd">    assert(jid &gt;= GLFW_JOYSTICK_1);
+    assert(jid &lt;= GLFW_JOYSTICK_LAST);
+    assert(state != NULL);</span>
+
+<span style = "background-color:#fdd">    memset(state, 0, sizeof(GLFWgamepadstate));</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#fdd">    if (jid &lt; 0 || jid &gt; GLFW_JOYSTICK_LAST)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM, "Invalid joystick ID %i", jid);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#fdd">    if (!initJoysticks())
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    js = _glfw.joysticks + jid;
+    if (!js-&gt;present)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (!_glfwPlatformPollJoystick(js, _GLFW_POLL_ALL))
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    if (!js-&gt;mapping)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt;= GLFW_GAMEPAD_BUTTON_LAST;  i++)</span>
+    {
+<span style = "background-color:#fdd">        const _GLFWmapelement* e = js-&gt;mapping-&gt;buttons + i;
+        if (e-&gt;type == _GLFW_JOYSTICK_AXIS)</span>
+        {
+<span style = "background-color:#fdd">            const float value = js-&gt;axes[e-&gt;index] * e-&gt;axisScale + e-&gt;axisOffset;</span>
+            // HACK: This should be baked into the value transform
+            // TODO: Bake into transform when implementing output modifiers
+<span style = "background-color:#fdd">            if (e-&gt;axisOffset &lt; 0 || (e-&gt;axisOffset == 0 &amp;&amp; e-&gt;axisScale &gt; 0))</span>
+            {
+<span style = "background-color:#fdd">                if (value &gt;= 0.f)
+                    state-&gt;buttons[i] = GLFW_PRESS;
+            }</span>
+            else
+            {
+<span style = "background-color:#fdd">                if (value &lt;= 0.f)
+                    state-&gt;buttons[i] = GLFW_PRESS;</span>
+            }
+<span style = "background-color:#fdd">        }
+        else if (e-&gt;type == _GLFW_JOYSTICK_HATBIT)</span>
+        {
+<span style = "background-color:#fdd">            const unsigned int hat = e-&gt;index &gt;&gt; 4;
+            const unsigned int bit = e-&gt;index &amp; 0xf;
+            if (js-&gt;hats[hat] &amp; bit)
+                state-&gt;buttons[i] = GLFW_PRESS;
+        }
+        else if (e-&gt;type == _GLFW_JOYSTICK_BUTTON)
+            state-&gt;buttons[i] = js-&gt;buttons[e-&gt;index];
+    }</span>
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt;= GLFW_GAMEPAD_AXIS_LAST;  i++)</span>
+    {
+<span style = "background-color:#fdd">        const _GLFWmapelement* e = js-&gt;mapping-&gt;axes + i;
+        if (e-&gt;type == _GLFW_JOYSTICK_AXIS)</span>
+        {
+<span style = "background-color:#fdd">            const float value = js-&gt;axes[e-&gt;index] * e-&gt;axisScale + e-&gt;axisOffset;
+            state-&gt;axes[i] = _glfw_fminf(_glfw_fmaxf(value, -1.f), 1.f);
+        }
+        else if (e-&gt;type == _GLFW_JOYSTICK_HATBIT)</span>
+        {
+<span style = "background-color:#fdd">            const unsigned int hat = e-&gt;index &gt;&gt; 4;
+            const unsigned int bit = e-&gt;index &amp; 0xf;
+            if (js-&gt;hats[hat] &amp; bit)
+                state-&gt;axes[i] = 1.f;</span>
+            else
+<span style = "background-color:#fdd">                state-&gt;axes[i] = -1.f;
+        }
+        else if (e-&gt;type == _GLFW_JOYSTICK_BUTTON)
+            state-&gt;axes[i] = js-&gt;buttons[e-&gt;index] * 2.f - 1.f;
+    }</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+GLFWAPI void glfwSetClipboardString(GLFWwindow* handle, const char* string)
+<span style = "background-color:#fdd">{
+    assert(string != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformSetClipboardString(string);
+}</span>
+
+GLFWAPI const char* glfwGetClipboardString(GLFWwindow* handle)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return _glfwPlatformGetClipboardString();
+}</span>
+
+GLFWAPI double glfwGetTime(void)
+<span style = "background-color:#dfd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(0.0);
+    return (double) (_glfwPlatformGetTimerValue() - _glfw.timer.offset) /</span>
+        _glfwPlatformGetTimerFrequency();
+<span style = "background-color:#dfd">}</span>
+
+GLFWAPI void glfwSetTime(double time)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (time != time || time &lt; 0.0 || time &gt; 18446744073.0)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, "Invalid time %f", time);
+        return;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfw.timer.offset = _glfwPlatformGetTimerValue() -</span>
+        (uint64_t) (time * _glfwPlatformGetTimerFrequency());
+<span style = "background-color:#fdd">}</span>
+
+GLFWAPI uint64_t glfwGetTimerValue(void)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(0);
+    return _glfwPlatformGetTimerValue();
+}</span>
+
+GLFWAPI uint64_t glfwGetTimerFrequency(void)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(0);
+    return _glfwPlatformGetTimerFrequency();
+}</span></pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

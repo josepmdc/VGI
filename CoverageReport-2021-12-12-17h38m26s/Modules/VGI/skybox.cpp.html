@@ -1,0 +1,153 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>skybox.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+
+#define STBI_FAILURE_USERMSG
+#include &lt;iostream&gt;
+#include &lt;math.h&gt;
+
+#include &lt;glad/glad.h&gt;
+#include &lt;GLFW/glfw3.h&gt;
+#include &lt;glm/glm.hpp&gt;
+#include &lt;glm/gtc/matrix_transform.hpp&gt;
+#include &lt;glm/gtc/type_ptr.hpp&gt;
+#include &lt;glm/gtx/string_cast.hpp&gt;
+
+#include "skybox.h"
+#include "../shader/shader.h"
+#include &lt;stb_image.h&gt;
+#include &lt;vector&gt;
+
+enum {
+    SOIL_LOAD_AUTO = 0,
+    SOIL_LOAD_L = 1,
+    SOIL_LOAD_LA = 2,
+    SOIL_LOAD_RGB = 3,
+    SOIL_LOAD_RGBA = 4
+};
+
+<span style = "background-color:#dfd">Skybox::Skybox(std::string shader, std::vector&lt;std::string&gt; faces) : m_Shader(shader) {
+    LoadSkyboxCubeVAO();
+    LoadCubemap(faces);
+}</span>
+
+<span style = "background-color:#dfd">void Skybox::LoadSkyboxCubeVAO() {</span>
+    GLfloat skyboxVertices[] = {
+        // positions
+<span style = "background-color:#dfd">        -1.0f, 1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,</span>
+
+<span style = "background-color:#dfd">        -1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,</span>
+
+<span style = "background-color:#dfd">        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,</span>
+
+<span style = "background-color:#dfd">        -1.0f, -1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, 1.0f,</span>
+
+<span style = "background-color:#dfd">        -1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, -1.0f,</span>
+
+<span style = "background-color:#dfd">        -1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f</span>
+    };
+
+<span style = "background-color:#dfd">    glGenVertexArrays(1, &amp;m_VAO);
+    glGenBuffers(1, &amp;m_VBO);
+    glBindVertexArray(m_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &amp;skyboxVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+}</span>
+
+<span style = "background-color:#dfd">void Skybox::LoadCubemap(std::vector&lt;std::string&gt; faces) {
+    glGenTextures(1, &amp;m_CubemapTexture);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_CubemapTexture);</span>
+
+    int width, height, nrComponents;
+<span style = "background-color:#dfd">    for (unsigned int i = 0; i &lt; faces.size(); i++) {
+        unsigned char* data = stbi_load(faces[i].c_str(), &amp;width, &amp;height, &amp;nrComponents, 0);
+        if (data) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+            stbi_image_free(data);
+        } else {</span>
+<span style = "background-color:#fdd">            std::cout &lt;&lt; "Cubemap texture failed to load at path: " &lt;&lt; faces[i] &lt;&lt; std::endl;
+            stbi_image_free(data);</span>
+        }
+<span style = "background-color:#dfd">    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+}</span>
+
+<span style = "background-color:#dfd">void Skybox::Draw(glm::mat4 projection, glm::mat4 view) {
+    glDepthFunc(GL_LEQUAL);</span>
+
+<span style = "background-color:#dfd">    m_Shader.Bind();</span>
+
+<span style = "background-color:#dfd">    m_Shader.SetMat4("u_View", glm::mat4(glm::mat3(view)));
+    m_Shader.SetMat4("u_Projection", projection);</span>
+
+<span style = "background-color:#dfd">    DrawCubeSkybox();</span>
+
+<span style = "background-color:#dfd">    glDepthFunc(GL_LESS); // set depth function back to default
+}</span>
+
+<span style = "background-color:#dfd">void Skybox::DrawCubeSkybox() {
+    glBindVertexArray(m_VAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, m_CubemapTexture);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+}</span></pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

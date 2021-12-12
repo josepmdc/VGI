@@ -1,0 +1,149 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>gui.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include "gui.h"
+
+#include &lt;imgui.h&gt;
+#include &lt;imgui_impl_glfw.h&gt;
+#include &lt;imgui_impl_opengl3.h&gt;
+#include &lt;GLFW/glfw3.h&gt;
+
+#include &lt;iostream&gt;
+
+namespace GUI {
+
+<span style = "background-color:#dfd">void SetUp(GLFWwindow* window) {
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO&amp; io = ImGui::GetIO();
+    ImGui::StyleColorsDark();
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 330");
+}</span>
+
+<span style = "background-color:#dfd">void NewFrame() {
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+}</span>
+
+<span style = "background-color:#dfd">void DrawToggleButton(bool* v) {
+    ImVec4* colors = ImGui::GetStyle().Colors;
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    ImDrawList* draw_list = ImGui::GetWindowDrawList();</span>
+
+<span style = "background-color:#dfd">    float height = ImGui::GetFrameHeight();
+    float width = height * 1.55f;
+    float radius = height * 0.50f;</span>
+
+<span style = "background-color:#dfd">    ImGui::InvisibleButton("", ImVec2(width, height));
+    if (ImGui::IsItemClicked())
+        *v = !*v;
+    if (ImGui::IsItemHovered())
+        draw_list-&gt;AddRectFilled(p, ImVec2(p.x + width, p.y + height), ImGui::GetColorU32(*v ? colors[ImGuiCol_ButtonActive] : ImVec4(0.78f, 0.78f, 0.78f, 1.0f)), height * 0.5f);</span>
+    else
+<span style = "background-color:#dfd">        draw_list-&gt;AddRectFilled(p, ImVec2(p.x + width, p.y + height), ImGui::GetColorU32(*v ? colors[ImGuiCol_Button] : ImVec4(0.85f, 0.85f, 0.85f, 1.0f)), height * 0.50f);
+    draw_list-&gt;AddCircleFilled(ImVec2(p.x + radius + (*v ? 1 : 0) * (width - radius * 2.0f), p.y + radius), radius - 1.5f, IM_COL32(255, 255, 255, 255));
+}</span>
+
+<span style = "background-color:#dfd">void DrawControls(std::vector&lt;Planet*&gt; planets, std::vector&lt;Planet*&gt; academicPlanets, State&amp; state) { 
+    ImGui::Begin("Controls");</span>
+
+<span style = "background-color:#dfd">    bool togglePlanets = state.RealisticModePlanetsEnabled();
+    bool toggleOrbits = state.RealisticModeOrbitsEnabled();</span>
+    
+<span style = "background-color:#dfd">    ImGui::Text("Planet Size Realistic Mode");
+    ImGui::SameLine(200);
+    DrawToggleButton(&amp;togglePlanets);</span>
+
+<span style = "background-color:#dfd">    std::vector&lt;Planet*&gt; selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;</span>
+
+<span style = "background-color:#dfd">    if (togglePlanets != state.RealisticModePlanetsEnabled()) {
+        state.ToggleRealisticModePlanets();
+        selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
+        for (Planet* planet : planets) {
+            planet-&gt;GenerateOrbit(state.RealisticModeOrbitsEnabled() ? planet-&gt;GetOrbitRadius() : state.GetOrbitRadius());
+        }</span>
+    }
+
+<span style = "background-color:#dfd">    ImGui::Text("Orbit Realistic Mode");
+    ImGui::SameLine(200);
+    DrawToggleButton(&amp;toggleOrbits);</span>
+    
+<span style = "background-color:#dfd">    if (toggleOrbits != state.RealisticModeOrbitsEnabled()) {
+        state.ToggleRealisticModeOrbits();
+        for (Planet* planet : selectedPlanets) {
+            planet-&gt;GenerateOrbit(state.RealisticModeOrbitsEnabled() ? planet-&gt;GetOrbitRadius() : state.GetOrbitRadius());
+        }</span>
+    }
+
+<span style = "background-color:#dfd">    int selectedPlanetIndex = state.GetSelectedPlanetIndex();</span>
+
+<span style = "background-color:#dfd">    if (ImGui::BeginCombo("Camara position", planets[selectedPlanetIndex]-&gt;GetName().c_str(), 0)) {
+        for (int i = 0; i &lt; planets.size(); i++) {
+            const bool isSelected = (selectedPlanetIndex == i);
+            if (ImGui::Selectable(planets[i]-&gt;GetName().c_str(), isSelected)) {
+                state.SetSelectedPlanet(i, planets[i]-&gt;GetName());
+                std::cout &lt;&lt; planets[i]-&gt;GetName() &lt;&lt; std::endl;</span>
+            }
+<span style = "background-color:#dfd">            if (isSelected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();</span>
+    }
+
+<span style = "background-color:#dfd">    if (!state.RealisticModeOrbitsEnabled()) {
+        float radius = state.GetOrbitRadius();
+        if (ImGui::SliderFloat("Radius", &amp;radius, 0.0f, 10.0f)) {
+            state.SetOrbitRadius(radius);
+            for (Planet* planet : selectedPlanets) {
+                planet-&gt;GenerateOrbit(radius);
+            }</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
+    ImGui::BeginChild("Scrolling");
+    ImGui::Text("Move: WASD");
+    ImGui::Text("Up: SPACE");
+    ImGui::Text("Down: Left Shift");
+    ImGui::Text("Show/Hide Cursor: C");
+    ImGui::Text("Disable Cursor Callback: Q");
+    ImGui::Text("Go to selected planet: R");
+    ImGui::EndChild();
+    ImGui::End();</span>
+
+<span style = "background-color:#dfd">    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}</span>
+
+<span style = "background-color:#dfd">void Destroy() {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+}</span>
+
+} // namespace GUI</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

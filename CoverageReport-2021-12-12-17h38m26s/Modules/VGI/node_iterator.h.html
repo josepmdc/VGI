@@ -1,0 +1,207 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>node_iterator.h</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#ifndef VALUE_DETAIL_NODE_ITERATOR_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+#define VALUE_DETAIL_NODE_ITERATOR_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+
+#if defined(_MSC_VER) ||                                            \
+    (defined(__GNUC__) &amp;&amp; (__GNUC__ == 3 &amp;&amp; __GNUC_MINOR__ &gt;= 4) || \
+     (__GNUC__ &gt;= 4))  // GCC supports "pragma once" correctly since 3.4
+#pragma once
+#endif
+
+#include "yaml-cpp/dll.h"
+#include "yaml-cpp/node/ptr.h"
+#include &lt;cstddef&gt;
+#include &lt;iterator&gt;
+#include &lt;memory&gt;
+#include &lt;map&gt;
+#include &lt;utility&gt;
+#include &lt;vector&gt;
+
+namespace YAML {
+namespace detail {
+struct iterator_type {
+  enum value { NoneType, Sequence, Map };
+};
+
+template &lt;typename V&gt;
+struct node_iterator_value : public std::pair&lt;V*, V*&gt; {
+  using kv = std::pair&lt;V*, V*&gt;;
+
+<span style = "background-color:#fdd">  node_iterator_value() : kv(), pNode(nullptr) {}</span>
+<span style = "background-color:#dfd">  explicit node_iterator_value(V&amp; rhs) : kv(), pNode(&amp;rhs) {}
+  explicit node_iterator_value(V&amp; key, V&amp; value) : kv(&amp;key, &amp;value), pNode(nullptr) {}</span>
+
+<span style = "background-color:#dfd">  V&amp; operator*() const { return *pNode; }</span>
+  V&amp; operator-&gt;() const { return *pNode; }
+
+  V* pNode;
+};
+
+using node_seq = std::vector&lt;node *&gt;;
+using node_map = std::vector&lt;std::pair&lt;node*, node*&gt;&gt;;
+
+template &lt;typename V&gt;
+struct node_iterator_type {
+  using seq = node_seq::iterator;
+  using map = node_map::iterator;
+};
+
+template &lt;typename V&gt;
+struct node_iterator_type&lt;const V&gt; {
+  using seq = node_seq::const_iterator;
+  using map = node_map::const_iterator;
+};
+
+template &lt;typename V&gt;
+class node_iterator_base {
+ private:
+  struct enabler {};
+
+  struct proxy {
+    explicit proxy(const node_iterator_value&lt;V&gt;&amp; x) : m_ref(x) {}
+    node_iterator_value&lt;V&gt;* operator-&gt;() { return std::addressof(m_ref); }
+    operator node_iterator_value&lt;V&gt;*() { return std::addressof(m_ref); }
+
+    node_iterator_value&lt;V&gt; m_ref;
+  };
+
+ public:
+  using iterator_category = std::forward_iterator_tag;
+  using value_type = node_iterator_value&lt;V&gt;;
+  using difference_type = std::ptrdiff_t;
+  using pointer = node_iterator_value&lt;V&gt;*;
+  using reference = node_iterator_value&lt;V&gt;;
+  using SeqIter = typename node_iterator_type&lt;V&gt;::seq;
+  using MapIter = typename node_iterator_type&lt;V&gt;::map;
+
+  node_iterator_base()
+<span style = "background-color:#fdd">      : m_type(iterator_type::NoneType), m_seqIt(), m_mapIt(), m_mapEnd() {}</span>
+  explicit node_iterator_base(SeqIter seqIt)
+<span style = "background-color:#dfd">      : m_type(iterator_type::Sequence),
+        m_seqIt(seqIt),
+        m_mapIt(),
+        m_mapEnd() {}</span>
+  explicit node_iterator_base(MapIter mapIt, MapIter mapEnd)
+<span style = "background-color:#dfd">      : m_type(iterator_type::Map),
+        m_seqIt(),
+        m_mapIt(mapIt),
+        m_mapEnd(mapEnd) {
+    m_mapIt = increment_until_defined(m_mapIt);
+  }</span>
+
+  template &lt;typename W&gt;
+  node_iterator_base(const node_iterator_base&lt;W&gt;&amp; rhs,
+                     typename std::enable_if&lt;std::is_convertible&lt;W*, V*&gt;::value,
+                                             enabler&gt;::type = enabler())
+      : m_type(rhs.m_type),
+        m_seqIt(rhs.m_seqIt),
+        m_mapIt(rhs.m_mapIt),
+        m_mapEnd(rhs.m_mapEnd) {}
+
+  template &lt;typename&gt;
+  friend class node_iterator_base;
+
+  template &lt;typename W&gt;
+<span style = "background-color:#dfd">  bool operator==(const node_iterator_base&lt;W&gt;&amp; rhs) const {
+    if (m_type != rhs.m_type)</span>
+<span style = "background-color:#fdd">      return false;</span>
+
+<span style = "background-color:#dfd">    switch (m_type) {</span>
+      case iterator_type::NoneType:
+<span style = "background-color:#fdd">        return true;</span>
+      case iterator_type::Sequence:
+<span style = "background-color:#dfd">        return m_seqIt == rhs.m_seqIt;</span>
+      case iterator_type::Map:
+<span style = "background-color:#dfd">        return m_mapIt == rhs.m_mapIt;</span>
+    }
+<span style = "background-color:#fdd">    return true;</span>
+<span style = "background-color:#dfd">  }</span>
+
+  template &lt;typename W&gt;
+<span style = "background-color:#dfd">  bool operator!=(const node_iterator_base&lt;W&gt;&amp; rhs) const {
+    return !(*this == rhs);
+  }</span>
+
+<span style = "background-color:#dfd">  node_iterator_base&lt;V&gt;&amp; operator++() {
+    switch (m_type) {</span>
+      case iterator_type::NoneType:
+<span style = "background-color:#fdd">        break;</span>
+      case iterator_type::Sequence:
+<span style = "background-color:#dfd">        ++m_seqIt;
+        break;</span>
+      case iterator_type::Map:
+<span style = "background-color:#dfd">        ++m_mapIt;
+        m_mapIt = increment_until_defined(m_mapIt);</span>
+        break;
+    }
+<span style = "background-color:#dfd">    return *this;
+  }</span>
+
+  node_iterator_base&lt;V&gt; operator++(int) {
+    node_iterator_base&lt;V&gt; iterator_pre(*this);
+    ++(*this);
+    return iterator_pre;
+  }
+
+<span style = "background-color:#dfd">  value_type operator*() const {
+    switch (m_type) {</span>
+      case iterator_type::NoneType:
+<span style = "background-color:#fdd">        return value_type();</span>
+      case iterator_type::Sequence:
+<span style = "background-color:#dfd">        return value_type(**m_seqIt);</span>
+      case iterator_type::Map:
+<span style = "background-color:#dfd">        return value_type(*m_mapIt-&gt;first, *m_mapIt-&gt;second);</span>
+    }
+<span style = "background-color:#fdd">    return value_type();</span>
+<span style = "background-color:#dfd">  }</span>
+
+  proxy operator-&gt;() const { return proxy(**this); }
+
+<span style = "background-color:#dfd">  MapIter increment_until_defined(MapIter it) {
+    while (it != m_mapEnd &amp;&amp; !is_defined(it))</span>
+<span style = "background-color:#fdd">      ++it;</span>
+<span style = "background-color:#dfd">    return it;
+  }</span>
+
+<span style = "background-color:#dfd">  bool is_defined(MapIter it) const {
+    return it-&gt;first-&gt;is_defined() &amp;&amp; it-&gt;second-&gt;is_defined();
+  }</span>
+
+ private:
+  typename iterator_type::value m_type;
+
+  SeqIter m_seqIt;
+  MapIter m_mapIt, m_mapEnd;
+};
+
+using node_iterator = node_iterator_base&lt;node&gt;;
+using const_node_iterator = node_iterator_base&lt;const node&gt;;
+}
+}
+
+#endif  // VALUE_DETAIL_NODE_ITERATOR_H_62B23520_7C8E_11DE_8A39_0800200C9A66</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

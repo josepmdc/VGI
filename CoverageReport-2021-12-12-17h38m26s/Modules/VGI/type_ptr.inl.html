@@ -1,0 +1,412 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>type_ptr.inl</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+/// @ref gtc_type_ptr
+
+#include &lt;cstring&gt;
+
+namespace glm
+{
+	/// @addtogroup gtc_type_ptr
+	/// @{
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(vec&lt;2, T, Q&gt; const&amp; v)
+	{
+		return &amp;(v.x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(vec&lt;2, T, Q&gt;&amp; v)
+	{
+		return &amp;(v.x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const * value_ptr(vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		return &amp;(v.x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(vec&lt;3, T, Q&gt;&amp; v)
+	{
+		return &amp;(v.x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(vec&lt;4, T, Q&gt; const&amp; v)
+	{
+		return &amp;(v.x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(vec&lt;4, T, Q&gt;&amp; v)
+	{
+		return &amp;(v.x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;2, 2, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;2, 2, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;3, 3, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;3, 3, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;4, 4, T, Q&gt; const&amp; m)
+<span style = "background-color:#dfd">	{
+		return &amp;(m[0].x);
+	}</span>
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;4, 4, T, Q&gt;&amp; m)
+<span style = "background-color:#dfd">	{
+		return &amp;(m[0].x);
+	}</span>
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;2, 3, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;2, 3, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;3, 2, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;3, 2, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;2, 4, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;2, 4, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;4, 2, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;4, 2, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;3, 4, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(mat&lt;3, 4, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const* value_ptr(mat&lt;4, 3, T, Q&gt; const&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T * value_ptr(mat&lt;4, 3, T, Q&gt;&amp; m)
+	{
+		return &amp;(m[0].x);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T const * value_ptr(qua&lt;T, Q&gt; const&amp; q)
+	{
+		return &amp;(q[0]);
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER T* value_ptr(qua&lt;T, Q&gt;&amp; q)
+	{
+		return &amp;(q[0]);
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;1, T, Q&gt; make_vec1(vec&lt;1, T, Q&gt; const&amp; v)
+	{
+		return v;
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;1, T, Q&gt; make_vec1(vec&lt;2, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;1, T, Q&gt;(v);
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;1, T, Q&gt; make_vec1(vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;1, T, Q&gt;(v);
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;1, T, Q&gt; make_vec1(vec&lt;4, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;1, T, Q&gt;(v);
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;2, T, Q&gt; make_vec2(vec&lt;1, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;2, T, Q&gt;(v.x, static_cast&lt;T&gt;(0));
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;2, T, Q&gt; make_vec2(vec&lt;2, T, Q&gt; const&amp; v)
+	{
+		return v;
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;2, T, Q&gt; make_vec2(vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;2, T, Q&gt;(v);
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;2, T, Q&gt; make_vec2(vec&lt;4, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;2, T, Q&gt;(v);
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;3, T, Q&gt; make_vec3(vec&lt;1, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;3, T, Q&gt;(v.x, static_cast&lt;T&gt;(0), static_cast&lt;T&gt;(0));
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;3, T, Q&gt; make_vec3(vec&lt;2, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;3, T, Q&gt;(v.x, v.y, static_cast&lt;T&gt;(0));
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;3, T, Q&gt; make_vec3(vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		return v;
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;3, T, Q&gt; make_vec3(vec&lt;4, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;3, T, Q&gt;(v);
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;4, T, Q&gt; make_vec4(vec&lt;1, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;4, T, Q&gt;(v.x, static_cast&lt;T&gt;(0), static_cast&lt;T&gt;(0), static_cast&lt;T&gt;(1));
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;4, T, Q&gt; make_vec4(vec&lt;2, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;4, T, Q&gt;(v.x, v.y, static_cast&lt;T&gt;(0), static_cast&lt;T&gt;(1));
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;4, T, Q&gt; make_vec4(vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		return vec&lt;4, T, Q&gt;(v.x, v.y, v.z, static_cast&lt;T&gt;(1));
+	}
+
+	template &lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL vec&lt;4, T, Q&gt; make_vec4(vec&lt;4, T, Q&gt; const&amp; v)
+	{
+		return v;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER vec&lt;2, T, defaultp&gt; make_vec2(T const *const ptr)
+	{
+		vec&lt;2, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(vec&lt;2, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER vec&lt;3, T, defaultp&gt; make_vec3(T const *const ptr)
+	{
+		vec&lt;3, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(vec&lt;3, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER vec&lt;4, T, defaultp&gt; make_vec4(T const *const ptr)
+	{
+		vec&lt;4, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(vec&lt;4, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;2, 2, T, defaultp&gt; make_mat2x2(T const *const ptr)
+	{
+		mat&lt;2, 2, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;2, 2, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;2, 3, T, defaultp&gt; make_mat2x3(T const *const ptr)
+	{
+		mat&lt;2, 3, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;2, 3, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;2, 4, T, defaultp&gt; make_mat2x4(T const *const ptr)
+	{
+		mat&lt;2, 4, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;2, 4, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;3, 2, T, defaultp&gt; make_mat3x2(T const *const ptr)
+	{
+		mat&lt;3, 2, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;3, 2, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;3, 3, T, defaultp&gt; make_mat3x3(T const *const ptr)
+	{
+		mat&lt;3, 3, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;3, 3, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;3, 4, T, defaultp&gt; make_mat3x4(T const *const ptr)
+	{
+		mat&lt;3, 4, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;3, 4, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 2, T, defaultp&gt; make_mat4x2(T const *const ptr)
+	{
+		mat&lt;4, 2, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;4, 2, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 3, T, defaultp&gt; make_mat4x3(T const *const ptr)
+	{
+		mat&lt;4, 3, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;4, 3, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, defaultp&gt; make_mat4x4(T const *const ptr)
+	{
+		mat&lt;4, 4, T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(mat&lt;4, 4, T, defaultp&gt;));
+		return Result;
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;2, 2, T, defaultp&gt; make_mat2(T const *const ptr)
+	{
+		return make_mat2x2(ptr);
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;3, 3, T, defaultp&gt; make_mat3(T const *const ptr)
+	{
+		return make_mat3x3(ptr);
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, defaultp&gt; make_mat4(T const *const ptr)
+	{
+		return make_mat4x4(ptr);
+	}
+
+	template&lt;typename T&gt;
+	GLM_FUNC_QUALIFIER qua&lt;T, defaultp&gt; make_quat(T const *const ptr)
+	{
+		qua&lt;T, defaultp&gt; Result;
+		memcpy(value_ptr(Result), ptr, sizeof(qua&lt;T, defaultp&gt;));
+		return Result;
+	}
+
+	/// @}
+}//namespace glm
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

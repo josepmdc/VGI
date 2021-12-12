@@ -1,0 +1,782 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>context.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2016 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;assert.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+#include &lt;limits.h&gt;
+#include &lt;stdio.h&gt;
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+// Checks whether the desired context attributes are valid
+//
+// This function checks things like whether the specified client API version
+// exists and whether all relevant options have supported and non-conflicting
+// values
+//
+GLFWbool _glfwIsValidContextConfig(const _GLFWctxconfig* ctxconfig)
+<span style = "background-color:#dfd">{
+    if (ctxconfig-&gt;share)</span>
+    {
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;client == GLFW_NO_API ||</span>
+            ctxconfig-&gt;share-&gt;context.client == GLFW_NO_API)
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_NO_WINDOW_CONTEXT, NULL);
+            return GLFW_FALSE;</span>
+        }
+    }
+
+    if (ctxconfig-&gt;source != GLFW_NATIVE_CONTEXT_API &amp;&amp;
+<span style = "background-color:#dfd">        ctxconfig-&gt;source != GLFW_EGL_CONTEXT_API &amp;&amp;</span>
+        ctxconfig-&gt;source != GLFW_OSMESA_CONTEXT_API)
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM,</span>
+                        "Invalid context creation API 0x%08X",
+                        ctxconfig-&gt;source);
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+    if (ctxconfig-&gt;client != GLFW_NO_API &amp;&amp;
+<span style = "background-color:#dfd">        ctxconfig-&gt;client != GLFW_OPENGL_API &amp;&amp;</span>
+        ctxconfig-&gt;client != GLFW_OPENGL_ES_API)
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_ENUM,</span>
+                        "Invalid client API 0x%08X",
+                        ctxconfig-&gt;client);
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+    {
+        if ((ctxconfig-&gt;major &lt; 1 || ctxconfig-&gt;minor &lt; 0) ||
+            (ctxconfig-&gt;major == 1 &amp;&amp; ctxconfig-&gt;minor &gt; 5) ||
+<span style = "background-color:#dfd">            (ctxconfig-&gt;major == 2 &amp;&amp; ctxconfig-&gt;minor &gt; 1) ||</span>
+            (ctxconfig-&gt;major == 3 &amp;&amp; ctxconfig-&gt;minor &gt; 3))
+        {
+            // OpenGL 1.0 is the smallest valid version
+            // OpenGL 1.x series ended with version 1.5
+            // OpenGL 2.x series ended with version 2.1
+            // OpenGL 3.x series ended with version 3.3
+            // For now, let everything else through
+
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE,</span>
+                            "Invalid OpenGL version %i.%i",
+                            ctxconfig-&gt;major, ctxconfig-&gt;minor);
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;profile)</span>
+        {
+<span style = "background-color:#dfd">            if (ctxconfig-&gt;profile != GLFW_OPENGL_CORE_PROFILE &amp;&amp;</span>
+                ctxconfig-&gt;profile != GLFW_OPENGL_COMPAT_PROFILE)
+            {
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_INVALID_ENUM,</span>
+                                "Invalid OpenGL profile 0x%08X",
+                                ctxconfig-&gt;profile);
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+            }
+
+<span style = "background-color:#dfd">            if (ctxconfig-&gt;major &lt;= 2 ||</span>
+                (ctxconfig-&gt;major == 3 &amp;&amp; ctxconfig-&gt;minor &lt; 2))
+            {
+                // Desktop OpenGL context profiles are only defined for version 3.2
+                // and above
+
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_INVALID_VALUE,</span>
+                                "Context profiles are only defined for OpenGL version 3.2 and above");
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+            }
+        }
+
+<span style = "background-color:#dfd">        if (ctxconfig-&gt;forward &amp;&amp; ctxconfig-&gt;major &lt;= 2)</span>
+        {
+            // Forward-compatible contexts are only defined for OpenGL version 3.0 and above
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE,</span>
+                            "Forward-compatibility is only defined for OpenGL version 3.0 and above");
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+<span style = "background-color:#fdd">    else if (ctxconfig-&gt;client == GLFW_OPENGL_ES_API)</span>
+    {
+        if (ctxconfig-&gt;major &lt; 1 || ctxconfig-&gt;minor &lt; 0 ||
+<span style = "background-color:#fdd">            (ctxconfig-&gt;major == 1 &amp;&amp; ctxconfig-&gt;minor &gt; 1) ||</span>
+            (ctxconfig-&gt;major == 2 &amp;&amp; ctxconfig-&gt;minor &gt; 0))
+        {
+            // OpenGL ES 1.0 is the smallest valid version
+            // OpenGL ES 1.x series ended with version 1.1
+            // OpenGL ES 2.x series ended with version 2.0
+            // For now, let everything else through
+
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_VALUE,</span>
+                            "Invalid OpenGL ES version %i.%i",
+                            ctxconfig-&gt;major, ctxconfig-&gt;minor);
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    if (ctxconfig-&gt;robustness)</span>
+    {
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;robustness != GLFW_NO_RESET_NOTIFICATION &amp;&amp;</span>
+            ctxconfig-&gt;robustness != GLFW_LOSE_CONTEXT_ON_RESET)
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_ENUM,</span>
+                            "Invalid context robustness mode 0x%08X",
+                            ctxconfig-&gt;robustness);
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    if (ctxconfig-&gt;release)</span>
+    {
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;release != GLFW_RELEASE_BEHAVIOR_NONE &amp;&amp;</span>
+            ctxconfig-&gt;release != GLFW_RELEASE_BEHAVIOR_FLUSH)
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_INVALID_ENUM,</span>
+                            "Invalid context release behavior 0x%08X",
+                            ctxconfig-&gt;release);
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    return GLFW_TRUE;
+}</span>
+
+// Chooses the framebuffer config that best matches the desired one
+//
+const _GLFWfbconfig* _glfwChooseFBConfig(const _GLFWfbconfig* desired,
+                                         const _GLFWfbconfig* alternatives,
+                                         unsigned int count)
+<span style = "background-color:#dfd">{</span>
+    unsigned int i;
+<span style = "background-color:#dfd">    unsigned int missing, leastMissing = UINT_MAX;
+    unsigned int colorDiff, leastColorDiff = UINT_MAX;
+    unsigned int extraDiff, leastExtraDiff = UINT_MAX;</span>
+    const _GLFWfbconfig* current;
+<span style = "background-color:#dfd">    const _GLFWfbconfig* closest = NULL;</span>
+
+<span style = "background-color:#dfd">    for (i = 0;  i &lt; count;  i++)</span>
+    {
+<span style = "background-color:#dfd">        current = alternatives + i;</span>
+
+<span style = "background-color:#dfd">        if (desired-&gt;stereo &gt; 0 &amp;&amp; current-&gt;stereo == 0)</span>
+        {
+            // Stereo is a hard constraint
+<span style = "background-color:#fdd">            continue;</span>
+        }
+
+        // Count number of missing buffers
+        {
+<span style = "background-color:#dfd">            missing = 0;</span>
+
+<span style = "background-color:#dfd">            if (desired-&gt;alphaBits &gt; 0 &amp;&amp; current-&gt;alphaBits == 0)</span>
+<span style = "background-color:#fdd">                missing++;</span>
+
+<span style = "background-color:#dfd">            if (desired-&gt;depthBits &gt; 0 &amp;&amp; current-&gt;depthBits == 0)
+                missing++;</span>
+
+<span style = "background-color:#dfd">            if (desired-&gt;stencilBits &gt; 0 &amp;&amp; current-&gt;stencilBits == 0)
+                missing++;</span>
+
+<span style = "background-color:#dfd">            if (desired-&gt;auxBuffers &gt; 0 &amp;&amp;</span>
+                current-&gt;auxBuffers &lt; desired-&gt;auxBuffers)
+            {
+<span style = "background-color:#fdd">                missing += desired-&gt;auxBuffers - current-&gt;auxBuffers;</span>
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;samples &gt; 0 &amp;&amp; current-&gt;samples == 0)</span>
+            {
+                // Technically, several multisampling buffers could be
+                // involved, but that's a lower level implementation detail and
+                // not important to us here, so we count them as one
+<span style = "background-color:#fdd">                missing++;</span>
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;transparent != current-&gt;transparent)</span>
+<span style = "background-color:#fdd">                missing++;</span>
+        }
+
+        // These polynomials make many small channel size differences matter
+        // less than one large channel size difference
+
+        // Calculate color channel size difference value
+        {
+<span style = "background-color:#dfd">            colorDiff = 0;</span>
+
+<span style = "background-color:#dfd">            if (desired-&gt;redBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                colorDiff += (desired-&gt;redBits - current-&gt;redBits) *</span>
+                             (desired-&gt;redBits - current-&gt;redBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;greenBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                colorDiff += (desired-&gt;greenBits - current-&gt;greenBits) *</span>
+                             (desired-&gt;greenBits - current-&gt;greenBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;blueBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                colorDiff += (desired-&gt;blueBits - current-&gt;blueBits) *</span>
+                             (desired-&gt;blueBits - current-&gt;blueBits);
+            }
+        }
+
+        // Calculate non-color channel size difference value
+        {
+<span style = "background-color:#dfd">            extraDiff = 0;</span>
+
+<span style = "background-color:#dfd">            if (desired-&gt;alphaBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;alphaBits - current-&gt;alphaBits) *</span>
+                             (desired-&gt;alphaBits - current-&gt;alphaBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;depthBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;depthBits - current-&gt;depthBits) *</span>
+                             (desired-&gt;depthBits - current-&gt;depthBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;stencilBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;stencilBits - current-&gt;stencilBits) *</span>
+                             (desired-&gt;stencilBits - current-&gt;stencilBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;accumRedBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;accumRedBits - current-&gt;accumRedBits) *</span>
+                             (desired-&gt;accumRedBits - current-&gt;accumRedBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;accumGreenBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;accumGreenBits - current-&gt;accumGreenBits) *</span>
+                             (desired-&gt;accumGreenBits - current-&gt;accumGreenBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;accumBlueBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;accumBlueBits - current-&gt;accumBlueBits) *</span>
+                             (desired-&gt;accumBlueBits - current-&gt;accumBlueBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;accumAlphaBits != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;accumAlphaBits - current-&gt;accumAlphaBits) *</span>
+                             (desired-&gt;accumAlphaBits - current-&gt;accumAlphaBits);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;samples != GLFW_DONT_CARE)</span>
+            {
+<span style = "background-color:#dfd">                extraDiff += (desired-&gt;samples - current-&gt;samples) *</span>
+                             (desired-&gt;samples - current-&gt;samples);
+            }
+
+<span style = "background-color:#dfd">            if (desired-&gt;sRGB &amp;&amp; !current-&gt;sRGB)</span>
+<span style = "background-color:#fdd">                extraDiff++;</span>
+        }
+
+        // Figure out if the current one is better than the best one found so far
+        // Least number of missing buffers is the most important heuristic,
+        // then color buffer size match and lastly size match for other buffers
+
+<span style = "background-color:#dfd">        if (missing &lt; leastMissing)
+            closest = current;
+        else if (missing == leastMissing)</span>
+        {
+<span style = "background-color:#dfd">            if ((colorDiff &lt; leastColorDiff) ||</span>
+                (colorDiff == leastColorDiff &amp;&amp; extraDiff &lt; leastExtraDiff))
+            {
+<span style = "background-color:#dfd">                closest = current;</span>
+            }
+        }
+
+<span style = "background-color:#dfd">        if (current == closest)</span>
+        {
+<span style = "background-color:#dfd">            leastMissing = missing;
+            leastColorDiff = colorDiff;
+            leastExtraDiff = extraDiff;</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+
+<span style = "background-color:#dfd">    return closest;
+}</span>
+
+// Retrieves the attributes of the current context
+//
+GLFWbool _glfwRefreshContextAttribs(_GLFWwindow* window,
+                                    const _GLFWctxconfig* ctxconfig)
+<span style = "background-color:#dfd">{</span>
+    int i;
+    _GLFWwindow* previous;
+    const char* version;
+<span style = "background-color:#dfd">    const char* prefixes[] =</span>
+    {
+        "OpenGL ES-CM ",
+        "OpenGL ES-CL ",
+        "OpenGL ES ",
+        NULL
+    };
+
+<span style = "background-color:#dfd">    window-&gt;context.source = ctxconfig-&gt;source;
+    window-&gt;context.client = GLFW_OPENGL_API;</span>
+
+<span style = "background-color:#dfd">    previous = _glfwPlatformGetTls(&amp;_glfw.contextSlot);
+    glfwMakeContextCurrent((GLFWwindow*) window);</span>
+
+<span style = "background-color:#dfd">    window-&gt;context.GetIntegerv = (PFNGLGETINTEGERVPROC)</span>
+        window-&gt;context.getProcAddress("glGetIntegerv");
+<span style = "background-color:#dfd">    window-&gt;context.GetString = (PFNGLGETSTRINGPROC)</span>
+        window-&gt;context.getProcAddress("glGetString");
+<span style = "background-color:#dfd">    if (!window-&gt;context.GetIntegerv || !window-&gt;context.GetString)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_PLATFORM_ERROR, "Entry point retrieval is broken");
+        glfwMakeContextCurrent((GLFWwindow*) previous);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    version = (const char*) window-&gt;context.GetString(GL_VERSION);
+    if (!version)</span>
+    {
+<span style = "background-color:#fdd">        if (ctxconfig-&gt;client == GLFW_OPENGL_API)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "OpenGL version string retrieval is broken");
+<span style = "background-color:#fdd">        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "OpenGL ES version string retrieval is broken");
+        }
+
+<span style = "background-color:#fdd">        glfwMakeContextCurrent((GLFWwindow*) previous);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    for (i = 0;  prefixes[i];  i++)</span>
+    {
+<span style = "background-color:#dfd">        const size_t length = strlen(prefixes[i]);</span>
+
+<span style = "background-color:#dfd">        if (strncmp(version, prefixes[i], length) == 0)</span>
+        {
+<span style = "background-color:#fdd">            version += length;
+            window-&gt;context.client = GLFW_OPENGL_ES_API;
+            break;</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+
+<span style = "background-color:#dfd">    if (!sscanf(version, "%d.%d.%d",</span>
+                &amp;window-&gt;context.major,
+                &amp;window-&gt;context.minor,
+                &amp;window-&gt;context.revision))
+    {
+<span style = "background-color:#fdd">        if (window-&gt;context.client == GLFW_OPENGL_API)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "No version found in OpenGL version string");
+<span style = "background-color:#fdd">        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "No version found in OpenGL ES version string");
+        }
+
+<span style = "background-color:#fdd">        glfwMakeContextCurrent((GLFWwindow*) previous);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;context.major &lt; ctxconfig-&gt;major ||</span>
+        (window-&gt;context.major == ctxconfig-&gt;major &amp;&amp;
+         window-&gt;context.minor &lt; ctxconfig-&gt;minor))
+    {
+        // The desired OpenGL version is greater than the actual version
+        // This only happens if the machine lacks {GLX|WGL}_ARB_create_context
+        // /and/ the user has requested an OpenGL version greater than 1.0
+
+        // For API consistency, we emulate the behavior of the
+        // {GLX|WGL}_ARB_create_context extension and fail here
+
+<span style = "background-color:#fdd">        if (window-&gt;context.client == GLFW_OPENGL_API)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                            "Requested OpenGL version %i.%i, got version %i.%i",
+                            ctxconfig-&gt;major, ctxconfig-&gt;minor,
+                            window-&gt;context.major, window-&gt;context.minor);
+<span style = "background-color:#fdd">        }</span>
+        else
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_VERSION_UNAVAILABLE,</span>
+                            "Requested OpenGL ES version %i.%i, got version %i.%i",
+                            ctxconfig-&gt;major, ctxconfig-&gt;minor,
+                            window-&gt;context.major, window-&gt;context.minor);
+        }
+
+<span style = "background-color:#fdd">        glfwMakeContextCurrent((GLFWwindow*) previous);
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;context.major &gt;= 3)</span>
+    {
+        // OpenGL 3.0+ uses a different function for extension string retrieval
+        // We cache it here instead of in glfwExtensionSupported mostly to alert
+        // users as early as possible that their build may be broken
+
+<span style = "background-color:#dfd">        window-&gt;context.GetStringi = (PFNGLGETSTRINGIPROC)</span>
+            window-&gt;context.getProcAddress("glGetStringi");
+<span style = "background-color:#dfd">        if (!window-&gt;context.GetStringi)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "Entry point retrieval is broken");
+<span style = "background-color:#fdd">            glfwMakeContextCurrent((GLFWwindow*) previous);
+            return GLFW_FALSE;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;context.client == GLFW_OPENGL_API)</span>
+    {
+        // Read back context flags (OpenGL 3.0 and above)
+<span style = "background-color:#dfd">        if (window-&gt;context.major &gt;= 3)</span>
+        {
+            GLint flags;
+<span style = "background-color:#dfd">            window-&gt;context.GetIntegerv(GL_CONTEXT_FLAGS, &amp;flags);</span>
+
+<span style = "background-color:#dfd">            if (flags &amp; GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT)</span>
+<span style = "background-color:#fdd">                window-&gt;context.forward = GLFW_TRUE;</span>
+
+<span style = "background-color:#dfd">            if (flags &amp; GL_CONTEXT_FLAG_DEBUG_BIT)</span>
+<span style = "background-color:#fdd">                window-&gt;context.debug = GLFW_TRUE;</span>
+<span style = "background-color:#dfd">            else if (glfwExtensionSupported("GL_ARB_debug_output") &amp;&amp;</span>
+                     ctxconfig-&gt;debug)
+            {
+                // HACK: This is a workaround for older drivers (pre KHR_debug)
+                //       not setting the debug bit in the context flags for
+                //       debug contexts
+<span style = "background-color:#fdd">                window-&gt;context.debug = GLFW_TRUE;</span>
+            }
+
+<span style = "background-color:#dfd">            if (flags &amp; GL_CONTEXT_FLAG_NO_ERROR_BIT_KHR)</span>
+<span style = "background-color:#fdd">                window-&gt;context.noerror = GLFW_TRUE;</span>
+        }
+
+        // Read back OpenGL context profile (OpenGL 3.2 and above)
+<span style = "background-color:#dfd">        if (window-&gt;context.major &gt;= 4 ||</span>
+            (window-&gt;context.major == 3 &amp;&amp; window-&gt;context.minor &gt;= 2))
+        {
+            GLint mask;
+<span style = "background-color:#dfd">            window-&gt;context.GetIntegerv(GL_CONTEXT_PROFILE_MASK, &amp;mask);</span>
+
+<span style = "background-color:#dfd">            if (mask &amp; GL_CONTEXT_COMPATIBILITY_PROFILE_BIT)</span>
+<span style = "background-color:#fdd">                window-&gt;context.profile = GLFW_OPENGL_COMPAT_PROFILE;</span>
+<span style = "background-color:#dfd">            else if (mask &amp; GL_CONTEXT_CORE_PROFILE_BIT)
+                window-&gt;context.profile = GLFW_OPENGL_CORE_PROFILE;</span>
+<span style = "background-color:#fdd">            else if (glfwExtensionSupported("GL_ARB_compatibility"))</span>
+            {
+                // HACK: This is a workaround for the compatibility profile bit
+                //       not being set in the context flags if an OpenGL 3.2+
+                //       context was created without having requested a specific
+                //       version
+<span style = "background-color:#fdd">                window-&gt;context.profile = GLFW_OPENGL_COMPAT_PROFILE;</span>
+            }
+        }
+
+        // Read back robustness strategy
+<span style = "background-color:#dfd">        if (glfwExtensionSupported("GL_ARB_robustness"))</span>
+        {
+            // NOTE: We avoid using the context flags for detection, as they are
+            //       only present from 3.0 while the extension applies from 1.1
+
+            GLint strategy;
+<span style = "background-color:#fdd">            window-&gt;context.GetIntegerv(GL_RESET_NOTIFICATION_STRATEGY_ARB,</span>
+                                        &amp;strategy);
+
+<span style = "background-color:#fdd">            if (strategy == GL_LOSE_CONTEXT_ON_RESET_ARB)
+                window-&gt;context.robustness = GLFW_LOSE_CONTEXT_ON_RESET;
+            else if (strategy == GL_NO_RESET_NOTIFICATION_ARB)
+                window-&gt;context.robustness = GLFW_NO_RESET_NOTIFICATION;</span>
+        }
+<span style = "background-color:#dfd">    }</span>
+    else
+    {
+        // Read back robustness strategy
+<span style = "background-color:#fdd">        if (glfwExtensionSupported("GL_EXT_robustness"))</span>
+        {
+            // NOTE: The values of these constants match those of the OpenGL ARB
+            //       one, so we can reuse them here
+
+            GLint strategy;
+<span style = "background-color:#fdd">            window-&gt;context.GetIntegerv(GL_RESET_NOTIFICATION_STRATEGY_ARB,</span>
+                                        &amp;strategy);
+
+<span style = "background-color:#fdd">            if (strategy == GL_LOSE_CONTEXT_ON_RESET_ARB)
+                window-&gt;context.robustness = GLFW_LOSE_CONTEXT_ON_RESET;
+            else if (strategy == GL_NO_RESET_NOTIFICATION_ARB)
+                window-&gt;context.robustness = GLFW_NO_RESET_NOTIFICATION;</span>
+        }
+    }
+
+<span style = "background-color:#dfd">    if (glfwExtensionSupported("GL_KHR_context_flush_control"))</span>
+    {
+        GLint behavior;
+<span style = "background-color:#dfd">        window-&gt;context.GetIntegerv(GL_CONTEXT_RELEASE_BEHAVIOR, &amp;behavior);</span>
+
+<span style = "background-color:#dfd">        if (behavior == GL_NONE)</span>
+<span style = "background-color:#fdd">            window-&gt;context.release = GLFW_RELEASE_BEHAVIOR_NONE;</span>
+<span style = "background-color:#dfd">        else if (behavior == GL_CONTEXT_RELEASE_BEHAVIOR_FLUSH)
+            window-&gt;context.release = GLFW_RELEASE_BEHAVIOR_FLUSH;</span>
+    }
+
+    // Clearing the front buffer to black to avoid garbage pixels left over from
+    // previous uses of our bit of VRAM
+    {
+<span style = "background-color:#dfd">        PFNGLCLEARPROC glClear = (PFNGLCLEARPROC)</span>
+            window-&gt;context.getProcAddress("glClear");
+<span style = "background-color:#dfd">        glClear(GL_COLOR_BUFFER_BIT);</span>
+
+<span style = "background-color:#dfd">        if (window-&gt;doublebuffer)
+            window-&gt;context.swapBuffers(window);</span>
+    }
+
+<span style = "background-color:#dfd">    glfwMakeContextCurrent((GLFWwindow*) previous);
+    return GLFW_TRUE;
+}</span>
+
+// Searches an extension string for the specified extension
+//
+GLFWbool _glfwStringInExtensionString(const char* string, const char* extensions)
+<span style = "background-color:#dfd">{
+    const char* start = extensions;</span>
+
+    for (;;)
+    {
+        const char* where;
+        const char* terminator;
+
+<span style = "background-color:#dfd">        where = strstr(start, string);
+        if (!where)
+            return GLFW_FALSE;</span>
+
+<span style = "background-color:#dfd">        terminator = where + strlen(string);
+        if (where == start || *(where - 1) == ' ')</span>
+        {
+<span style = "background-color:#dfd">            if (*terminator == ' ' || *terminator == '\0')
+                break;</span>
+        }
+
+<span style = "background-color:#fdd">        start = terminator;
+    }</span>
+
+<span style = "background-color:#dfd">    return GLFW_TRUE;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW public API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI void glfwMakeContextCurrent(GLFWwindow* handle)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    _GLFWwindow* previous = _glfwPlatformGetTls(&amp;_glfw.contextSlot);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#dfd">    if (window &amp;&amp; window-&gt;context.client == GLFW_NO_API)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_NO_WINDOW_CONTEXT,</span>
+                        "Cannot make current with a window that has no OpenGL or OpenGL ES context");
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#dfd">    if (previous)</span>
+    {
+<span style = "background-color:#dfd">        if (!window || window-&gt;context.source != previous-&gt;context.source)
+            previous-&gt;context.makeCurrent(NULL);</span>
+    }
+
+<span style = "background-color:#dfd">    if (window)
+        window-&gt;context.makeCurrent(window);
+}</span>
+
+GLFWAPI GLFWwindow* glfwGetCurrentContext(void)
+<span style = "background-color:#fdd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return _glfwPlatformGetTls(&amp;_glfw.contextSlot);
+}</span>
+
+GLFWAPI void glfwSwapBuffers(GLFWwindow* handle)
+<span style = "background-color:#dfd">{
+    _GLFWwindow* window = (_GLFWwindow*) handle;
+    assert(window != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#dfd">    if (window-&gt;context.client == GLFW_NO_API)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_NO_WINDOW_CONTEXT,</span>
+                        "Cannot swap buffers of a window that has no OpenGL or OpenGL ES context");
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#dfd">    window-&gt;context.swapBuffers(window);
+}</span>
+
+GLFWAPI void glfwSwapInterval(int interval)
+<span style = "background-color:#fdd">{</span>
+    _GLFWwindow* window;
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    window = _glfwPlatformGetTls(&amp;_glfw.contextSlot);
+    if (!window)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_NO_CURRENT_CONTEXT,</span>
+                        "Cannot set swap interval without a current OpenGL or OpenGL ES context");
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    window-&gt;context.swapInterval(interval);
+}</span>
+
+GLFWAPI int glfwExtensionSupported(const char* extension)
+<span style = "background-color:#dfd">{</span>
+    _GLFWwindow* window;
+<span style = "background-color:#dfd">    assert(extension != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);</span>
+
+<span style = "background-color:#dfd">    window = _glfwPlatformGetTls(&amp;_glfw.contextSlot);
+    if (!window)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_NO_CURRENT_CONTEXT,</span>
+                        "Cannot query extension without a current OpenGL or OpenGL ES context");
+<span style = "background-color:#fdd">        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (*extension == '\0')</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, "Extension name cannot be an empty string");
+        return GLFW_FALSE;</span>
+    }
+
+<span style = "background-color:#dfd">    if (window-&gt;context.major &gt;= 3)</span>
+    {
+        int i;
+        GLint count;
+
+        // Check if extension is in the modern OpenGL extensions string list
+
+<span style = "background-color:#dfd">        window-&gt;context.GetIntegerv(GL_NUM_EXTENSIONS, &amp;count);</span>
+
+<span style = "background-color:#dfd">        for (i = 0;  i &lt; count;  i++)</span>
+        {
+<span style = "background-color:#dfd">            const char* en = (const char*)</span>
+                window-&gt;context.GetStringi(GL_EXTENSIONS, i);
+<span style = "background-color:#dfd">            if (!en)</span>
+            {
+<span style = "background-color:#fdd">                _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                                "Extension string retrieval is broken");
+<span style = "background-color:#fdd">                return GLFW_FALSE;</span>
+            }
+
+<span style = "background-color:#dfd">            if (strcmp(en, extension) == 0)
+                return GLFW_TRUE;
+        }
+    }</span>
+    else
+    {
+        // Check if extension is in the old style OpenGL extensions string
+
+<span style = "background-color:#fdd">        const char* extensions = (const char*)</span>
+            window-&gt;context.GetString(GL_EXTENSIONS);
+<span style = "background-color:#fdd">        if (!extensions)</span>
+        {
+<span style = "background-color:#fdd">            _glfwInputError(GLFW_PLATFORM_ERROR,</span>
+                            "Extension string retrieval is broken");
+<span style = "background-color:#fdd">            return GLFW_FALSE;</span>
+        }
+
+<span style = "background-color:#fdd">        if (_glfwStringInExtensionString(extension, extensions))
+            return GLFW_TRUE;</span>
+    }
+
+    // Check if extension is in the platform-specific string
+<span style = "background-color:#dfd">    return window-&gt;context.extensionSupported(extension);
+}</span>
+
+GLFWAPI GLFWglproc glfwGetProcAddress(const char* procname)
+<span style = "background-color:#dfd">{</span>
+    _GLFWwindow* window;
+<span style = "background-color:#dfd">    assert(procname != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#dfd">    window = _glfwPlatformGetTls(&amp;_glfw.contextSlot);
+    if (!window)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_NO_CURRENT_CONTEXT,</span>
+                        "Cannot query entry point without a current OpenGL or OpenGL ES context");
+<span style = "background-color:#fdd">        return NULL;</span>
+    }
+
+<span style = "background-color:#dfd">    return window-&gt;context.getProcAddress(procname);
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

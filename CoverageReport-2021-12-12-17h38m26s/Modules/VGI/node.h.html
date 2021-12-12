@@ -1,0 +1,203 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>node.h</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#ifndef NODE_DETAIL_NODE_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+#define NODE_DETAIL_NODE_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+
+#if defined(_MSC_VER) ||                                            \
+    (defined(__GNUC__) &amp;&amp; (__GNUC__ == 3 &amp;&amp; __GNUC_MINOR__ &gt;= 4) || \
+     (__GNUC__ &gt;= 4))  // GCC supports "pragma once" correctly since 3.4
+#pragma once
+#endif
+
+#include "yaml-cpp/dll.h"
+#include "yaml-cpp/emitterstyle.h"
+#include "yaml-cpp/node/detail/node_ref.h"
+#include "yaml-cpp/node/ptr.h"
+#include "yaml-cpp/node/type.h"
+#include &lt;set&gt;
+#include &lt;atomic&gt;
+
+namespace YAML {
+namespace detail {
+class node {
+ private:
+  struct less {
+<span style = "background-color:#fdd">    bool operator ()(const node* l, const node* r) const {return l-&gt;m_index &lt; r-&gt;m_index;}</span>
+  };
+
+ public:
+<span style = "background-color:#dfd">  node() : m_pRef(new node_ref), m_dependencies{}, m_index{} {}</span>
+  node(const node&amp;) = delete;
+  node&amp; operator=(const node&amp;) = delete;
+
+<span style = "background-color:#fdd">  bool is(const node&amp; rhs) const { return m_pRef == rhs.m_pRef; }</span>
+  const node_ref* ref() const { return m_pRef.get(); }
+
+<span style = "background-color:#dfd">  bool is_defined() const { return m_pRef-&gt;is_defined(); }</span>
+<span style = "background-color:#fdd">  const Mark&amp; mark() const { return m_pRef-&gt;mark(); }</span>
+<span style = "background-color:#dfd">  NodeType::value type() const { return m_pRef-&gt;type(); }</span>
+
+<span style = "background-color:#dfd">  const std::string&amp; scalar() const { return m_pRef-&gt;scalar(); }</span>
+  const std::string&amp; tag() const { return m_pRef-&gt;tag(); }
+  EmitterStyle::value style() const { return m_pRef-&gt;style(); }
+
+  template &lt;typename T&gt;
+  bool equals(const T&amp; rhs, shared_memory_holder pMemory);
+  bool equals(const char* rhs, shared_memory_holder pMemory);
+
+<span style = "background-color:#dfd">  void mark_defined() {
+    if (is_defined())
+      return;</span>
+
+<span style = "background-color:#dfd">    m_pRef-&gt;mark_defined();
+    for (node* dependency : m_dependencies)</span>
+<span style = "background-color:#fdd">      dependency-&gt;mark_defined();</span>
+<span style = "background-color:#dfd">    m_dependencies.clear();
+  }</span>
+
+<span style = "background-color:#dfd">  void add_dependency(node&amp; rhs) {
+    if (is_defined())
+      rhs.mark_defined();</span>
+    else
+<span style = "background-color:#fdd">      m_dependencies.insert(&amp;rhs);</span>
+<span style = "background-color:#dfd">  }</span>
+
+  void set_ref(const node&amp; rhs) {
+    if (rhs.is_defined())
+      mark_defined();
+    m_pRef = rhs.m_pRef;
+  }
+  void set_data(const node&amp; rhs) {
+    if (rhs.is_defined())
+      mark_defined();
+    m_pRef-&gt;set_data(*rhs.m_pRef);
+  }
+
+<span style = "background-color:#dfd">  void set_mark(const Mark&amp; mark) { m_pRef-&gt;set_mark(mark); }</span>
+
+<span style = "background-color:#dfd">  void set_type(NodeType::value type) {
+    if (type != NodeType::Undefined)
+      mark_defined();
+    m_pRef-&gt;set_type(type);
+  }</span>
+<span style = "background-color:#fdd">  void set_null() {
+    mark_defined();
+    m_pRef-&gt;set_null();
+  }</span>
+<span style = "background-color:#dfd">  void set_scalar(const std::string&amp; scalar) {
+    mark_defined();
+    m_pRef-&gt;set_scalar(scalar);
+  }
+  void set_tag(const std::string&amp; tag) {
+    mark_defined();
+    m_pRef-&gt;set_tag(tag);
+  }</span>
+
+  // style
+<span style = "background-color:#dfd">  void set_style(EmitterStyle::value style) {
+    mark_defined();
+    m_pRef-&gt;set_style(style);
+  }</span>
+
+  // size/iterator
+  std::size_t size() const { return m_pRef-&gt;size(); }
+
+  const_node_iterator begin() const {
+    return static_cast&lt;const node_ref&amp;&gt;(*m_pRef).begin();
+  }
+<span style = "background-color:#dfd">  node_iterator begin() { return m_pRef-&gt;begin(); }</span>
+
+  const_node_iterator end() const {
+    return static_cast&lt;const node_ref&amp;&gt;(*m_pRef).end();
+  }
+<span style = "background-color:#dfd">  node_iterator end() { return m_pRef-&gt;end(); }</span>
+
+  // sequence
+<span style = "background-color:#dfd">  void push_back(node&amp; input, shared_memory_holder pMemory) {
+    m_pRef-&gt;push_back(input, pMemory);
+    input.add_dependency(*this);
+    m_index = m_amount.fetch_add(1);
+  }
+  void insert(node&amp; key, node&amp; value, shared_memory_holder pMemory) {
+    m_pRef-&gt;insert(key, value, pMemory);
+    key.add_dependency(*this);
+    value.add_dependency(*this);
+  }</span>
+
+  // indexing
+  template &lt;typename Key&gt;
+  node* get(const Key&amp; key, shared_memory_holder pMemory) const {
+    // NOTE: this returns a non-const node so that the top-level Node can wrap
+    // it, and returns a pointer so that it can be nullptr (if there is no such
+    // key).
+    return static_cast&lt;const node_ref&amp;&gt;(*m_pRef).get(key, pMemory);
+  }
+  template &lt;typename Key&gt;
+<span style = "background-color:#dfd">  node&amp; get(const Key&amp; key, shared_memory_holder pMemory) {
+    node&amp; value = m_pRef-&gt;get(key, pMemory);
+    value.add_dependency(*this);
+    return value;
+  }</span>
+  template &lt;typename Key&gt;
+  bool remove(const Key&amp; key, shared_memory_holder pMemory) {
+    return m_pRef-&gt;remove(key, pMemory);
+  }
+
+  node* get(node&amp; key, shared_memory_holder pMemory) const {
+    // NOTE: this returns a non-const node so that the top-level Node can wrap
+    // it, and returns a pointer so that it can be nullptr (if there is no such
+    // key).
+    return static_cast&lt;const node_ref&amp;&gt;(*m_pRef).get(key, pMemory);
+  }
+  node&amp; get(node&amp; key, shared_memory_holder pMemory) {
+    node&amp; value = m_pRef-&gt;get(key, pMemory);
+    key.add_dependency(*this);
+    value.add_dependency(*this);
+    return value;
+  }
+  bool remove(node&amp; key, shared_memory_holder pMemory) {
+    return m_pRef-&gt;remove(key, pMemory);
+  }
+
+  // map
+  template &lt;typename Key, typename Value&gt;
+  void force_insert(const Key&amp; key, const Value&amp; value,
+                    shared_memory_holder pMemory) {
+    m_pRef-&gt;force_insert(key, value, pMemory);
+  }
+
+ private:
+  shared_node_ref m_pRef;
+  using nodes = std::set&lt;node*, less&gt;;
+  nodes m_dependencies;
+  size_t m_index;
+  static std::atomic&lt;size_t&gt; m_amount;
+};
+}  // namespace detail
+}  // namespace YAML
+
+#endif  // NODE_DETAIL_NODE_H_62B23520_7C8E_11DE_8A39_0800200C9A66</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

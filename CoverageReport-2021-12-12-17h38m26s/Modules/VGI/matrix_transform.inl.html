@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>matrix_transform.inl</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+namespace glm
+{
+	template&lt;typename genType&gt;
+	GLM_FUNC_QUALIFIER GLM_CONSTEXPR genType identity()
+	{
+		return detail::init_gentype&lt;genType, detail::genTypeTrait&lt;genType&gt;::GENTYPE&gt;::identity();
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; translate(mat&lt;4, 4, T, Q&gt; const&amp; m, vec&lt;3, T, Q&gt; const&amp; v)
+<span style = "background-color:#dfd">	{
+		mat&lt;4, 4, T, Q&gt; Result(m);
+		Result[3] = m[0] * v[0] + m[1] * v[1] + m[2] * v[2] + m[3];
+		return Result;
+	}</span>
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; rotate(mat&lt;4, 4, T, Q&gt; const&amp; m, T angle, vec&lt;3, T, Q&gt; const&amp; v)
+<span style = "background-color:#dfd">	{
+		T const a = angle;
+		T const c = cos(a);
+		T const s = sin(a);</span>
+
+<span style = "background-color:#dfd">		vec&lt;3, T, Q&gt; axis(normalize(v));
+		vec&lt;3, T, Q&gt; temp((T(1) - c) * axis);</span>
+
+		mat&lt;4, 4, T, Q&gt; Rotate;
+<span style = "background-color:#dfd">		Rotate[0][0] = c + temp[0] * axis[0];
+		Rotate[0][1] = temp[0] * axis[1] + s * axis[2];
+		Rotate[0][2] = temp[0] * axis[2] - s * axis[1];</span>
+
+<span style = "background-color:#dfd">		Rotate[1][0] = temp[1] * axis[0] - s * axis[2];
+		Rotate[1][1] = c + temp[1] * axis[1];
+		Rotate[1][2] = temp[1] * axis[2] + s * axis[0];</span>
+
+<span style = "background-color:#dfd">		Rotate[2][0] = temp[2] * axis[0] + s * axis[1];
+		Rotate[2][1] = temp[2] * axis[1] - s * axis[0];
+		Rotate[2][2] = c + temp[2] * axis[2];</span>
+
+		mat&lt;4, 4, T, Q&gt; Result;
+<span style = "background-color:#dfd">		Result[0] = m[0] * Rotate[0][0] + m[1] * Rotate[0][1] + m[2] * Rotate[0][2];
+		Result[1] = m[0] * Rotate[1][0] + m[1] * Rotate[1][1] + m[2] * Rotate[1][2];
+		Result[2] = m[0] * Rotate[2][0] + m[1] * Rotate[2][1] + m[2] * Rotate[2][2];
+		Result[3] = m[3];
+		return Result;
+	}</span>
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; rotate_slow(mat&lt;4, 4, T, Q&gt; const&amp; m, T angle, vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		T const a = angle;
+		T const c = cos(a);
+		T const s = sin(a);
+		mat&lt;4, 4, T, Q&gt; Result;
+
+		vec&lt;3, T, Q&gt; axis = normalize(v);
+
+		Result[0][0] = c + (static_cast&lt;T&gt;(1) - c)      * axis.x     * axis.x;
+		Result[0][1] = (static_cast&lt;T&gt;(1) - c) * axis.x * axis.y + s * axis.z;
+		Result[0][2] = (static_cast&lt;T&gt;(1) - c) * axis.x * axis.z - s * axis.y;
+		Result[0][3] = static_cast&lt;T&gt;(0);
+
+		Result[1][0] = (static_cast&lt;T&gt;(1) - c) * axis.y * axis.x - s * axis.z;
+		Result[1][1] = c + (static_cast&lt;T&gt;(1) - c) * axis.y * axis.y;
+		Result[1][2] = (static_cast&lt;T&gt;(1) - c) * axis.y * axis.z + s * axis.x;
+		Result[1][3] = static_cast&lt;T&gt;(0);
+
+		Result[2][0] = (static_cast&lt;T&gt;(1) - c) * axis.z * axis.x + s * axis.y;
+		Result[2][1] = (static_cast&lt;T&gt;(1) - c) * axis.z * axis.y - s * axis.x;
+		Result[2][2] = c + (static_cast&lt;T&gt;(1) - c) * axis.z * axis.z;
+		Result[2][3] = static_cast&lt;T&gt;(0);
+
+		Result[3] = vec&lt;4, T, Q&gt;(0, 0, 0, 1);
+		return m * Result;
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; scale(mat&lt;4, 4, T, Q&gt; const&amp; m, vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		mat&lt;4, 4, T, Q&gt; Result;
+		Result[0] = m[0] * v[0];
+		Result[1] = m[1] * v[1];
+		Result[2] = m[2] * v[2];
+		Result[3] = m[3];
+		return Result;
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; scale_slow(mat&lt;4, 4, T, Q&gt; const&amp; m, vec&lt;3, T, Q&gt; const&amp; v)
+	{
+		mat&lt;4, 4, T, Q&gt; Result(T(1));
+		Result[0][0] = v.x;
+		Result[1][1] = v.y;
+		Result[2][2] = v.z;
+		return m * Result;
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; lookAtRH(vec&lt;3, T, Q&gt; const&amp; eye, vec&lt;3, T, Q&gt; const&amp; center, vec&lt;3, T, Q&gt; const&amp; up)
+<span style = "background-color:#dfd">	{
+		vec&lt;3, T, Q&gt; const f(normalize(center - eye));
+		vec&lt;3, T, Q&gt; const s(normalize(cross(f, up)));
+		vec&lt;3, T, Q&gt; const u(cross(s, f));</span>
+
+<span style = "background-color:#dfd">		mat&lt;4, 4, T, Q&gt; Result(1);
+		Result[0][0] = s.x;
+		Result[1][0] = s.y;
+		Result[2][0] = s.z;
+		Result[0][1] = u.x;
+		Result[1][1] = u.y;
+		Result[2][1] = u.z;
+		Result[0][2] =-f.x;
+		Result[1][2] =-f.y;
+		Result[2][2] =-f.z;
+		Result[3][0] =-dot(s, eye);
+		Result[3][1] =-dot(u, eye);
+		Result[3][2] = dot(f, eye);
+		return Result;
+	}</span>
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; lookAtLH(vec&lt;3, T, Q&gt; const&amp; eye, vec&lt;3, T, Q&gt; const&amp; center, vec&lt;3, T, Q&gt; const&amp; up)
+	{
+		vec&lt;3, T, Q&gt; const f(normalize(center - eye));
+		vec&lt;3, T, Q&gt; const s(normalize(cross(up, f)));
+		vec&lt;3, T, Q&gt; const u(cross(f, s));
+
+		mat&lt;4, 4, T, Q&gt; Result(1);
+		Result[0][0] = s.x;
+		Result[1][0] = s.y;
+		Result[2][0] = s.z;
+		Result[0][1] = u.x;
+		Result[1][1] = u.y;
+		Result[2][1] = u.z;
+		Result[0][2] = f.x;
+		Result[1][2] = f.y;
+		Result[2][2] = f.z;
+		Result[3][0] = -dot(s, eye);
+		Result[3][1] = -dot(u, eye);
+		Result[3][2] = -dot(f, eye);
+		return Result;
+	}
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_QUALIFIER mat&lt;4, 4, T, Q&gt; lookAt(vec&lt;3, T, Q&gt; const&amp; eye, vec&lt;3, T, Q&gt; const&amp; center, vec&lt;3, T, Q&gt; const&amp; up)
+<span style = "background-color:#dfd">	{</span>
+#       if (GLM_CONFIG_CLIP_CONTROL &amp; GLM_CLIP_CONTROL_LH_BIT)
+            return lookAtLH(eye, center, up);
+#       else
+<span style = "background-color:#dfd">            return lookAtRH(eye, center, up);</span>
+#       endif
+<span style = "background-color:#dfd">	}</span>
+}//namespace glm</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,277 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>scanscalar.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include "scanscalar.h"
+
+#include &lt;algorithm&gt;
+
+#include "exp.h"
+#include "regeximpl.h"
+#include "stream.h"
+#include "yaml-cpp/exceptions.h"  // IWYU pragma: keep
+
+namespace YAML {
+// ScanScalar
+// . This is where the scalar magic happens.
+//
+// . We do the scanning in three phases:
+//   1. Scan until newline
+//   2. Eat newline
+//   3. Scan leading blanks.
+//
+// . Depending on the parameters given, we store or stop
+//   and different places in the above flow.
+<span style = "background-color:#dfd">std::string ScanScalar(Stream&amp; INPUT, ScanScalarParams&amp; params) {
+  bool foundNonEmptyLine = false;
+  bool pastOpeningBreak = (params.fold == FOLD_FLOW);
+  bool emptyLine = false, moreIndented = false;
+  int foldedNewlineCount = 0;
+  bool foldedNewlineStartedMoreIndented = false;
+  std::size_t lastEscapedChar = std::string::npos;
+  std::string scalar;
+  params.leadingSpaces = false;</span>
+
+<span style = "background-color:#dfd">  if (!params.end) {</span>
+<span style = "background-color:#fdd">    params.end = &amp;Exp::Empty();</span>
+  }
+
+<span style = "background-color:#dfd">  while (INPUT) {</span>
+    // ********************************
+    // Phase #1: scan until line ending
+
+<span style = "background-color:#dfd">    std::size_t lastNonWhitespaceChar = scalar.size();
+    bool escapedNewline = false;
+    while (!params.end-&gt;Matches(INPUT) &amp;&amp; !Exp::Break().Matches(INPUT)) {
+      if (!INPUT) {
+        break;</span>
+      }
+
+      // document indicator?
+<span style = "background-color:#dfd">      if (INPUT.column() == 0 &amp;&amp; Exp::DocIndicator().Matches(INPUT)) {</span>
+<span style = "background-color:#fdd">        if (params.onDocIndicator == BREAK) {
+          break;</span>
+        }
+<span style = "background-color:#fdd">        if (params.onDocIndicator == THROW) {
+          throw ParserException(INPUT.mark(), ErrorMsg::DOC_IN_SCALAR);</span>
+        }
+      }
+
+<span style = "background-color:#dfd">      foundNonEmptyLine = true;
+      pastOpeningBreak = true;</span>
+
+      // escaped newline? (only if we're escaping on slash)
+<span style = "background-color:#dfd">      if (params.escape == '\\' &amp;&amp; Exp::EscBreak().Matches(INPUT)) {</span>
+        // eat escape character and get out (but preserve trailing whitespace!)
+<span style = "background-color:#fdd">        INPUT.get();
+        lastNonWhitespaceChar = scalar.size();
+        lastEscapedChar = scalar.size();
+        escapedNewline = true;
+        break;</span>
+      }
+
+      // escape this?
+<span style = "background-color:#dfd">      if (INPUT.peek() == params.escape) {</span>
+<span style = "background-color:#fdd">        scalar += Exp::Escape(INPUT);
+        lastNonWhitespaceChar = scalar.size();
+        lastEscapedChar = scalar.size();
+        continue;</span>
+      }
+
+      // otherwise, just add the damn character
+<span style = "background-color:#dfd">      char ch = INPUT.get();
+      scalar += ch;
+      if (ch != ' ' &amp;&amp; ch != '\t') {
+        lastNonWhitespaceChar = scalar.size();</span>
+      }
+<span style = "background-color:#dfd">    }</span>
+
+    // eof? if we're looking to eat something, then we throw
+<span style = "background-color:#dfd">    if (!INPUT) {
+      if (params.eatEnd) {</span>
+<span style = "background-color:#fdd">        throw ParserException(INPUT.mark(), ErrorMsg::EOF_IN_SCALAR);</span>
+      }
+<span style = "background-color:#dfd">      break;</span>
+    }
+
+    // doc indicator?
+<span style = "background-color:#dfd">    if (params.onDocIndicator == BREAK &amp;&amp; INPUT.column() == 0 &amp;&amp;</span>
+        Exp::DocIndicator().Matches(INPUT)) {
+<span style = "background-color:#fdd">      break;</span>
+    }
+
+    // are we done via character match?
+<span style = "background-color:#dfd">    int n = params.end-&gt;Match(INPUT);
+    if (n &gt;= 0) {
+      if (params.eatEnd) {
+        INPUT.eat(n);</span>
+      }
+<span style = "background-color:#dfd">      break;</span>
+    }
+
+    // do we remove trailing whitespace?
+<span style = "background-color:#dfd">    if (params.fold == FOLD_FLOW)
+      scalar.erase(lastNonWhitespaceChar);</span>
+
+    // ********************************
+    // Phase #2: eat line ending
+<span style = "background-color:#dfd">    n = Exp::Break().Match(INPUT);
+    INPUT.eat(n);</span>
+
+    // ********************************
+    // Phase #3: scan initial spaces
+
+    // first the required indentation
+    while (INPUT.peek() == ' ' &amp;&amp;
+           (INPUT.column() &lt; params.indent ||
+<span style = "background-color:#dfd">            (params.detectIndent &amp;&amp; !foundNonEmptyLine)) &amp;&amp;</span>
+           !params.end-&gt;Matches(INPUT)) {
+<span style = "background-color:#dfd">      INPUT.eat(1);
+    }</span>
+
+    // update indent if we're auto-detecting
+<span style = "background-color:#dfd">    if (params.detectIndent &amp;&amp; !foundNonEmptyLine) {</span>
+<span style = "background-color:#fdd">      params.indent = std::max(params.indent, INPUT.column());</span>
+    }
+
+    // and then the rest of the whitespace
+<span style = "background-color:#dfd">    while (Exp::Blank().Matches(INPUT)) {</span>
+      // we check for tabs that masquerade as indentation
+<span style = "background-color:#fdd">      if (INPUT.peek() == '\t' &amp;&amp; INPUT.column() &lt; params.indent &amp;&amp;</span>
+          params.onTabInIndentation == THROW) {
+<span style = "background-color:#fdd">        throw ParserException(INPUT.mark(), ErrorMsg::TAB_IN_INDENTATION);</span>
+      }
+
+<span style = "background-color:#fdd">      if (!params.eatLeadingWhitespace) {
+        break;</span>
+      }
+
+<span style = "background-color:#fdd">      if (params.end-&gt;Matches(INPUT)) {
+        break;</span>
+      }
+
+<span style = "background-color:#fdd">      INPUT.eat(1);
+    }</span>
+
+    // was this an empty line?
+<span style = "background-color:#dfd">    bool nextEmptyLine = Exp::Break().Matches(INPUT);
+    bool nextMoreIndented = Exp::Blank().Matches(INPUT);
+    if (params.fold == FOLD_BLOCK &amp;&amp; foldedNewlineCount == 0 &amp;&amp; nextEmptyLine)</span>
+<span style = "background-color:#fdd">      foldedNewlineStartedMoreIndented = moreIndented;</span>
+
+    // for block scalars, we always start with a newline, so we should ignore it
+    // (not fold or keep)
+<span style = "background-color:#dfd">    if (pastOpeningBreak) {
+      switch (params.fold) {</span>
+        case DONT_FOLD:
+<span style = "background-color:#fdd">          scalar += "\n";
+          break;</span>
+        case FOLD_BLOCK:
+          if (!emptyLine &amp;&amp; !nextEmptyLine &amp;&amp; !moreIndented &amp;&amp;
+<span style = "background-color:#fdd">              !nextMoreIndented &amp;&amp; INPUT.column() &gt;= params.indent) {
+            scalar += " ";
+          } else if (nextEmptyLine) {
+            foldedNewlineCount++;
+          } else {
+            scalar += "\n";</span>
+          }
+
+<span style = "background-color:#fdd">          if (!nextEmptyLine &amp;&amp; foldedNewlineCount &gt; 0) {
+            scalar += std::string(foldedNewlineCount - 1, '\n');
+            if (foldedNewlineStartedMoreIndented ||</span>
+                nextMoreIndented | !foundNonEmptyLine) {
+<span style = "background-color:#fdd">              scalar += "\n";</span>
+            }
+<span style = "background-color:#fdd">            foldedNewlineCount = 0;</span>
+          }
+<span style = "background-color:#fdd">          break;</span>
+        case FOLD_FLOW:
+<span style = "background-color:#dfd">          if (nextEmptyLine) {</span>
+<span style = "background-color:#fdd">            scalar += "\n";</span>
+<span style = "background-color:#dfd">          } else if (!emptyLine &amp;&amp; !escapedNewline) {
+            scalar += " ";</span>
+          }
+          break;
+      }
+    }
+
+<span style = "background-color:#dfd">    emptyLine = nextEmptyLine;
+    moreIndented = nextMoreIndented;
+    pastOpeningBreak = true;</span>
+
+    // are we done via indentation?
+<span style = "background-color:#dfd">    if (!emptyLine &amp;&amp; INPUT.column() &lt; params.indent) {
+      params.leadingSpaces = true;
+      break;</span>
+    }
+<span style = "background-color:#fdd">  }</span>
+
+  // post-processing
+<span style = "background-color:#dfd">  if (params.trimTrailingSpaces) {
+    std::size_t pos = scalar.find_last_not_of(" \t");
+    if (lastEscapedChar != std::string::npos) {</span>
+<span style = "background-color:#fdd">      if (pos &lt; lastEscapedChar || pos == std::string::npos) {
+        pos = lastEscapedChar;</span>
+      }
+    }
+<span style = "background-color:#dfd">    if (pos &lt; scalar.size()) {
+      scalar.erase(pos + 1);</span>
+    }
+  }
+
+<span style = "background-color:#dfd">  switch (params.chomp) {</span>
+    case CLIP: {
+<span style = "background-color:#dfd">      std::size_t pos = scalar.find_last_not_of('\n');
+      if (lastEscapedChar != std::string::npos) {</span>
+<span style = "background-color:#fdd">        if (pos &lt; lastEscapedChar || pos == std::string::npos) {
+          pos = lastEscapedChar;</span>
+        }
+      }
+<span style = "background-color:#dfd">      if (pos == std::string::npos) {</span>
+<span style = "background-color:#fdd">        scalar.erase();</span>
+<span style = "background-color:#dfd">      } else if (pos + 1 &lt; scalar.size()) {</span>
+<span style = "background-color:#fdd">        scalar.erase(pos + 2);</span>
+      }
+<span style = "background-color:#dfd">    } break;</span>
+    case STRIP: {
+<span style = "background-color:#dfd">      std::size_t pos = scalar.find_last_not_of('\n');
+      if (lastEscapedChar != std::string::npos) {</span>
+<span style = "background-color:#fdd">        if (pos &lt; lastEscapedChar || pos == std::string::npos) {
+          pos = lastEscapedChar;</span>
+        }
+      }
+<span style = "background-color:#dfd">      if (pos == std::string::npos) {</span>
+<span style = "background-color:#fdd">        scalar.erase();</span>
+<span style = "background-color:#dfd">      } else if (pos &lt; scalar.size()) {
+        scalar.erase(pos + 1);</span>
+      }
+    } break;
+    default:
+      break;
+  }
+
+<span style = "background-color:#dfd">  return scalar;
+}</span>
+}  // namespace YAML</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

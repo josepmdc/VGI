@@ -1,0 +1,145 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>parser.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include &lt;cstdio&gt;
+#include &lt;sstream&gt;
+
+#include "directives.h"  // IWYU pragma: keep
+#include "scanner.h"     // IWYU pragma: keep
+#include "singledocparser.h"
+#include "token.h"
+#include "yaml-cpp/exceptions.h"  // IWYU pragma: keep
+#include "yaml-cpp/parser.h"
+
+namespace YAML {
+class EventHandler;
+
+<span style = "background-color:#dfd">Parser::Parser() : m_pScanner{}, m_pDirectives{} {}</span>
+
+<span style = "background-color:#dfd">Parser::Parser(std::istream&amp; in) : Parser() { Load(in); }</span>
+
+<span style = "background-color:#dfd">Parser::~Parser() = default;</span>
+
+<span style = "background-color:#fdd">Parser::operator bool() const { return m_pScanner &amp;&amp; !m_pScanner-&gt;empty(); }</span>
+
+<span style = "background-color:#dfd">void Parser::Load(std::istream&amp; in) {
+  m_pScanner.reset(new Scanner(in));
+  m_pDirectives.reset(new Directives);
+}</span>
+
+<span style = "background-color:#dfd">bool Parser::HandleNextDocument(EventHandler&amp; eventHandler) {
+  if (!m_pScanner)</span>
+<span style = "background-color:#fdd">    return false;</span>
+
+<span style = "background-color:#dfd">  ParseDirectives();
+  if (m_pScanner-&gt;empty()) {</span>
+<span style = "background-color:#fdd">    return false;</span>
+  }
+
+<span style = "background-color:#dfd">  SingleDocParser sdp(*m_pScanner, *m_pDirectives);
+  sdp.HandleDocument(eventHandler);
+  return true;
+}</span>
+
+<span style = "background-color:#dfd">void Parser::ParseDirectives() {
+  bool readDirective = false;</span>
+
+<span style = "background-color:#dfd">  while (!m_pScanner-&gt;empty()) {
+    Token&amp; token = m_pScanner-&gt;peek();
+    if (token.type != Token::DIRECTIVE) {
+      break;</span>
+    }
+
+    // we keep the directives from the last document if none are specified;
+    // but if any directives are specific, then we reset them
+<span style = "background-color:#fdd">    if (!readDirective) {
+      m_pDirectives.reset(new Directives);</span>
+    }
+
+<span style = "background-color:#fdd">    readDirective = true;
+    HandleDirective(token);
+    m_pScanner-&gt;pop();
+  }</span>
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#fdd">void Parser::HandleDirective(const Token&amp; token) {
+  if (token.value == "YAML") {
+    HandleYamlDirective(token);
+  } else if (token.value == "TAG") {
+    HandleTagDirective(token);</span>
+  }
+<span style = "background-color:#fdd">}</span>
+
+<span style = "background-color:#fdd">void Parser::HandleYamlDirective(const Token&amp; token) {
+  if (token.params.size() != 1) {
+    throw ParserException(token.mark, ErrorMsg::YAML_DIRECTIVE_ARGS);</span>
+  }
+
+<span style = "background-color:#fdd">  if (!m_pDirectives-&gt;version.isDefault) {
+    throw ParserException(token.mark, ErrorMsg::REPEATED_YAML_DIRECTIVE);</span>
+  }
+
+<span style = "background-color:#fdd">  std::stringstream str(token.params[0]);
+  str &gt;&gt; m_pDirectives-&gt;version.major;
+  str.get();
+  str &gt;&gt; m_pDirectives-&gt;version.minor;
+  if (!str || str.peek() != EOF) {
+    throw ParserException(</span>
+        token.mark, std::string(ErrorMsg::YAML_VERSION) + token.params[0]);
+  }
+
+<span style = "background-color:#fdd">  if (m_pDirectives-&gt;version.major &gt; 1) {
+    throw ParserException(token.mark, ErrorMsg::YAML_MAJOR_VERSION);</span>
+  }
+
+<span style = "background-color:#fdd">  m_pDirectives-&gt;version.isDefault = false;</span>
+  // TODO: warning on major == 1, minor &gt; 2?
+<span style = "background-color:#fdd">}</span>
+
+<span style = "background-color:#fdd">void Parser::HandleTagDirective(const Token&amp; token) {
+  if (token.params.size() != 2)
+    throw ParserException(token.mark, ErrorMsg::TAG_DIRECTIVE_ARGS);</span>
+
+<span style = "background-color:#fdd">  const std::string&amp; handle = token.params[0];
+  const std::string&amp; prefix = token.params[1];
+  if (m_pDirectives-&gt;tags.find(handle) != m_pDirectives-&gt;tags.end()) {
+    throw ParserException(token.mark, ErrorMsg::REPEATED_TAG_DIRECTIVE);</span>
+  }
+
+<span style = "background-color:#fdd">  m_pDirectives-&gt;tags[handle] = prefix;
+}</span>
+
+<span style = "background-color:#fdd">void Parser::PrintTokens(std::ostream&amp; out) {
+  if (!m_pScanner) {
+    return;</span>
+  }
+
+<span style = "background-color:#fdd">  while (!m_pScanner-&gt;empty()) {
+    out &lt;&lt; m_pScanner-&gt;peek() &lt;&lt; "\n";
+    m_pScanner-&gt;pop();
+  }
+}</span>
+}  // namespace YAML</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

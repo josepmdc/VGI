@@ -1,0 +1,417 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>scanner.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include &lt;cassert&gt;
+#include &lt;memory&gt;
+
+#include "exp.h"
+#include "scanner.h"
+#include "token.h"
+#include "yaml-cpp/exceptions.h"  // IWYU pragma: keep
+
+namespace YAML {
+Scanner::Scanner(std::istream&amp; in)
+<span style = "background-color:#dfd">    : INPUT(in),
+      m_tokens{},
+      m_startedStream(false),
+      m_endedStream(false),
+      m_simpleKeyAllowed(false),
+      m_canBeJSONFlow(false),
+      m_simpleKeys{},
+      m_indents{},
+      m_indentRefs{},
+      m_flows{} {}</span>
+
+<span style = "background-color:#dfd">Scanner::~Scanner() = default;</span>
+
+<span style = "background-color:#dfd">bool Scanner::empty() {
+  EnsureTokensInQueue();
+  return m_tokens.empty();
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::pop() {
+  EnsureTokensInQueue();
+  if (!m_tokens.empty())
+    m_tokens.pop();
+}</span>
+
+<span style = "background-color:#dfd">Token&amp; Scanner::peek() {
+  EnsureTokensInQueue();
+  assert(!m_tokens.empty());  // should we be asserting here? I mean, we really</span>
+                              // just be checking
+                              // if it's empty before peeking.
+
+#if 0
+		static Token *pLast = 0;
+		if(pLast != &amp;m_tokens.front())
+			std::cerr &lt;&lt; "peek: " &lt;&lt; m_tokens.front() &lt;&lt; "\n";
+		pLast = &amp;m_tokens.front();
+#endif
+
+<span style = "background-color:#dfd">  return m_tokens.front();
+}</span>
+
+<span style = "background-color:#dfd">Mark Scanner::mark() const { return INPUT.mark(); }</span>
+
+<span style = "background-color:#dfd">void Scanner::EnsureTokensInQueue() {
+  while (true) {
+    if (!m_tokens.empty()) {
+      Token&amp; token = m_tokens.front();</span>
+
+      // if this guy's valid, then we're done
+<span style = "background-color:#dfd">      if (token.status == Token::VALID) {
+        return;</span>
+      }
+
+      // here's where we clean up the impossible tokens
+<span style = "background-color:#dfd">      if (token.status == Token::INVALID) {
+        m_tokens.pop();
+        continue;</span>
+      }
+
+      // note: what's left are the unverified tokens
+    }
+
+    // no token? maybe we've actually finished
+<span style = "background-color:#dfd">    if (m_endedStream) {
+      return;</span>
+    }
+
+    // no? then scan...
+<span style = "background-color:#dfd">    ScanNextToken();
+  }
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::ScanNextToken() {
+  if (m_endedStream) {</span>
+<span style = "background-color:#fdd">    return;</span>
+  }
+
+<span style = "background-color:#dfd">  if (!m_startedStream) {
+    return StartStream();</span>
+  }
+
+  // get rid of whitespace, etc. (in between tokens it should be irrelevant)
+<span style = "background-color:#dfd">  ScanToNextToken();</span>
+
+  // maybe need to end some blocks
+<span style = "background-color:#dfd">  PopIndentToHere();</span>
+
+  // *****
+  // And now branch based on the next few characters!
+  // *****
+
+  // end of stream
+<span style = "background-color:#dfd">  if (!INPUT) {
+    return EndStream();</span>
+  }
+
+<span style = "background-color:#dfd">  if (INPUT.column() == 0 &amp;&amp; INPUT.peek() == Keys::Directive) {</span>
+<span style = "background-color:#fdd">    return ScanDirective();</span>
+  }
+
+  // document token
+<span style = "background-color:#dfd">  if (INPUT.column() == 0 &amp;&amp; Exp::DocStart().Matches(INPUT)) {</span>
+<span style = "background-color:#fdd">    return ScanDocStart();</span>
+  }
+
+<span style = "background-color:#dfd">  if (INPUT.column() == 0 &amp;&amp; Exp::DocEnd().Matches(INPUT)) {</span>
+<span style = "background-color:#fdd">    return ScanDocEnd();</span>
+  }
+
+  // flow start/end/entry
+<span style = "background-color:#dfd">  if (INPUT.peek() == Keys::FlowSeqStart ||</span>
+      INPUT.peek() == Keys::FlowMapStart) {
+<span style = "background-color:#dfd">    return ScanFlowStart();</span>
+  }
+
+<span style = "background-color:#dfd">  if (INPUT.peek() == Keys::FlowSeqEnd || INPUT.peek() == Keys::FlowMapEnd) {
+    return ScanFlowEnd();</span>
+  }
+
+<span style = "background-color:#dfd">  if (INPUT.peek() == Keys::FlowEntry) {
+    return ScanFlowEntry();</span>
+  }
+
+  // block/map stuff
+<span style = "background-color:#dfd">  if (Exp::BlockEntry().Matches(INPUT)) {</span>
+<span style = "background-color:#fdd">    return ScanBlockEntry();</span>
+  }
+
+<span style = "background-color:#dfd">  if ((InBlockContext() ? Exp::Key() : Exp::KeyInFlow()).Matches(INPUT)) {</span>
+<span style = "background-color:#fdd">    return ScanKey();</span>
+  }
+
+<span style = "background-color:#dfd">  if (GetValueRegex().Matches(INPUT)) {
+    return ScanValue();</span>
+  }
+
+  // alias/anchor
+<span style = "background-color:#dfd">  if (INPUT.peek() == Keys::Alias || INPUT.peek() == Keys::Anchor) {</span>
+<span style = "background-color:#fdd">    return ScanAnchorOrAlias();</span>
+  }
+
+  // tag
+<span style = "background-color:#dfd">  if (INPUT.peek() == Keys::Tag) {</span>
+<span style = "background-color:#fdd">    return ScanTag();</span>
+  }
+
+  // special scalars
+<span style = "background-color:#dfd">  if (InBlockContext() &amp;&amp; (INPUT.peek() == Keys::LiteralScalar ||</span>
+                           INPUT.peek() == Keys::FoldedScalar)) {
+<span style = "background-color:#fdd">    return ScanBlockScalar();</span>
+  }
+
+<span style = "background-color:#dfd">  if (INPUT.peek() == '\'' || INPUT.peek() == '\"') {
+    return ScanQuotedScalar();</span>
+  }
+
+  // plain scalars
+  if ((InBlockContext() ? Exp::PlainScalar() : Exp::PlainScalarInFlow())
+<span style = "background-color:#dfd">          .Matches(INPUT)) {
+    return ScanPlainScalar();</span>
+  }
+
+  // don't know what it is!
+<span style = "background-color:#fdd">  throw ParserException(INPUT.mark(), ErrorMsg::UNKNOWN_TOKEN);</span>
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#dfd">void Scanner::ScanToNextToken() {
+  while (true) {</span>
+    // first eat whitespace
+<span style = "background-color:#dfd">    while (INPUT &amp;&amp; IsWhitespaceToBeEaten(INPUT.peek())) {
+      if (InBlockContext() &amp;&amp; Exp::Tab().Matches(INPUT)) {</span>
+<span style = "background-color:#fdd">        m_simpleKeyAllowed = false;</span>
+      }
+<span style = "background-color:#dfd">      INPUT.eat(1);
+    }</span>
+
+    // then eat a comment
+<span style = "background-color:#dfd">    if (Exp::Comment().Matches(INPUT)) {</span>
+      // eat until line break
+<span style = "background-color:#fdd">      while (INPUT &amp;&amp; !Exp::Break().Matches(INPUT)) {
+        INPUT.eat(1);
+      }</span>
+    }
+
+    // if it's NOT a line break, then we're done!
+<span style = "background-color:#dfd">    if (!Exp::Break().Matches(INPUT)) {
+      break;</span>
+    }
+
+    // otherwise, let's eat the line break and keep going
+<span style = "background-color:#dfd">    int n = Exp::Break().Match(INPUT);
+    INPUT.eat(n);</span>
+
+    // oh yeah, and let's get rid of that simple key
+<span style = "background-color:#dfd">    InvalidateSimpleKey();</span>
+
+    // new line - we may be able to accept a simple key now
+<span style = "background-color:#dfd">    if (InBlockContext()) {
+      m_simpleKeyAllowed = true;</span>
+    }
+<span style = "background-color:#dfd">  }
+}</span>
+
+///////////////////////////////////////////////////////////////////////
+// Misc. helpers
+
+// IsWhitespaceToBeEaten
+// . We can eat whitespace if it's a space or tab
+// . Note: originally tabs in block context couldn't be eaten
+//         "where a simple key could be allowed
+//         (i.e., not at the beginning of a line, or following '-', '?', or
+// ':')"
+//   I think this is wrong, since tabs can be non-content whitespace; it's just
+//   that they can't contribute to indentation, so once you've seen a tab in a
+//   line, you can't start a simple key
+<span style = "background-color:#dfd">bool Scanner::IsWhitespaceToBeEaten(char ch) {
+  if (ch == ' ') {
+    return true;</span>
+  }
+
+<span style = "background-color:#dfd">  if (ch == '\t') {</span>
+<span style = "background-color:#fdd">    return true;</span>
+  }
+
+<span style = "background-color:#dfd">  return false;
+}</span>
+
+<span style = "background-color:#dfd">const RegEx&amp; Scanner::GetValueRegex() const {
+  if (InBlockContext()) {
+    return Exp::Value();</span>
+  }
+
+<span style = "background-color:#dfd">  return m_canBeJSONFlow ? Exp::ValueInJSONFlow() : Exp::ValueInFlow();
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::StartStream() {
+  m_startedStream = true;
+  m_simpleKeyAllowed = true;
+  std::unique_ptr&lt;IndentMarker&gt; pIndent(</span>
+      new IndentMarker(-1, IndentMarker::NONE));
+<span style = "background-color:#dfd">  m_indentRefs.push_back(std::move(pIndent));
+  m_indents.push(&amp;m_indentRefs.back());
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::EndStream() {</span>
+  // force newline
+<span style = "background-color:#dfd">  if (INPUT.column() &gt; 0) {
+    INPUT.ResetColumn();</span>
+  }
+
+<span style = "background-color:#dfd">  PopAllIndents();
+  PopAllSimpleKeys();</span>
+
+<span style = "background-color:#dfd">  m_simpleKeyAllowed = false;
+  m_endedStream = true;
+}</span>
+
+<span style = "background-color:#dfd">Token* Scanner::PushToken(Token::TYPE type) {
+  m_tokens.push(Token(type, INPUT.mark()));
+  return &amp;m_tokens.back();
+}</span>
+
+<span style = "background-color:#dfd">Token::TYPE Scanner::GetStartTokenFor(IndentMarker::INDENT_TYPE type) const {
+  switch (type) {</span>
+    case IndentMarker::SEQ:
+<span style = "background-color:#fdd">      return Token::BLOCK_SEQ_START;</span>
+    case IndentMarker::MAP:
+<span style = "background-color:#dfd">      return Token::BLOCK_MAP_START;</span>
+    case IndentMarker::NONE:
+<span style = "background-color:#fdd">      assert(false);</span>
+      break;
+  }
+<span style = "background-color:#fdd">  assert(false);
+  throw std::runtime_error("yaml-cpp: internal error, invalid indent type");</span>
+<span style = "background-color:#dfd">}</span>
+
+Scanner::IndentMarker* Scanner::PushIndentTo(int column,
+<span style = "background-color:#dfd">                                             IndentMarker::INDENT_TYPE type) {</span>
+  // are we in flow?
+<span style = "background-color:#dfd">  if (InFlowContext()) {</span>
+<span style = "background-color:#fdd">    return nullptr;</span>
+  }
+
+<span style = "background-color:#dfd">  std::unique_ptr&lt;IndentMarker&gt; pIndent(new IndentMarker(column, type));
+  IndentMarker&amp; indent = *pIndent;
+  const IndentMarker&amp; lastIndent = *m_indents.top();</span>
+
+  // is this actually an indentation?
+<span style = "background-color:#dfd">  if (indent.column &lt; lastIndent.column) {</span>
+<span style = "background-color:#fdd">    return nullptr;</span>
+  }
+<span style = "background-color:#dfd">  if (indent.column == lastIndent.column &amp;&amp;</span>
+      !(indent.type == IndentMarker::SEQ &amp;&amp;
+        lastIndent.type == IndentMarker::MAP)) {
+<span style = "background-color:#dfd">    return nullptr;</span>
+  }
+
+  // push a start token
+<span style = "background-color:#dfd">  indent.pStartToken = PushToken(GetStartTokenFor(type));</span>
+
+  // and then the indent
+<span style = "background-color:#dfd">  m_indents.push(&amp;indent);
+  m_indentRefs.push_back(std::move(pIndent));
+  return &amp;m_indentRefs.back();
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::PopIndentToHere() {</span>
+  // are we in flow?
+<span style = "background-color:#dfd">  if (InFlowContext()) {
+    return;</span>
+  }
+
+  // now pop away
+<span style = "background-color:#dfd">  while (!m_indents.empty()) {
+    const IndentMarker&amp; indent = *m_indents.top();
+    if (indent.column &lt; INPUT.column()) {
+      break;</span>
+    }
+<span style = "background-color:#dfd">    if (indent.column == INPUT.column() &amp;&amp;</span>
+        !(indent.type == IndentMarker::SEQ &amp;&amp;
+          !Exp::BlockEntry().Matches(INPUT))) {
+<span style = "background-color:#dfd">      break;</span>
+    }
+
+<span style = "background-color:#dfd">    PopIndent();
+  }</span>
+
+<span style = "background-color:#dfd">  while (!m_indents.empty() &amp;&amp;</span>
+         m_indents.top()-&gt;status == IndentMarker::INVALID) {
+<span style = "background-color:#fdd">    PopIndent();
+  }</span>
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#dfd">void Scanner::PopAllIndents() {</span>
+  // are we in flow?
+<span style = "background-color:#dfd">  if (InFlowContext()) {</span>
+<span style = "background-color:#fdd">    return;</span>
+  }
+
+  // now pop away
+<span style = "background-color:#dfd">  while (!m_indents.empty()) {
+    const IndentMarker&amp; indent = *m_indents.top();
+    if (indent.type == IndentMarker::NONE) {
+      break;</span>
+    }
+
+<span style = "background-color:#dfd">    PopIndent();
+  }
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::PopIndent() {
+  const IndentMarker&amp; indent = *m_indents.top();
+  m_indents.pop();</span>
+
+<span style = "background-color:#dfd">  if (indent.status != IndentMarker::VALID) {</span>
+<span style = "background-color:#fdd">    InvalidateSimpleKey();
+    return;</span>
+  }
+
+<span style = "background-color:#dfd">  if (indent.type == IndentMarker::SEQ) {</span>
+<span style = "background-color:#fdd">    m_tokens.push(Token(Token::BLOCK_SEQ_END, INPUT.mark()));</span>
+<span style = "background-color:#dfd">  } else if (indent.type == IndentMarker::MAP) {
+    m_tokens.push(Token(Token::BLOCK_MAP_END, INPUT.mark()));</span>
+  }
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#dfd">int Scanner::GetTopIndent() const {
+  if (m_indents.empty()) {</span>
+<span style = "background-color:#fdd">    return 0;</span>
+  }
+<span style = "background-color:#dfd">  return m_indents.top()-&gt;column;
+}</span>
+
+<span style = "background-color:#fdd">void Scanner::ThrowParserException(const std::string&amp; msg) const {
+  Mark mark = Mark::null_mark();
+  if (!m_tokens.empty()) {
+    const Token&amp; token = m_tokens.front();
+    mark = token.mark;</span>
+  }
+<span style = "background-color:#fdd">  throw ParserException(mark, msg);
+}</span>
+}  // namespace YAML</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,248 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>exp.h</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#ifndef EXP_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+#define EXP_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+
+#if defined(_MSC_VER) ||                                            \
+    (defined(__GNUC__) &amp;&amp; (__GNUC__ == 3 &amp;&amp; __GNUC_MINOR__ &gt;= 4) || \
+     (__GNUC__ &gt;= 4))  // GCC supports "pragma once" correctly since 3.4
+#pragma once
+#endif
+
+#include &lt;ios&gt;
+#include &lt;string&gt;
+
+#include "regex_yaml.h"
+#include "stream.h"
+
+namespace YAML {
+////////////////////////////////////////////////////////////////////////////////
+// Here we store a bunch of expressions for matching different parts of the
+// file.
+
+namespace Exp {
+// misc
+<span style = "background-color:#fdd">inline const RegEx&amp; Empty() {
+  static const RegEx e;
+  return e;
+}</span>
+<span style = "background-color:#dfd">inline const RegEx&amp; Space() {
+  static const RegEx e = RegEx(' ');
+  return e;
+}
+inline const RegEx&amp; Tab() {
+  static const RegEx e = RegEx('\t');
+  return e;
+}
+inline const RegEx&amp; Blank() {
+  static const RegEx e = Space() | Tab();
+  return e;
+}
+inline const RegEx&amp; Break() {
+  static const RegEx e = RegEx('\n') | RegEx("\r\n");
+  return e;
+}
+inline const RegEx&amp; BlankOrBreak() {
+  static const RegEx e = Blank() | Break();
+  return e;
+}</span>
+<span style = "background-color:#fdd">inline const RegEx&amp; Digit() {
+  static const RegEx e = RegEx('0', '9');
+  return e;
+}
+inline const RegEx&amp; Alpha() {
+  static const RegEx e = RegEx('a', 'z') | RegEx('A', 'Z');
+  return e;
+}
+inline const RegEx&amp; AlphaNumeric() {
+  static const RegEx e = Alpha() | Digit();
+  return e;
+}
+inline const RegEx&amp; Word() {
+  static const RegEx e = AlphaNumeric() | RegEx('-');
+  return e;
+}
+inline const RegEx&amp; Hex() {
+  static const RegEx e = Digit() | RegEx('A', 'F') | RegEx('a', 'f');
+  return e;
+}</span>
+// Valid Unicode code points that are not part of c-printable (YAML 1.2, sec.
+// 5.1)
+inline const RegEx&amp; NotPrintable() {
+  static const RegEx e =
+      RegEx(0) |
+      RegEx("\x01\x02\x03\x04\x05\x06\x07\x08\x0B\x0C\x7F", REGEX_OR) |
+      RegEx(0x0E, 0x1F) |
+      (RegEx('\xC2') + (RegEx('\x80', '\x84') | RegEx('\x86', '\x9F')));
+  return e;
+}
+inline const RegEx&amp; Utf8_ByteOrderMark() {
+  static const RegEx e = RegEx("\xEF\xBB\xBF");
+  return e;
+}
+
+// actual tags
+
+<span style = "background-color:#dfd">inline const RegEx&amp; DocStart() {
+  static const RegEx e = RegEx("---") + (BlankOrBreak() | RegEx());
+  return e;
+}
+inline const RegEx&amp; DocEnd() {
+  static const RegEx e = RegEx("...") + (BlankOrBreak() | RegEx());
+  return e;
+}
+inline const RegEx&amp; DocIndicator() {
+  static const RegEx e = DocStart() | DocEnd();
+  return e;
+}
+inline const RegEx&amp; BlockEntry() {
+  static const RegEx e = RegEx('-') + (BlankOrBreak() | RegEx());
+  return e;
+}
+inline const RegEx&amp; Key() {
+  static const RegEx e = RegEx('?') + BlankOrBreak();
+  return e;
+}
+inline const RegEx&amp; KeyInFlow() {
+  static const RegEx e = RegEx('?') + BlankOrBreak();
+  return e;
+}
+inline const RegEx&amp; Value() {
+  static const RegEx e = RegEx(':') + (BlankOrBreak() | RegEx());
+  return e;
+}
+inline const RegEx&amp; ValueInFlow() {
+  static const RegEx e = RegEx(':') + (BlankOrBreak() | RegEx(",]}", REGEX_OR));
+  return e;
+}</span>
+<span style = "background-color:#fdd">inline const RegEx&amp; ValueInJSONFlow() {
+  static const RegEx e = RegEx(':');
+  return e;
+}</span>
+<span style = "background-color:#dfd">inline const RegEx Comment() {
+  static const RegEx e = RegEx('#');
+  return e;
+}</span>
+<span style = "background-color:#fdd">inline const RegEx&amp; Anchor() {
+  static const RegEx e = !(RegEx("[]{},", REGEX_OR) | BlankOrBreak());
+  return e;
+}
+inline const RegEx&amp; AnchorEnd() {
+  static const RegEx e = RegEx("?:,]}%@`", REGEX_OR) | BlankOrBreak();
+  return e;
+}
+inline const RegEx&amp; URI() {
+  static const RegEx e = Word() | RegEx("#;/?:@&amp;=+$,_.!~*'()[]", REGEX_OR) |</span>
+                         (RegEx('%') + Hex() + Hex());
+<span style = "background-color:#fdd">  return e;
+}
+inline const RegEx&amp; Tag() {
+  static const RegEx e = Word() | RegEx("#;/?:@&amp;=+$_.~*'()", REGEX_OR) |</span>
+                         (RegEx('%') + Hex() + Hex());
+<span style = "background-color:#fdd">  return e;
+}</span>
+
+// Plain scalar rules:
+// . Cannot start with a blank.
+// . Can never start with any of , [ ] { } # &amp; * ! | &gt; \' \" % @ `
+// . In the block context - ? : must be not be followed with a space.
+// . In the flow context ? is illegal and : and - must not be followed with a
+// space.
+<span style = "background-color:#dfd">inline const RegEx&amp; PlainScalar() {
+  static const RegEx e =
+      !(BlankOrBreak() | RegEx(",[]{}#&amp;*!|&gt;\'\"%@`", REGEX_OR) |</span>
+        (RegEx("-?:", REGEX_OR) + (BlankOrBreak() | RegEx())));
+<span style = "background-color:#dfd">  return e;
+}
+inline const RegEx&amp; PlainScalarInFlow() {
+  static const RegEx e =
+      !(BlankOrBreak() | RegEx("?,[]{}#&amp;*!|&gt;\'\"%@`", REGEX_OR) |</span>
+        (RegEx("-:", REGEX_OR) + (Blank() | RegEx())));
+<span style = "background-color:#dfd">  return e;
+}
+inline const RegEx&amp; EndScalar() {
+  static const RegEx e = RegEx(':') + (BlankOrBreak() | RegEx());
+  return e;
+}
+inline const RegEx&amp; EndScalarInFlow() {
+  static const RegEx e =
+      (RegEx(':') + (BlankOrBreak() | RegEx() | RegEx(",]}", REGEX_OR))) |</span>
+      RegEx(",?[]{}", REGEX_OR);
+<span style = "background-color:#dfd">  return e;
+}</span>
+
+<span style = "background-color:#dfd">inline const RegEx&amp; ScanScalarEndInFlow() {
+  static const RegEx e = (EndScalarInFlow() | (BlankOrBreak() + Comment()));
+  return e;
+}</span>
+
+<span style = "background-color:#dfd">inline const RegEx&amp; ScanScalarEnd() {
+  static const RegEx e = EndScalar() | (BlankOrBreak() + Comment());
+  return e;
+}</span>
+<span style = "background-color:#fdd">inline const RegEx&amp; EscSingleQuote() {
+  static const RegEx e = RegEx("\'\'");
+  return e;
+}</span>
+<span style = "background-color:#dfd">inline const RegEx&amp; EscBreak() {
+  static const RegEx e = RegEx('\\') + Break();
+  return e;
+}</span>
+
+<span style = "background-color:#fdd">inline const RegEx&amp; ChompIndicator() {
+  static const RegEx e = RegEx("+-", REGEX_OR);
+  return e;
+}
+inline const RegEx&amp; Chomp() {
+  static const RegEx e = (ChompIndicator() + Digit()) |
+                         (Digit() + ChompIndicator()) | ChompIndicator() |</span>
+                         Digit();
+<span style = "background-color:#fdd">  return e;
+}</span>
+
+// and some functions
+std::string Escape(Stream&amp; in);
+}  // namespace Exp
+
+namespace Keys {
+const char Directive = '%';
+const char FlowSeqStart = '[';
+const char FlowSeqEnd = ']';
+const char FlowMapStart = '{';
+const char FlowMapEnd = '}';
+const char FlowEntry = ',';
+const char Alias = '*';
+const char Anchor = '&amp;';
+const char Tag = '!';
+const char LiteralScalar = '|';
+const char FoldedScalar = '&gt;';
+const char VerbatimTagStart = '&lt;';
+const char VerbatimTagEnd = '&gt;';
+}  // namespace Keys
+}  // namespace YAML
+
+#endif  // EXP_H_62B23520_7C8E_11DE_8A39_0800200C9A66</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

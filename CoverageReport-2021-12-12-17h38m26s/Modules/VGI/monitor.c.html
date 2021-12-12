@@ -1,0 +1,569 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>monitor.c</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+//========================================================================
+// GLFW 3.4 - www.glfw.org
+//------------------------------------------------------------------------
+// Copyright (c) 2002-2006 Marcus Geelnard
+// Copyright (c) 2006-2019 Camilla LÃ¶wy &lt;elmindreda@glfw.org&gt;
+//
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would
+//    be appreciated but is not required.
+//
+// 2. Altered source versions must be plainly marked as such, and must not
+//    be misrepresented as being the original software.
+//
+// 3. This notice may not be removed or altered from any source
+//    distribution.
+//
+//========================================================================
+// Please use C89 style variable declarations in this file because VS 2010
+//========================================================================
+
+#include "internal.h"
+
+#include &lt;assert.h&gt;
+#include &lt;math.h&gt;
+#include &lt;float.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;limits.h&gt;
+
+
+// Lexically compare video modes, used by qsort
+//
+static int compareVideoModes(const void* fp, const void* sp)
+<span style = "background-color:#fdd">{
+    const GLFWvidmode* fm = fp;
+    const GLFWvidmode* sm = sp;
+    const int fbpp = fm-&gt;redBits + fm-&gt;greenBits + fm-&gt;blueBits;
+    const int sbpp = sm-&gt;redBits + sm-&gt;greenBits + sm-&gt;blueBits;
+    const int farea = fm-&gt;width * fm-&gt;height;
+    const int sarea = sm-&gt;width * sm-&gt;height;</span>
+
+    // First sort on color bits per pixel
+<span style = "background-color:#fdd">    if (fbpp != sbpp)
+        return fbpp - sbpp;</span>
+
+    // Then sort on screen area
+<span style = "background-color:#fdd">    if (farea != sarea)
+        return farea - sarea;</span>
+
+    // Then sort on width
+<span style = "background-color:#fdd">    if (fm-&gt;width != sm-&gt;width)
+        return fm-&gt;width - sm-&gt;width;</span>
+
+    // Lastly sort on refresh rate
+<span style = "background-color:#fdd">    return fm-&gt;refreshRate - sm-&gt;refreshRate;
+}</span>
+
+// Retrieves the available modes for the specified monitor
+//
+static GLFWbool refreshVideoModes(_GLFWmonitor* monitor)
+<span style = "background-color:#fdd">{</span>
+    int modeCount;
+    GLFWvidmode* modes;
+
+<span style = "background-color:#fdd">    if (monitor-&gt;modes)
+        return GLFW_TRUE;</span>
+
+<span style = "background-color:#fdd">    modes = _glfwPlatformGetVideoModes(monitor, &amp;modeCount);
+    if (!modes)
+        return GLFW_FALSE;</span>
+
+<span style = "background-color:#fdd">    qsort(modes, modeCount, sizeof(GLFWvidmode), compareVideoModes);</span>
+
+<span style = "background-color:#fdd">    _glfw_free(monitor-&gt;modes);
+    monitor-&gt;modes = modes;
+    monitor-&gt;modeCount = modeCount;</span>
+
+<span style = "background-color:#fdd">    return GLFW_TRUE;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                         GLFW event API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+// Notifies shared code of a monitor connection or disconnection
+//
+void _glfwInputMonitor(_GLFWmonitor* monitor, int action, int placement)
+<span style = "background-color:#dfd">{
+    if (action == GLFW_CONNECTED)</span>
+    {
+<span style = "background-color:#dfd">        _glfw.monitorCount++;
+        _glfw.monitors =</span>
+            _glfw_realloc(_glfw.monitors,
+                          sizeof(_GLFWmonitor*) * _glfw.monitorCount);
+
+<span style = "background-color:#dfd">        if (placement == _GLFW_INSERT_FIRST)</span>
+        {
+<span style = "background-color:#dfd">            memmove(_glfw.monitors + 1,</span>
+                    _glfw.monitors,
+                    ((size_t) _glfw.monitorCount - 1) * sizeof(_GLFWmonitor*));
+<span style = "background-color:#dfd">            _glfw.monitors[0] = monitor;
+        }</span>
+        else
+<span style = "background-color:#fdd">            _glfw.monitors[_glfw.monitorCount - 1] = monitor;</span>
+<span style = "background-color:#dfd">    }</span>
+<span style = "background-color:#fdd">    else if (action == GLFW_DISCONNECTED)</span>
+    {
+        int i;
+        _GLFWwindow* window;
+
+<span style = "background-color:#fdd">        for (window = _glfw.windowListHead;  window;  window = window-&gt;next)</span>
+        {
+<span style = "background-color:#fdd">            if (window-&gt;monitor == monitor)</span>
+            {
+                int width, height, xoff, yoff;
+<span style = "background-color:#fdd">                _glfwPlatformGetWindowSize(window, &amp;width, &amp;height);
+                _glfwPlatformSetWindowMonitor(window, NULL, 0, 0, width, height, 0);
+                _glfwPlatformGetWindowFrameSize(window, &amp;xoff, &amp;yoff, NULL, NULL);
+                _glfwPlatformSetWindowPos(window, xoff, yoff);</span>
+            }
+<span style = "background-color:#fdd">        }</span>
+
+<span style = "background-color:#fdd">        for (i = 0;  i &lt; _glfw.monitorCount;  i++)</span>
+        {
+<span style = "background-color:#fdd">            if (_glfw.monitors[i] == monitor)</span>
+            {
+<span style = "background-color:#fdd">                _glfw.monitorCount--;
+                memmove(_glfw.monitors + i,</span>
+                        _glfw.monitors + i + 1,
+                        ((size_t) _glfw.monitorCount - i) * sizeof(_GLFWmonitor*));
+<span style = "background-color:#fdd">                break;</span>
+            }
+<span style = "background-color:#fdd">        }</span>
+    }
+
+<span style = "background-color:#dfd">    if (_glfw.callbacks.monitor)</span>
+<span style = "background-color:#fdd">        _glfw.callbacks.monitor((GLFWmonitor*) monitor, action);</span>
+
+<span style = "background-color:#dfd">    if (action == GLFW_DISCONNECTED)</span>
+<span style = "background-color:#fdd">        _glfwFreeMonitor(monitor);</span>
+<span style = "background-color:#dfd">}</span>
+
+// Notifies shared code that a full screen window has acquired or released
+// a monitor
+//
+void _glfwInputMonitorWindow(_GLFWmonitor* monitor, _GLFWwindow* window)
+<span style = "background-color:#fdd">{
+    monitor-&gt;window = window;
+}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                       GLFW internal API                      //////
+//////////////////////////////////////////////////////////////////////////
+
+// Allocates and returns a monitor object with the specified name and dimensions
+//
+_GLFWmonitor* _glfwAllocMonitor(const char* name, int widthMM, int heightMM)
+<span style = "background-color:#dfd">{
+    _GLFWmonitor* monitor = _glfw_calloc(1, sizeof(_GLFWmonitor));
+    monitor-&gt;widthMM = widthMM;
+    monitor-&gt;heightMM = heightMM;</span>
+
+<span style = "background-color:#dfd">    strncpy(monitor-&gt;name, name, sizeof(monitor-&gt;name) - 1);</span>
+
+<span style = "background-color:#dfd">    return monitor;
+}</span>
+
+// Frees a monitor object and any data associated with it
+//
+void _glfwFreeMonitor(_GLFWmonitor* monitor)
+<span style = "background-color:#dfd">{
+    if (monitor == NULL)</span>
+<span style = "background-color:#fdd">        return;</span>
+
+<span style = "background-color:#dfd">    _glfwPlatformFreeMonitor(monitor);</span>
+
+<span style = "background-color:#dfd">    _glfwFreeGammaArrays(&amp;monitor-&gt;originalRamp);
+    _glfwFreeGammaArrays(&amp;monitor-&gt;currentRamp);</span>
+
+<span style = "background-color:#dfd">    _glfw_free(monitor-&gt;modes);
+    _glfw_free(monitor);
+}</span>
+
+// Allocates red, green and blue value arrays of the specified size
+//
+void _glfwAllocGammaArrays(GLFWgammaramp* ramp, unsigned int size)
+<span style = "background-color:#fdd">{
+    ramp-&gt;red = _glfw_calloc(size, sizeof(unsigned short));
+    ramp-&gt;green = _glfw_calloc(size, sizeof(unsigned short));
+    ramp-&gt;blue = _glfw_calloc(size, sizeof(unsigned short));
+    ramp-&gt;size = size;
+}</span>
+
+// Frees the red, green and blue value arrays and clears the struct
+//
+void _glfwFreeGammaArrays(GLFWgammaramp* ramp)
+<span style = "background-color:#dfd">{
+    _glfw_free(ramp-&gt;red);
+    _glfw_free(ramp-&gt;green);
+    _glfw_free(ramp-&gt;blue);</span>
+
+<span style = "background-color:#dfd">    memset(ramp, 0, sizeof(GLFWgammaramp));
+}</span>
+
+// Chooses the video mode most closely matching the desired one
+//
+const GLFWvidmode* _glfwChooseVideoMode(_GLFWmonitor* monitor,
+                                        const GLFWvidmode* desired)
+<span style = "background-color:#fdd">{</span>
+    int i;
+<span style = "background-color:#fdd">    unsigned int sizeDiff, leastSizeDiff = UINT_MAX;
+    unsigned int rateDiff, leastRateDiff = UINT_MAX;
+    unsigned int colorDiff, leastColorDiff = UINT_MAX;</span>
+    const GLFWvidmode* current;
+<span style = "background-color:#fdd">    const GLFWvidmode* closest = NULL;</span>
+
+<span style = "background-color:#fdd">    if (!refreshVideoModes(monitor))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt; monitor-&gt;modeCount;  i++)</span>
+    {
+<span style = "background-color:#fdd">        current = monitor-&gt;modes + i;</span>
+
+<span style = "background-color:#fdd">        colorDiff = 0;</span>
+
+<span style = "background-color:#fdd">        if (desired-&gt;redBits != GLFW_DONT_CARE)
+            colorDiff += abs(current-&gt;redBits - desired-&gt;redBits);
+        if (desired-&gt;greenBits != GLFW_DONT_CARE)
+            colorDiff += abs(current-&gt;greenBits - desired-&gt;greenBits);
+        if (desired-&gt;blueBits != GLFW_DONT_CARE)
+            colorDiff += abs(current-&gt;blueBits - desired-&gt;blueBits);</span>
+
+<span style = "background-color:#fdd">        sizeDiff = abs((current-&gt;width - desired-&gt;width) *</span>
+                       (current-&gt;width - desired-&gt;width) +
+                       (current-&gt;height - desired-&gt;height) *
+                       (current-&gt;height - desired-&gt;height));
+
+<span style = "background-color:#fdd">        if (desired-&gt;refreshRate != GLFW_DONT_CARE)
+            rateDiff = abs(current-&gt;refreshRate - desired-&gt;refreshRate);</span>
+        else
+<span style = "background-color:#fdd">            rateDiff = UINT_MAX - current-&gt;refreshRate;</span>
+
+        if ((colorDiff &lt; leastColorDiff) ||
+<span style = "background-color:#fdd">            (colorDiff == leastColorDiff &amp;&amp; sizeDiff &lt; leastSizeDiff) ||</span>
+            (colorDiff == leastColorDiff &amp;&amp; sizeDiff == leastSizeDiff &amp;&amp; rateDiff &lt; leastRateDiff))
+        {
+<span style = "background-color:#fdd">            closest = current;
+            leastSizeDiff = sizeDiff;
+            leastRateDiff = rateDiff;
+            leastColorDiff = colorDiff;</span>
+        }
+<span style = "background-color:#fdd">    }</span>
+
+<span style = "background-color:#fdd">    return closest;
+}</span>
+
+// Performs lexical comparison between two @ref GLFWvidmode structures
+//
+int _glfwCompareVideoModes(const GLFWvidmode* fm, const GLFWvidmode* sm)
+<span style = "background-color:#fdd">{
+    return compareVideoModes(fm, sm);
+}</span>
+
+// Splits a color depth into red, green and blue bit depths
+//
+void _glfwSplitBPP(int bpp, int* red, int* green, int* blue)
+<span style = "background-color:#dfd">{</span>
+    int delta;
+
+    // We assume that by 32 the user really meant 24
+<span style = "background-color:#dfd">    if (bpp == 32)
+        bpp = 24;</span>
+
+    // Convert "bits per pixel" to red, green &amp; blue sizes
+
+<span style = "background-color:#dfd">    *red = *green = *blue = bpp / 3;
+    delta = bpp - (*red * 3);
+    if (delta &gt;= 1)</span>
+<span style = "background-color:#fdd">        *green = *green + 1;</span>
+
+<span style = "background-color:#dfd">    if (delta == 2)</span>
+<span style = "background-color:#fdd">        *red = *red + 1;</span>
+<span style = "background-color:#dfd">}</span>
+
+
+//////////////////////////////////////////////////////////////////////////
+//////                        GLFW public API                       //////
+//////////////////////////////////////////////////////////////////////////
+
+GLFWAPI GLFWmonitor** glfwGetMonitors(int* count)
+<span style = "background-color:#fdd">{
+    assert(count != NULL);</span>
+
+<span style = "background-color:#fdd">    *count = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    *count = _glfw.monitorCount;
+    return (GLFWmonitor**) _glfw.monitors;
+}</span>
+
+GLFWAPI GLFWmonitor* glfwGetPrimaryMonitor(void)
+<span style = "background-color:#dfd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#dfd">    if (!_glfw.monitorCount)</span>
+<span style = "background-color:#fdd">        return NULL;</span>
+
+<span style = "background-color:#dfd">    return (GLFWmonitor*) _glfw.monitors[0];
+}</span>
+
+GLFWAPI void glfwGetMonitorPos(GLFWmonitor* handle, int* xpos, int* ypos)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    if (xpos)
+        *xpos = 0;
+    if (ypos)
+        *ypos = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformGetMonitorPos(monitor, xpos, ypos);
+}</span>
+
+GLFWAPI void glfwGetMonitorWorkarea(GLFWmonitor* handle,
+                                    int* xpos, int* ypos,
+                                    int* width, int* height)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    if (xpos)
+        *xpos = 0;
+    if (ypos)
+        *ypos = 0;
+    if (width)
+        *width = 0;
+    if (height)
+        *height = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    _glfwPlatformGetMonitorWorkarea(monitor, xpos, ypos, width, height);
+}</span>
+
+GLFWAPI void glfwGetMonitorPhysicalSize(GLFWmonitor* handle, int* widthMM, int* heightMM)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    if (widthMM)
+        *widthMM = 0;
+    if (heightMM)
+        *heightMM = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (widthMM)
+        *widthMM = monitor-&gt;widthMM;
+    if (heightMM)
+        *heightMM = monitor-&gt;heightMM;
+}</span>
+
+GLFWAPI void glfwGetMonitorContentScale(GLFWmonitor* handle,
+                                        float* xscale, float* yscale)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    if (xscale)
+        *xscale = 0.f;
+    if (yscale)
+        *yscale = 0.f;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    _glfwPlatformGetMonitorContentScale(monitor, xscale, yscale);
+}</span>
+
+GLFWAPI const char* glfwGetMonitorName(GLFWmonitor* handle)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return monitor-&gt;name;
+}</span>
+
+GLFWAPI void glfwSetMonitorUserPointer(GLFWmonitor* handle, void* pointer)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();
+    monitor-&gt;userPointer = pointer;
+}</span>
+
+GLFWAPI void* glfwGetMonitorUserPointer(GLFWmonitor* handle)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    return monitor-&gt;userPointer;
+}</span>
+
+GLFWAPI GLFWmonitorfun glfwSetMonitorCallback(GLFWmonitorfun cbfun)
+<span style = "background-color:#dfd">{
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP_POINTERS(_glfw.callbacks.monitor, cbfun);
+    return cbfun;
+}</span>
+
+GLFWAPI const GLFWvidmode* glfwGetVideoModes(GLFWmonitor* handle, int* count)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);
+    assert(count != NULL);</span>
+
+<span style = "background-color:#fdd">    *count = 0;</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    if (!refreshVideoModes(monitor))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    *count = monitor-&gt;modeCount;
+    return monitor-&gt;modes;
+}</span>
+
+GLFWAPI const GLFWvidmode* glfwGetVideoMode(GLFWmonitor* handle)
+<span style = "background-color:#dfd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#dfd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#dfd">    _glfwPlatformGetVideoMode(monitor, &amp;monitor-&gt;currentMode);
+    return &amp;monitor-&gt;currentMode;
+}</span>
+
+GLFWAPI void glfwSetGamma(GLFWmonitor* handle, float gamma)
+<span style = "background-color:#fdd">{</span>
+    unsigned int i;
+    unsigned short* values;
+    GLFWgammaramp ramp;
+    const GLFWgammaramp* original;
+<span style = "background-color:#fdd">    assert(handle != NULL);
+    assert(gamma &gt; 0.f);
+    assert(gamma &lt;= FLT_MAX);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (gamma != gamma || gamma &lt;= 0.f || gamma &gt; FLT_MAX)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE, "Invalid gamma value %f", gamma);
+        return;</span>
+    }
+
+<span style = "background-color:#fdd">    original = glfwGetGammaRamp(handle);
+    if (!original)
+        return;</span>
+
+<span style = "background-color:#fdd">    values = _glfw_calloc(original-&gt;size, sizeof(unsigned short));</span>
+
+<span style = "background-color:#fdd">    for (i = 0;  i &lt; original-&gt;size;  i++)</span>
+    {
+        float value;
+
+        // Calculate intensity
+<span style = "background-color:#fdd">        value = i / (float) (original-&gt;size - 1);</span>
+        // Apply gamma curve
+<span style = "background-color:#fdd">        value = powf(value, 1.f / gamma) * 65535.f + 0.5f;</span>
+        // Clamp to value range
+<span style = "background-color:#fdd">        value = _glfw_fminf(value, 65535.f);</span>
+
+<span style = "background-color:#fdd">        values[i] = (unsigned short) value;
+    }</span>
+
+<span style = "background-color:#fdd">    ramp.red = values;
+    ramp.green = values;
+    ramp.blue = values;
+    ramp.size = original-&gt;size;</span>
+
+<span style = "background-color:#fdd">    glfwSetGammaRamp(handle, &amp;ramp);
+    _glfw_free(values);
+}</span>
+
+GLFWAPI const GLFWgammaramp* glfwGetGammaRamp(GLFWmonitor* handle)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);</span>
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);</span>
+
+<span style = "background-color:#fdd">    _glfwFreeGammaArrays(&amp;monitor-&gt;currentRamp);
+    if (!_glfwPlatformGetGammaRamp(monitor, &amp;monitor-&gt;currentRamp))
+        return NULL;</span>
+
+<span style = "background-color:#fdd">    return &amp;monitor-&gt;currentRamp;
+}</span>
+
+GLFWAPI void glfwSetGammaRamp(GLFWmonitor* handle, const GLFWgammaramp* ramp)
+<span style = "background-color:#fdd">{
+    _GLFWmonitor* monitor = (_GLFWmonitor*) handle;
+    assert(monitor != NULL);
+    assert(ramp != NULL);
+    assert(ramp-&gt;size &gt; 0);
+    assert(ramp-&gt;red != NULL);
+    assert(ramp-&gt;green != NULL);
+    assert(ramp-&gt;blue != NULL);</span>
+
+<span style = "background-color:#fdd">    if (ramp-&gt;size &lt;= 0)</span>
+    {
+<span style = "background-color:#fdd">        _glfwInputError(GLFW_INVALID_VALUE,</span>
+                        "Invalid gamma ramp size %i",
+                        ramp-&gt;size);
+<span style = "background-color:#fdd">        return;</span>
+    }
+
+<span style = "background-color:#fdd">    _GLFW_REQUIRE_INIT();</span>
+
+<span style = "background-color:#fdd">    if (!monitor-&gt;originalRamp.size)</span>
+    {
+<span style = "background-color:#fdd">        if (!_glfwPlatformGetGammaRamp(monitor, &amp;monitor-&gt;originalRamp))
+            return;</span>
+    }
+
+<span style = "background-color:#fdd">    _glfwPlatformSetGammaRamp(monitor, ramp);
+}</span>
+</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

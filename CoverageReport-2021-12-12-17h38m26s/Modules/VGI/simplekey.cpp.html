@@ -1,0 +1,158 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>simplekey.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include "scanner.h"
+#include "token.h"
+
+namespace YAML {
+struct Mark;
+
+Scanner::SimpleKey::SimpleKey(const Mark&amp; mark_, std::size_t flowLevel_)
+<span style = "background-color:#dfd">    : mark(mark_),
+      flowLevel(flowLevel_),
+      pIndent(nullptr),
+      pMapStart(nullptr),
+      pKey(nullptr) {}</span>
+
+<span style = "background-color:#dfd">void Scanner::SimpleKey::Validate() {</span>
+  // Note: pIndent will *not* be garbage here;
+  //       we "garbage collect" them so we can
+  //       always refer to them
+<span style = "background-color:#dfd">  if (pIndent)
+    pIndent-&gt;status = IndentMarker::VALID;
+  if (pMapStart)
+    pMapStart-&gt;status = Token::VALID;
+  if (pKey)
+    pKey-&gt;status = Token::VALID;
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::SimpleKey::Invalidate() {
+  if (pIndent)</span>
+<span style = "background-color:#fdd">    pIndent-&gt;status = IndentMarker::INVALID;</span>
+<span style = "background-color:#dfd">  if (pMapStart)</span>
+<span style = "background-color:#fdd">    pMapStart-&gt;status = Token::INVALID;</span>
+<span style = "background-color:#dfd">  if (pKey)
+    pKey-&gt;status = Token::INVALID;
+}</span>
+
+// CanInsertPotentialSimpleKey
+<span style = "background-color:#dfd">bool Scanner::CanInsertPotentialSimpleKey() const {
+  if (!m_simpleKeyAllowed)
+    return false;</span>
+
+<span style = "background-color:#dfd">  return !ExistsActiveSimpleKey();
+}</span>
+
+// ExistsActiveSimpleKey
+// . Returns true if there's a potential simple key at our flow level
+//   (there's allowed at most one per flow level, i.e., at the start of the flow
+// start token)
+<span style = "background-color:#dfd">bool Scanner::ExistsActiveSimpleKey() const {
+  if (m_simpleKeys.empty())
+    return false;</span>
+
+<span style = "background-color:#fdd">  const SimpleKey&amp; key = m_simpleKeys.top();
+  return key.flowLevel == GetFlowLevel();</span>
+<span style = "background-color:#dfd">}</span>
+
+// InsertPotentialSimpleKey
+// . If we can, add a potential simple key to the queue,
+//   and save it on a stack.
+<span style = "background-color:#dfd">void Scanner::InsertPotentialSimpleKey() {
+  if (!CanInsertPotentialSimpleKey())
+    return;</span>
+
+<span style = "background-color:#dfd">  SimpleKey key(INPUT.mark(), GetFlowLevel());</span>
+
+  // first add a map start, if necessary
+<span style = "background-color:#dfd">  if (InBlockContext()) {
+    key.pIndent = PushIndentTo(INPUT.column(), IndentMarker::MAP);
+    if (key.pIndent) {
+      key.pIndent-&gt;status = IndentMarker::UNKNOWN;
+      key.pMapStart = key.pIndent-&gt;pStartToken;
+      key.pMapStart-&gt;status = Token::UNVERIFIED;</span>
+    }
+  }
+
+  // then add the (now unverified) key
+<span style = "background-color:#dfd">  m_tokens.push(Token(Token::KEY, INPUT.mark()));
+  key.pKey = &amp;m_tokens.back();
+  key.pKey-&gt;status = Token::UNVERIFIED;</span>
+
+<span style = "background-color:#dfd">  m_simpleKeys.push(key);
+}</span>
+
+// InvalidateSimpleKey
+// . Automatically invalidate the simple key in our flow level
+<span style = "background-color:#dfd">void Scanner::InvalidateSimpleKey() {
+  if (m_simpleKeys.empty())
+    return;</span>
+
+  // grab top key
+<span style = "background-color:#dfd">  SimpleKey&amp; key = m_simpleKeys.top();
+  if (key.flowLevel != GetFlowLevel())</span>
+<span style = "background-color:#fdd">    return;</span>
+
+<span style = "background-color:#dfd">  key.Invalidate();
+  m_simpleKeys.pop();
+}</span>
+
+// VerifySimpleKey
+// . Determines whether the latest simple key to be added is valid,
+//   and if so, makes it valid.
+<span style = "background-color:#dfd">bool Scanner::VerifySimpleKey() {
+  if (m_simpleKeys.empty())</span>
+<span style = "background-color:#fdd">    return false;</span>
+
+  // grab top key
+<span style = "background-color:#dfd">  SimpleKey key = m_simpleKeys.top();</span>
+
+  // only validate if we're in the correct flow level
+<span style = "background-color:#dfd">  if (key.flowLevel != GetFlowLevel())</span>
+<span style = "background-color:#fdd">    return false;</span>
+
+<span style = "background-color:#dfd">  m_simpleKeys.pop();</span>
+
+<span style = "background-color:#dfd">  bool isValid = true;</span>
+
+  // needs to be less than 1024 characters and inline
+<span style = "background-color:#dfd">  if (INPUT.line() != key.mark.line || INPUT.pos() - key.mark.pos &gt; 1024)</span>
+<span style = "background-color:#fdd">    isValid = false;</span>
+
+  // invalidate key
+<span style = "background-color:#dfd">  if (isValid)
+    key.Validate();</span>
+  else
+<span style = "background-color:#fdd">    key.Invalidate();</span>
+
+<span style = "background-color:#dfd">  return isValid;
+}</span>
+
+<span style = "background-color:#dfd">void Scanner::PopAllSimpleKeys() {
+  while (!m_simpleKeys.empty())</span>
+<span style = "background-color:#fdd">    m_simpleKeys.pop();</span>
+<span style = "background-color:#dfd">}</span>
+}  // namespace YAML</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

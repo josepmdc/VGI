@@ -1,0 +1,350 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>node_data.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#include &lt;algorithm&gt;
+#include &lt;cassert&gt;
+#include &lt;iterator&gt;
+#include &lt;sstream&gt;
+
+#include "yaml-cpp/exceptions.h"
+#include "yaml-cpp/node/detail/memory.h"
+#include "yaml-cpp/node/detail/node.h"  // IWYU pragma: keep
+#include "yaml-cpp/node/detail/node_data.h"
+#include "yaml-cpp/node/detail/node_iterator.h"
+#include "yaml-cpp/node/ptr.h"
+#include "yaml-cpp/node/type.h"
+
+namespace YAML {
+namespace detail {
+YAML_CPP_API std::atomic&lt;size_t&gt; node::m_amount{0};
+
+<span style = "background-color:#fdd">const std::string&amp; node_data::empty_scalar() {
+  static const std::string svalue;
+  return svalue;
+}</span>
+
+node_data::node_data()
+<span style = "background-color:#dfd">    : m_isDefined(false),
+      m_mark(Mark::null_mark()),
+      m_type(NodeType::Null),
+      m_tag{},
+      m_style(EmitterStyle::Default),
+      m_scalar{},
+      m_sequence{},
+      m_seqSize(0),
+      m_map{},
+      m_undefinedPairs{} {}</span>
+
+<span style = "background-color:#dfd">void node_data::mark_defined() {
+  if (m_type == NodeType::Undefined)</span>
+<span style = "background-color:#fdd">    m_type = NodeType::Null;</span>
+<span style = "background-color:#dfd">  m_isDefined = true;
+}</span>
+
+<span style = "background-color:#dfd">void node_data::set_mark(const Mark&amp; mark) { m_mark = mark; }</span>
+
+<span style = "background-color:#dfd">void node_data::set_type(NodeType::value type) {
+  if (type == NodeType::Undefined) {</span>
+<span style = "background-color:#fdd">    m_type = type;
+    m_isDefined = false;
+    return;</span>
+  }
+
+<span style = "background-color:#dfd">  m_isDefined = true;
+  if (type == m_type)</span>
+<span style = "background-color:#fdd">    return;</span>
+
+<span style = "background-color:#dfd">  m_type = type;</span>
+
+<span style = "background-color:#dfd">  switch (m_type) {</span>
+    case NodeType::Null:
+<span style = "background-color:#fdd">      break;</span>
+    case NodeType::Scalar:
+<span style = "background-color:#fdd">      m_scalar.clear();
+      break;</span>
+    case NodeType::Sequence:
+<span style = "background-color:#dfd">      reset_sequence();
+      break;</span>
+    case NodeType::Map:
+<span style = "background-color:#dfd">      reset_map();
+      break;</span>
+    case NodeType::Undefined:
+<span style = "background-color:#fdd">      assert(false);</span>
+      break;
+  }
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#dfd">void node_data::set_tag(const std::string&amp; tag) { m_tag = tag; }</span>
+
+<span style = "background-color:#dfd">void node_data::set_style(EmitterStyle::value style) { m_style = style; }</span>
+
+<span style = "background-color:#fdd">void node_data::set_null() {
+  m_isDefined = true;
+  m_type = NodeType::Null;
+}</span>
+
+<span style = "background-color:#dfd">void node_data::set_scalar(const std::string&amp; scalar) {
+  m_isDefined = true;
+  m_type = NodeType::Scalar;
+  m_scalar = scalar;
+}</span>
+
+// size/iterator
+<span style = "background-color:#fdd">std::size_t node_data::size() const {
+  if (!m_isDefined)
+    return 0;</span>
+
+<span style = "background-color:#fdd">  switch (m_type) {</span>
+    case NodeType::Sequence:
+<span style = "background-color:#fdd">      compute_seq_size();
+      return m_seqSize;</span>
+    case NodeType::Map:
+<span style = "background-color:#fdd">      compute_map_size();
+      return m_map.size() - m_undefinedPairs.size();</span>
+    default:
+<span style = "background-color:#fdd">      return 0;</span>
+  }
+<span style = "background-color:#fdd">  return 0;
+}</span>
+
+<span style = "background-color:#fdd">void node_data::compute_seq_size() const {
+  while (m_seqSize &lt; m_sequence.size() &amp;&amp; m_sequence[m_seqSize]-&gt;is_defined())
+    m_seqSize++;
+}</span>
+
+<span style = "background-color:#fdd">void node_data::compute_map_size() const {
+  auto it = m_undefinedPairs.begin();
+  while (it != m_undefinedPairs.end()) {
+    auto jt = std::next(it);
+    if (it-&gt;first-&gt;is_defined() &amp;&amp; it-&gt;second-&gt;is_defined())
+      m_undefinedPairs.erase(it);
+    it = jt;
+  }
+}</span>
+
+<span style = "background-color:#fdd">const_node_iterator node_data::begin() const {
+  if (!m_isDefined)
+    return {};</span>
+
+<span style = "background-color:#fdd">  switch (m_type) {</span>
+    case NodeType::Sequence:
+<span style = "background-color:#fdd">      return const_node_iterator(m_sequence.begin());</span>
+    case NodeType::Map:
+<span style = "background-color:#fdd">      return const_node_iterator(m_map.begin(), m_map.end());</span>
+    default:
+<span style = "background-color:#fdd">      return {};</span>
+  }
+<span style = "background-color:#fdd">}</span>
+
+<span style = "background-color:#dfd">node_iterator node_data::begin() {
+  if (!m_isDefined)</span>
+<span style = "background-color:#fdd">    return {};</span>
+
+<span style = "background-color:#dfd">  switch (m_type) {</span>
+    case NodeType::Sequence:
+<span style = "background-color:#dfd">      return node_iterator(m_sequence.begin());</span>
+    case NodeType::Map:
+<span style = "background-color:#dfd">      return node_iterator(m_map.begin(), m_map.end());</span>
+    default:
+<span style = "background-color:#fdd">      return {};</span>
+  }
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#fdd">const_node_iterator node_data::end() const {
+  if (!m_isDefined)
+    return {};</span>
+
+<span style = "background-color:#fdd">  switch (m_type) {</span>
+    case NodeType::Sequence:
+<span style = "background-color:#fdd">      return const_node_iterator(m_sequence.end());</span>
+    case NodeType::Map:
+<span style = "background-color:#fdd">      return const_node_iterator(m_map.end(), m_map.end());</span>
+    default:
+<span style = "background-color:#fdd">      return {};</span>
+  }
+<span style = "background-color:#fdd">}</span>
+
+<span style = "background-color:#dfd">node_iterator node_data::end() {
+  if (!m_isDefined)</span>
+<span style = "background-color:#fdd">    return {};</span>
+
+<span style = "background-color:#dfd">  switch (m_type) {</span>
+    case NodeType::Sequence:
+<span style = "background-color:#dfd">      return node_iterator(m_sequence.end());</span>
+    case NodeType::Map:
+<span style = "background-color:#dfd">      return node_iterator(m_map.end(), m_map.end());</span>
+    default:
+<span style = "background-color:#fdd">      return {};</span>
+  }
+<span style = "background-color:#dfd">}</span>
+
+// sequence
+void node_data::push_back(node&amp; node,
+<span style = "background-color:#dfd">                          const shared_memory_holder&amp; /* pMemory */) {
+  if (m_type == NodeType::Undefined || m_type == NodeType::Null) {</span>
+<span style = "background-color:#fdd">    m_type = NodeType::Sequence;
+    reset_sequence();</span>
+  }
+
+<span style = "background-color:#dfd">  if (m_type != NodeType::Sequence)</span>
+<span style = "background-color:#fdd">    throw BadPushback();</span>
+
+<span style = "background-color:#dfd">  m_sequence.push_back(&amp;node);
+}</span>
+
+void node_data::insert(node&amp; key, node&amp; value,
+<span style = "background-color:#dfd">                       const shared_memory_holder&amp; pMemory) {
+  switch (m_type) {</span>
+    case NodeType::Map:
+<span style = "background-color:#fdd">      break;</span>
+    case NodeType::Undefined:
+    case NodeType::Null:
+    case NodeType::Sequence:
+<span style = "background-color:#fdd">      convert_to_map(pMemory);
+      break;</span>
+    case NodeType::Scalar:
+<span style = "background-color:#fdd">      throw BadSubscript(m_mark, key);</span>
+  }
+
+<span style = "background-color:#dfd">  insert_map_pair(key, value);
+}</span>
+
+// indexing
+node* node_data::get(node&amp; key,
+<span style = "background-color:#fdd">                     const shared_memory_holder&amp; /* pMemory */) const {
+  if (m_type != NodeType::Map) {
+    return nullptr;</span>
+  }
+
+<span style = "background-color:#fdd">  for (const auto&amp; it : m_map) {
+    if (it.first-&gt;is(key))
+      return it.second;
+  }</span>
+
+<span style = "background-color:#fdd">  return nullptr;
+}</span>
+
+<span style = "background-color:#fdd">node&amp; node_data::get(node&amp; key, const shared_memory_holder&amp; pMemory) {
+  switch (m_type) {</span>
+    case NodeType::Map:
+<span style = "background-color:#fdd">      break;</span>
+    case NodeType::Undefined:
+    case NodeType::Null:
+    case NodeType::Sequence:
+<span style = "background-color:#fdd">      convert_to_map(pMemory);
+      break;</span>
+    case NodeType::Scalar:
+<span style = "background-color:#fdd">      throw BadSubscript(m_mark, key);</span>
+  }
+
+<span style = "background-color:#fdd">  for (const auto&amp; it : m_map) {
+    if (it.first-&gt;is(key))
+      return *it.second;
+  }</span>
+
+<span style = "background-color:#fdd">  node&amp; value = pMemory-&gt;create_node();
+  insert_map_pair(key, value);
+  return value;
+}</span>
+
+<span style = "background-color:#fdd">bool node_data::remove(node&amp; key, const shared_memory_holder&amp; /* pMemory */) {
+  if (m_type != NodeType::Map)
+    return false;</span>
+
+<span style = "background-color:#fdd">  for (auto it = m_undefinedPairs.begin(); it != m_undefinedPairs.end();) {
+    auto jt = std::next(it);
+    if (it-&gt;first-&gt;is(key))
+      m_undefinedPairs.erase(it);
+    it = jt;
+  }</span>
+
+<span style = "background-color:#fdd">  auto it =</span>
+      std::find_if(m_map.begin(), m_map.end(),
+<span style = "background-color:#fdd">                   [&amp;](std::pair&lt;YAML::detail::node*, YAML::detail::node*&gt; j) {
+                     return (j.first-&gt;is(key));
+                   });</span>
+
+<span style = "background-color:#fdd">  if (it != m_map.end()) {
+    m_map.erase(it);
+    return true;</span>
+  }
+
+<span style = "background-color:#fdd">  return false;
+}</span>
+
+<span style = "background-color:#dfd">void node_data::reset_sequence() {
+  m_sequence.clear();
+  m_seqSize = 0;
+}</span>
+
+<span style = "background-color:#dfd">void node_data::reset_map() {
+  m_map.clear();
+  m_undefinedPairs.clear();
+}</span>
+
+<span style = "background-color:#dfd">void node_data::insert_map_pair(node&amp; key, node&amp; value) {
+  m_map.emplace_back(&amp;key, &amp;value);</span>
+
+<span style = "background-color:#dfd">  if (!key.is_defined() || !value.is_defined())</span>
+<span style = "background-color:#fdd">    m_undefinedPairs.emplace_back(&amp;key, &amp;value);</span>
+<span style = "background-color:#dfd">}</span>
+
+<span style = "background-color:#fdd">void node_data::convert_to_map(const shared_memory_holder&amp; pMemory) {
+  switch (m_type) {</span>
+    case NodeType::Undefined:
+    case NodeType::Null:
+<span style = "background-color:#fdd">      reset_map();
+      m_type = NodeType::Map;
+      break;</span>
+    case NodeType::Sequence:
+<span style = "background-color:#fdd">      convert_sequence_to_map(pMemory);
+      break;</span>
+    case NodeType::Map:
+<span style = "background-color:#fdd">      break;</span>
+    case NodeType::Scalar:
+<span style = "background-color:#fdd">      assert(false);</span>
+      break;
+  }
+<span style = "background-color:#fdd">}</span>
+
+<span style = "background-color:#fdd">void node_data::convert_sequence_to_map(const shared_memory_holder&amp; pMemory) {
+  assert(m_type == NodeType::Sequence);</span>
+
+<span style = "background-color:#fdd">  reset_map();
+  for (std::size_t i = 0; i &lt; m_sequence.size(); i++) {
+    std::stringstream stream;
+    stream &lt;&lt; i;</span>
+
+<span style = "background-color:#fdd">    node&amp; key = pMemory-&gt;create_node();
+    key.set_scalar(stream.str());
+    insert_map_pair(key, *m_sequence[i]);
+  }</span>
+
+<span style = "background-color:#fdd">  reset_sequence();
+  m_type = NodeType::Map;
+}</span>
+}  // namespace detail
+}  // namespace YAML</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

@@ -1,0 +1,215 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>type_mat4x4.hpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+/// @ref core
+/// @file glm/detail/type_mat4x4.hpp
+
+#pragma once
+
+#include "type_vec4.hpp"
+#include &lt;limits&gt;
+#include &lt;cstddef&gt;
+
+namespace glm
+{
+	template&lt;typename T, qualifier Q&gt;
+	struct mat&lt;4, 4, T, Q&gt;
+	{
+		typedef vec&lt;4, T, Q&gt; col_type;
+		typedef vec&lt;4, T, Q&gt; row_type;
+		typedef mat&lt;4, 4, T, Q&gt; type;
+		typedef mat&lt;4, 4, T, Q&gt; transpose_type;
+		typedef T value_type;
+
+	private:
+		col_type value[4];
+
+	public:
+		// -- Accesses --
+
+		typedef length_t length_type;
+<span style = "background-color:#dfd">		GLM_FUNC_DECL static GLM_CONSTEXPR length_type length(){return 4;}</span>
+
+		GLM_FUNC_DECL col_type &amp; operator[](length_type i);
+		GLM_FUNC_DECL GLM_CONSTEXPR col_type const&amp; operator[](length_type i) const;
+
+		// -- Constructors --
+
+		GLM_FUNC_DECL GLM_CONSTEXPR mat() GLM_DEFAULT_CTOR;
+		template&lt;qualifier P&gt;
+		GLM_FUNC_DECL GLM_CONSTEXPR mat(mat&lt;4, 4, T, P&gt; const&amp; m);
+
+		GLM_FUNC_DECL explicit GLM_CONSTEXPR mat(T const&amp; x);
+		GLM_FUNC_DECL GLM_CONSTEXPR mat(
+			T const&amp; x0, T const&amp; y0, T const&amp; z0, T const&amp; w0,
+			T const&amp; x1, T const&amp; y1, T const&amp; z1, T const&amp; w1,
+			T const&amp; x2, T const&amp; y2, T const&amp; z2, T const&amp; w2,
+			T const&amp; x3, T const&amp; y3, T const&amp; z3, T const&amp; w3);
+		GLM_FUNC_DECL GLM_CONSTEXPR mat(
+			col_type const&amp; v0,
+			col_type const&amp; v1,
+			col_type const&amp; v2,
+			col_type const&amp; v3);
+
+		// -- Conversions --
+
+		template&lt;
+			typename X1, typename Y1, typename Z1, typename W1,
+			typename X2, typename Y2, typename Z2, typename W2,
+			typename X3, typename Y3, typename Z3, typename W3,
+			typename X4, typename Y4, typename Z4, typename W4&gt;
+		GLM_FUNC_DECL GLM_CONSTEXPR mat(
+			X1 const&amp; x1, Y1 const&amp; y1, Z1 const&amp; z1, W1 const&amp; w1,
+			X2 const&amp; x2, Y2 const&amp; y2, Z2 const&amp; z2, W2 const&amp; w2,
+			X3 const&amp; x3, Y3 const&amp; y3, Z3 const&amp; z3, W3 const&amp; w3,
+			X4 const&amp; x4, Y4 const&amp; y4, Z4 const&amp; z4, W4 const&amp; w4);
+
+		template&lt;typename V1, typename V2, typename V3, typename V4&gt;
+		GLM_FUNC_DECL GLM_CONSTEXPR mat(
+			vec&lt;4, V1, Q&gt; const&amp; v1,
+			vec&lt;4, V2, Q&gt; const&amp; v2,
+			vec&lt;4, V3, Q&gt; const&amp; v3,
+			vec&lt;4, V4, Q&gt; const&amp; v4);
+
+		// -- Matrix conversions --
+
+		template&lt;typename U, qualifier P&gt;
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;4, 4, U, P&gt; const&amp; m);
+
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;2, 2, T, Q&gt; const&amp; x);
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;3, 3, T, Q&gt; const&amp; x);
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;2, 3, T, Q&gt; const&amp; x);
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;3, 2, T, Q&gt; const&amp; x);
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;2, 4, T, Q&gt; const&amp; x);
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;4, 2, T, Q&gt; const&amp; x);
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;3, 4, T, Q&gt; const&amp; x);
+		GLM_FUNC_DECL GLM_EXPLICIT GLM_CONSTEXPR mat(mat&lt;4, 3, T, Q&gt; const&amp; x);
+
+		// -- Unary arithmetic operators --
+
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator=(mat&lt;4, 4, U, Q&gt; const&amp; m);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator+=(U s);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator+=(mat&lt;4, 4, U, Q&gt; const&amp; m);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator-=(U s);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator-=(mat&lt;4, 4, U, Q&gt; const&amp; m);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator*=(U s);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator*=(mat&lt;4, 4, U, Q&gt; const&amp; m);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator/=(U s);
+		template&lt;typename U&gt;
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator/=(mat&lt;4, 4, U, Q&gt; const&amp; m);
+
+		// -- Increment and decrement operators --
+
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator++();
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; &amp; operator--();
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator++(int);
+		GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator--(int);
+	};
+
+	// -- Unary operators --
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator+(mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator-(mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	// -- Binary operators --
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator+(mat&lt;4, 4, T, Q&gt; const&amp; m, T const&amp; s);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator+(T const&amp; s, mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator+(mat&lt;4, 4, T, Q&gt; const&amp; m1, mat&lt;4, 4, T, Q&gt; const&amp; m2);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator-(mat&lt;4, 4, T, Q&gt; const&amp; m, T const&amp; s);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator-(T const&amp; s, mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator-(mat&lt;4, 4, T, Q&gt; const&amp; m1,	mat&lt;4, 4, T, Q&gt; const&amp; m2);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator*(mat&lt;4, 4, T, Q&gt; const&amp; m, T const&amp; s);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator*(T const&amp; s, mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL typename mat&lt;4, 4, T, Q&gt;::col_type operator*(mat&lt;4, 4, T, Q&gt; const&amp; m, typename mat&lt;4, 4, T, Q&gt;::row_type const&amp; v);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL typename mat&lt;4, 4, T, Q&gt;::row_type operator*(typename mat&lt;4, 4, T, Q&gt;::col_type const&amp; v, mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;2, 4, T, Q&gt; operator*(mat&lt;4, 4, T, Q&gt; const&amp; m1, mat&lt;2, 4, T, Q&gt; const&amp; m2);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;3, 4, T, Q&gt; operator*(mat&lt;4, 4, T, Q&gt; const&amp; m1, mat&lt;3, 4, T, Q&gt; const&amp; m2);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator*(mat&lt;4, 4, T, Q&gt; const&amp; m1, mat&lt;4, 4, T, Q&gt; const&amp; m2);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator/(mat&lt;4, 4, T, Q&gt; const&amp; m, T const&amp; s);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator/(T const&amp; s, mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL typename mat&lt;4, 4, T, Q&gt;::col_type operator/(mat&lt;4, 4, T, Q&gt; const&amp; m, typename mat&lt;4, 4, T, Q&gt;::row_type const&amp; v);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL typename mat&lt;4, 4, T, Q&gt;::row_type operator/(typename mat&lt;4, 4, T, Q&gt;::col_type const&amp; v, mat&lt;4, 4, T, Q&gt; const&amp; m);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL mat&lt;4, 4, T, Q&gt; operator/(mat&lt;4, 4, T, Q&gt; const&amp; m1,	mat&lt;4, 4, T, Q&gt; const&amp; m2);
+
+	// -- Boolean operators --
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL bool operator==(mat&lt;4, 4, T, Q&gt; const&amp; m1, mat&lt;4, 4, T, Q&gt; const&amp; m2);
+
+	template&lt;typename T, qualifier Q&gt;
+	GLM_FUNC_DECL bool operator!=(mat&lt;4, 4, T, Q&gt; const&amp; m1, mat&lt;4, 4, T, Q&gt; const&amp; m2);
+}//namespace glm
+
+#ifndef GLM_EXTERNAL_TEMPLATE
+#include "type_mat4x4.inl"
+#endif//GLM_EXTERNAL_TEMPLATE</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

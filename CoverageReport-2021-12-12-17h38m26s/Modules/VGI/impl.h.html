@@ -1,0 +1,261 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>impl.h</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+#ifndef NODE_DETAIL_IMPL_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+#define NODE_DETAIL_IMPL_H_62B23520_7C8E_11DE_8A39_0800200C9A66
+
+#if defined(_MSC_VER) ||                                            \
+    (defined(__GNUC__) &amp;&amp; (__GNUC__ == 3 &amp;&amp; __GNUC_MINOR__ &gt;= 4) || \
+     (__GNUC__ &gt;= 4))  // GCC supports "pragma once" correctly since 3.4
+#pragma once
+#endif
+
+#include "yaml-cpp/node/detail/node.h"
+#include "yaml-cpp/node/detail/node_data.h"
+
+#include &lt;algorithm&gt;
+#include &lt;type_traits&gt;
+
+namespace YAML {
+namespace detail {
+template &lt;typename Key, typename Enable = void&gt;
+struct get_idx {
+  static node* get(const std::vector&lt;node*&gt;&amp; /* sequence */,
+<span style = "background-color:#fdd">                   const Key&amp; /* key */, shared_memory_holder /* pMemory */) {
+    return nullptr;
+  }</span>
+};
+
+template &lt;typename Key&gt;
+struct get_idx&lt;Key,
+               typename std::enable_if&lt;std::is_unsigned&lt;Key&gt;::value &amp;&amp;
+                                       !std::is_same&lt;Key, bool&gt;::value&gt;::type&gt; {
+  static node* get(const std::vector&lt;node*&gt;&amp; sequence, const Key&amp; key,
+                   shared_memory_holder /* pMemory */) {
+    return key &lt; sequence.size() ? sequence[key] : nullptr;
+  }
+
+  static node* get(std::vector&lt;node*&gt;&amp; sequence, const Key&amp; key,
+                   shared_memory_holder pMemory) {
+    if (key &gt; sequence.size() || (key &gt; 0 &amp;&amp; !sequence[key - 1]-&gt;is_defined()))
+      return nullptr;
+    if (key == sequence.size())
+      sequence.push_back(&amp;pMemory-&gt;create_node());
+    return sequence[key];
+  }
+};
+
+template &lt;typename Key&gt;
+struct get_idx&lt;Key, typename std::enable_if&lt;std::is_signed&lt;Key&gt;::value&gt;::type&gt; {
+  static node* get(const std::vector&lt;node*&gt;&amp; sequence, const Key&amp; key,
+                   shared_memory_holder pMemory) {
+    return key &gt;= 0 ? get_idx&lt;std::size_t&gt;::get(
+                          sequence, static_cast&lt;std::size_t&gt;(key), pMemory)
+                    : nullptr;
+  }
+  static node* get(std::vector&lt;node*&gt;&amp; sequence, const Key&amp; key,
+                   shared_memory_holder pMemory) {
+    return key &gt;= 0 ? get_idx&lt;std::size_t&gt;::get(
+                          sequence, static_cast&lt;std::size_t&gt;(key), pMemory)
+                    : nullptr;
+  }
+};
+
+template &lt;typename Key, typename Enable = void&gt;
+struct remove_idx {
+  static bool remove(std::vector&lt;node*&gt;&amp;, const Key&amp;, std::size_t&amp;) {
+    return false;
+  }
+};
+
+template &lt;typename Key&gt;
+struct remove_idx&lt;
+    Key, typename std::enable_if&lt;std::is_unsigned&lt;Key&gt;::value &amp;&amp;
+                                 !std::is_same&lt;Key, bool&gt;::value&gt;::type&gt; {
+
+  static bool remove(std::vector&lt;node*&gt;&amp; sequence, const Key&amp; key,
+                     std::size_t&amp; seqSize) {
+    if (key &gt;= sequence.size()) {
+      return false;
+    } else {
+      sequence.erase(sequence.begin() + key);
+      if (seqSize &gt; key) {
+          --seqSize;
+      }
+      return true;
+    }
+  }
+};
+
+template &lt;typename Key&gt;
+struct remove_idx&lt;Key,
+                  typename std::enable_if&lt;std::is_signed&lt;Key&gt;::value&gt;::type&gt; {
+
+  static bool remove(std::vector&lt;node*&gt;&amp; sequence, const Key&amp; key,
+                     std::size_t&amp; seqSize) {
+    return key &gt;= 0 ? remove_idx&lt;std::size_t&gt;::remove(
+                          sequence, static_cast&lt;std::size_t&gt;(key), seqSize)
+                    : false;
+  }
+};
+
+template &lt;typename T&gt;
+inline bool node::equals(const T&amp; rhs, shared_memory_holder pMemory) {
+  T lhs;
+  if (convert&lt;T&gt;::decode(Node(*this, pMemory), lhs)) {
+    return lhs == rhs;
+  }
+  return false;
+}
+
+<span style = "background-color:#dfd">inline bool node::equals(const char* rhs, shared_memory_holder pMemory) {
+  std::string lhs;
+  if (convert&lt;std::string&gt;::decode(Node(*this, std::move(pMemory)), lhs)) {
+    return lhs == rhs;</span>
+  }
+<span style = "background-color:#fdd">  return false;</span>
+<span style = "background-color:#dfd">}</span>
+
+// indexing
+template &lt;typename Key&gt;
+inline node* node_data::get(const Key&amp; key,
+                            shared_memory_holder pMemory) const {
+  switch (m_type) {
+    case NodeType::Map:
+      break;
+    case NodeType::Undefined:
+    case NodeType::Null:
+      return nullptr;
+    case NodeType::Sequence:
+      if (node* pNode = get_idx&lt;Key&gt;::get(m_sequence, key, pMemory))
+        return pNode;
+      return nullptr;
+    case NodeType::Scalar:
+      throw BadSubscript(m_mark, key);
+  }
+
+  auto it = std::find_if(m_map.begin(), m_map.end(), [&amp;](const kv_pair m) {
+    return m.first-&gt;equals(key, pMemory);
+  });
+
+  return it != m_map.end() ? it-&gt;second : nullptr;
+}
+
+template &lt;typename Key&gt;
+<span style = "background-color:#dfd">inline node&amp; node_data::get(const Key&amp; key, shared_memory_holder pMemory) {
+  switch (m_type) {</span>
+    case NodeType::Map:
+<span style = "background-color:#fdd">      break;</span>
+    case NodeType::Undefined:
+    case NodeType::Null:
+    case NodeType::Sequence:
+<span style = "background-color:#fdd">      if (node* pNode = get_idx&lt;Key&gt;::get(m_sequence, key, pMemory)) {
+        m_type = NodeType::Sequence;
+        return *pNode;</span>
+      }
+
+<span style = "background-color:#fdd">      convert_to_map(pMemory);
+      break;</span>
+    case NodeType::Scalar:
+<span style = "background-color:#fdd">      throw BadSubscript(m_mark, key);</span>
+  }
+
+<span style = "background-color:#dfd">  auto it = std::find_if(m_map.begin(), m_map.end(), [&amp;](const kv_pair m) {
+    return m.first-&gt;equals(key, pMemory);
+  });</span>
+
+<span style = "background-color:#dfd">  if (it != m_map.end()) {
+    return *it-&gt;second;</span>
+  }
+
+<span style = "background-color:#fdd">  node&amp; k = convert_to_node(key, pMemory);
+  node&amp; v = pMemory-&gt;create_node();
+  insert_map_pair(k, v);
+  return v;</span>
+<span style = "background-color:#dfd">}</span>
+
+template &lt;typename Key&gt;
+inline bool node_data::remove(const Key&amp; key, shared_memory_holder pMemory) {
+  if (m_type == NodeType::Sequence) {
+    return remove_idx&lt;Key&gt;::remove(m_sequence, key, m_seqSize);
+  }
+
+  if (m_type == NodeType::Map) {
+    kv_pairs::iterator it = m_undefinedPairs.begin();
+    while (it != m_undefinedPairs.end()) {
+      kv_pairs::iterator jt = std::next(it);
+      if (it-&gt;first-&gt;equals(key, pMemory)) {
+        m_undefinedPairs.erase(it);
+      }
+      it = jt;
+    }
+
+    auto iter = std::find_if(m_map.begin(), m_map.end(), [&amp;](const kv_pair m) {
+      return m.first-&gt;equals(key, pMemory);
+    });
+
+    if (iter != m_map.end()) {
+      m_map.erase(iter);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// map
+template &lt;typename Key, typename Value&gt;
+inline void node_data::force_insert(const Key&amp; key, const Value&amp; value,
+                                    shared_memory_holder pMemory) {
+  switch (m_type) {
+    case NodeType::Map:
+      break;
+    case NodeType::Undefined:
+    case NodeType::Null:
+    case NodeType::Sequence:
+      convert_to_map(pMemory);
+      break;
+    case NodeType::Scalar:
+      throw BadInsert();
+  }
+
+  node&amp; k = convert_to_node(key, pMemory);
+  node&amp; v = convert_to_node(value, pMemory);
+  insert_map_pair(k, v);
+}
+
+template &lt;typename T&gt;
+inline node&amp; node_data::convert_to_node(const T&amp; rhs,
+<span style = "background-color:#fdd">                                        shared_memory_holder pMemory) {
+  Node value = convert&lt;T&gt;::encode(rhs);
+  value.EnsureNodeExists();
+  pMemory-&gt;merge(*value.m_pMemory);
+  return *value.m_pNode;
+}</span>
+}
+}
+
+#endif  // NODE_DETAIL_IMPL_H_62B23520_7C8E_11DE_8A39_0800200C9A66</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>
