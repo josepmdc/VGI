@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 
 #include <iostream>
+#include <string>
 
 namespace GUI {
 
@@ -43,12 +44,12 @@ void DrawToggleButton(bool* v) {
     draw_list->AddCircleFilled(ImVec2(p.x + radius + (*v ? 1 : 0) * (width - radius * 2.0f), p.y + radius), radius - 1.5f, IM_COL32(255, 255, 255, 255));
 }
 
-void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPlanets, State& state) { 
+void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPlanets, State& state) {
     ImGui::Begin("Controls");
 
     bool togglePlanets = state.RealisticModePlanetsEnabled();
     bool toggleOrbits = state.RealisticModeOrbitsEnabled();
-    
+
     ImGui::Text("Planet Size Realistic Mode");
     ImGui::SameLine(200);
     DrawToggleButton(&togglePlanets);
@@ -58,19 +59,8 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     if (togglePlanets != state.RealisticModePlanetsEnabled()) {
         state.ToggleRealisticModePlanets();
         selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
-        for (Planet* planet : planets) {
-            planet->GenerateOrbit(state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius());
-        }
-    }
-
-    ImGui::Text("Orbit Realistic Mode");
-    ImGui::SameLine(200);
-    DrawToggleButton(&toggleOrbits);
-    
-    if (toggleOrbits != state.RealisticModeOrbitsEnabled()) {
-        state.ToggleRealisticModeOrbits();
         for (Planet* planet : selectedPlanets) {
-            planet->GenerateOrbit(state.RealisticModeOrbitsEnabled() ? planet->GetOrbitRadius() : state.GetOrbitRadius());
+            planet->ClearOrbitBuffer();
         }
     }
 
@@ -81,22 +71,64 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
             const bool isSelected = (selectedPlanetIndex == i);
             if (ImGui::Selectable(planets[i]->GetName().c_str(), isSelected)) {
                 state.SetSelectedPlanet(i, planets[i]->GetName());
-                std::cout << planets[i]->GetName() << std::endl;
+                state.FocusOnPlanet();
+                state.DisableCursorCallback();
             }
-            if (isSelected)
+            if (isSelected) {
                 ImGui::SetItemDefaultFocus();
+            }
         }
         ImGui::EndCombo();
     }
 
-    if (!state.RealisticModeOrbitsEnabled()) {
-        float radius = state.GetOrbitRadius();
-        if (ImGui::SliderFloat("Radius", &radius, 0.0f, 10.0f)) {
-            state.SetOrbitRadius(radius);
-            for (Planet* planet : selectedPlanets) {
-                planet->GenerateOrbit(radius);
+    int speed = state.GetSpeedMode();
+    const char* elems_names[COUNT] = { "0.5x", "1x", "1.5x" };
+    const char* elem_name = (speed >= 0 && speed < COUNT) ? elems_names[speed] : "Unknown";
+
+    if (ImGui::SliderInt("Speed", &speed, 0, COUNT - 1, elem_name)) {
+        state.SetSpeedMode((SpeedMode)speed);
+    }
+
+    ImGui::TextColored(ImVec4(0.961, 0.808, 0.259, 1), "Current date (ISO Format): %s", state.GetDate().c_str());
+
+    if (ImGui::BeginCombo("Year", std::to_string(state.GetYear()).c_str())) {
+        for (int year = 1550; year < 2649; year++) {
+            const bool isSelected = (state.GetYear() == year);
+            if (ImGui::Selectable(std::to_string(year).c_str(), isSelected)) {
+                state.SetYear(year);
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
             }
         }
+        ImGui::EndCombo();
+    }
+
+    if (ImGui::BeginCombo("Month", std::to_string(state.GetMonth()).c_str())) {
+        for (int month = 1; month <= 12; month++) {
+            const bool isSelected = (state.GetMonth() == month);
+            if (ImGui::Selectable(std::to_string(month).c_str(), isSelected)) {
+                state.SetMonth(month);
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    if (ImGui::BeginCombo("Day", std::to_string(state.GetDay()).c_str())) {
+        int maxDay = state.GetMonth() == 2 ? 28 : 30;
+        for (int day = 1; day <= maxDay; day++) {
+            const bool isSelected = (state.GetDay() == day);
+            if (ImGui::Selectable(std::to_string(day).c_str(), isSelected)) {
+                state.SetDay(day);
+            }
+            if (isSelected) {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
     }
 
     ImGui::TextColored(ImVec4(1, 0, 0, 1), "Controls:");
@@ -108,6 +140,7 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     ImGui::Text("Disable Cursor Callback: Q");
     ImGui::Text("Go to selected planet: R");
     ImGui::EndChild();
+
     ImGui::End();
 
     ImGui::Render();

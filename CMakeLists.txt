@@ -24,10 +24,14 @@ file(COPY shaders DESTINATION ${CMAKE_BINARY_DIR})
 # Add Libraries
 link_directories(${CMAKE_SOURCE_DIR}/lib)
 
+set(LIBRARY_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
+set(EXECUTABLE_OUTPUT_PATH "${CMAKE_BINARY_DIR}")
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glad)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glfw)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/glm)
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/yaml-cpp)
+add_subdirectory(${CMAKE_SOURCE_DIR}/lib/spice)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -39,6 +43,7 @@ target_include_directories(${PROJECT_NAME}
 )
 
 include_directories(${CMAKE_SOURCE_DIR}/lib/stb_image)
+include_directories(${CMAKE_SOURCE_DIR}/lib/date)
 
 set(IMGUI_PATH ${CMAKE_SOURCE_DIR}/lib/imgui)
 file(GLOB IMGUI_SOURCES 
@@ -61,4 +66,5 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE glm
     PRIVATE yaml-cpp
     PRIVATE imgui
+    PRIVATE spice
 )

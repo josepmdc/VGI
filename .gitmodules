@@ -11,3 +11,6 @@
 [submodule "lib/imgui"]
 	path = lib/imgui
 	url = https://github.com/ocornut/imgui.git
+[submodule "lib/spice"]
+	path = lib/spice
+	url = https://github.com/OpenSpace/Spice.git
