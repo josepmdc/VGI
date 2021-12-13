@@ -10,6 +10,8 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <Windows.h>
+
 
 #include "shader/shader.h"
 #include "planet/planet.h"
@@ -18,6 +20,8 @@
 #include "state/state.h"
 #include "camera/camera.h"
 #include "gui/gui.h"
+
+#pragma comment(lib, "Winmm.lib")
 
 State state;
 Camera camera;
@@ -126,6 +130,9 @@ int main(void) {
             planet->GenerateOrbit(state.GetOrbitRadius());
         }
     }
+
+    // play sound on loop
+    PlaySound("./assets/sounds/space_ambience.wav", GetModuleHandle(NULL), SND_FILENAME | SND_ASYNC | SND_LOOP);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
