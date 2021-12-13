@@ -12,6 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <Windows.h>
 #include <date.h>
 #include <mutex>
 
@@ -25,6 +26,8 @@
 #include "gui/gui.h"
 #include "spice/spice.h"
 #include "window/window.h"
+
+#pragma comment(lib, "Winmm.lib")
 
 State state;
 Camera camera;
@@ -103,6 +106,9 @@ int main(void) {
     std::vector<Planet*> academicPlanets = util::LoadPlanets(true);
 
     std::thread dateThread(GetDate);
+
+    // play sound on loop
+    PlaySound("./assets/sounds/space_ambience.wav", GetModuleHandle(NULL), SND_FILENAME | SND_ASYNC | SND_LOOP);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window.glfwWindow)) {
