@@ -7,7 +7,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
 
-#include "..\state\state.h"
+#include "../state/state.h"
 
 class Camera {
   private:
@@ -23,11 +23,11 @@ class Camera {
   public:
     Camera();
 
-    glm::vec3 getCameraPos();
-    glm::vec3 getCameraFront();
-    glm::vec3 getCameraUp();
-    glm::vec3 getCameraDown();
-    glm::mat4 getView();
+    glm::vec3 GetCameraPos();
+    glm::vec3 GetCameraFront();
+    glm::vec3 GetCameraUp();
+    glm::vec3 GetCameraDown();
+    glm::mat4 GetViewMatrix();
 
     void SetCameraPos(glm::vec3 camPos);
     void SetCameraFront(glm::vec3 camFront);
@@ -35,7 +35,7 @@ class Camera {
     void SetCameraDown(glm::vec3 camDown);
     void SetView(glm::mat4 v);
 
-    void ProcessInput(GLFWwindow* window, State state);
+    void ProcessInput(GLFWwindow* window, State& state);
 
     void LookAt();
 };
