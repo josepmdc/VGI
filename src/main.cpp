@@ -12,7 +12,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#ifdef _WIN32
 #include <Windows.h>
+#endif
 #include <date.h>
 #include <mutex>
 
@@ -107,8 +109,10 @@ int main(void) {
 
     std::thread dateThread(GetDate);
 
+#ifdef _WIN32
     // play sound on loop
     PlaySound("./assets/sounds/space_ambience.wav", GetModuleHandle(NULL), SND_FILENAME | SND_ASYNC | SND_LOOP);
+#endif
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window.glfwWindow)) {

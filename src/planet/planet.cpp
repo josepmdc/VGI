@@ -12,7 +12,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
- 
+
 const float SCALE = 0.00000025;
 
 Planet::Planet(glm::vec3 coordinates, std::string texturePath) : Sphere(0.5f, 36, 18) {
@@ -159,6 +159,24 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
 
         shader.SetMat4("u_Model", glm::mat4(1.0f));
         planet->DrawOrbit();
+
+        // Render Rings
+        if (planet->GetName() == "saturn") {
+            glLineWidth(2.0f);
+            GLfloat rr = 0.01f;
+            for (int i = 0; i < 25; i++) {
+                glm::mat4 ringModel(1);
+                ringModel = glm::translate(ringModel, position);
+                ringModel = glm::rotate(ringModel, glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+                ringModel = glm::scale(ringModel, glm::vec3(rr, rr, rr));
+                shader.SetMat4("u_Model", ringModel);
+                glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)planet->GetOrbitVertices().size() / 3);
+                if (i == 15)
+                    rr += 0.0003f;
+                else
+                    rr += 0.0002f;
+            }
+        }
 
         //-------------------------------------------------------------------------------------------------------------------------
         if (planet->GetName() == "earth") {
