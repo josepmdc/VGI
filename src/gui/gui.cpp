@@ -48,11 +48,15 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
     ImGui::Begin("Controls");
 
     bool togglePlanets = state.RealisticModePlanetsEnabled();
-    bool toggleOrbits = state.RealisticModeOrbitsEnabled();
+    bool toggleOrbits = !state.FullOrbitModeEnabled();
 
     ImGui::Text("Planet Size Realistic Mode");
     ImGui::SameLine(200);
     DrawToggleButton(&togglePlanets);
+
+    ImGui::Text("Toggle Orbits Mode");
+    ImGui::SameLine(200);
+    DrawToggleButton(&toggleOrbits);
 
     std::vector<Planet*> selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
 
@@ -61,6 +65,16 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
         selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
         for (Planet* planet : selectedPlanets) {
             planet->ClearOrbitBuffer();
+        }
+    }
+
+    if (toggleOrbits == state.FullOrbitModeEnabled()) {
+        state.ToggleOrbitsMode();
+        for (Planet* planet : selectedPlanets) {
+            planet->ClearOrbitBuffer();
+            if (state.FullOrbitModeEnabled() && planet->GetName() != "sun") {
+                planet->GenerateFullOrbit();
+            }
         }
     }
 
