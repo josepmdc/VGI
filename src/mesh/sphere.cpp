@@ -39,8 +39,8 @@ Sphere::Sphere(float r, int sectors, int stacks) {
             sectorAngle = j * sectorStep; // starting from 0 to 2pi
 
             // vertex position (x, y, z)
-            x = xy * cosf(sectorAngle); // r * cos(u) * cos(v)
-            z = xy * sinf(sectorAngle); // r * cos(u) * sin(v)
+            x = xy * sinf(sectorAngle); // r * cos(u) * sin(v)
+            z = xy * cosf(sectorAngle); // r * cos(u) * cos(v)
             m_Vertices.push_back(x);
             m_Vertices.push_back(y);
             m_Vertices.push_back(z);

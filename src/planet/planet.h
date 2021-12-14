@@ -38,6 +38,7 @@ class Planet : public Sphere {
     void AddNextOrbitVertex(glm::vec3 coordinates);
     void ClearOrbitBuffer();
     void GenerateFullOrbit();
+    std::vector<float> GetOrbitVertices() { return m_OrbitVertices; }
 };
 
 void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, Shader& shader);
