@@ -43,7 +43,7 @@ void Camera::ProcessInput(GLFWwindow* window, State& state) {
     }
 }
 
-glm::vec3 Camera::GetCameraPos() {
+/* glm::vec3 Camera::GetCameraPos() {
     return m_CameraPos;
 }
 
@@ -58,7 +58,7 @@ glm::vec3 Camera::GetCameraUp() {
 glm::vec3 Camera::GetCameraDown() {
     return m_CameraDown;
 }
-
+*/
 glm::mat4 Camera::GetViewMatrix() {
     return m_View;
 }
@@ -71,7 +71,7 @@ void Camera::SetCameraFront(glm::vec3 camFront) {
     m_CameraFront = camFront;
 }
 
-void Camera::SetCameraUp(glm::vec3 camUp) {
+/* void Camera::SetCameraUp(glm::vec3 camUp) {
     m_CameraUp = camUp;
 }
 
@@ -82,7 +82,7 @@ void Camera::SetCameraDown(glm::vec3 camDown) {
 void Camera::SetView(glm::mat4 v) {
     m_View = v;
 }
-
+*/
 void Camera::LookAt() {
     m_View = glm::lookAt(m_CameraPos, m_CameraPos + m_CameraFront, m_CameraUp);
 }
