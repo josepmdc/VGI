@@ -32,11 +32,15 @@ void LogError(std::string message) {
 }
 
 glm::vec3 GetCoordinate(double ephemerisTime, std::string planet) {
+    return GetCoordinate(ephemerisTime, planet, "Sun")
+}
+
+glm::vec3 GetCoordinate(double ephemerisTime, std::string planet, std::string origin) {
     double lt;
     glm::dvec3 position = glm::dvec3(0.0);
 
     spkpos_c(planet.c_str(), ephemerisTime, "ECLIPJ2000",
-             "None", "Sun", glm::value_ptr(position), &lt);
+             "None", origin.c_str(), glm::value_ptr(position), &lt);
 
     if (failed_c()) {
         LogError("GetCoordinate");

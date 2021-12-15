@@ -181,13 +181,11 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
         //-------------------------------------------------------------------------------------------------------------------------
         if (planet->GetName() == "earth") {
             for (Satelite* satellite : planet->GetSatelites()) {
-                double satelite_lt;
-
-                position = spice::GetCoordinate(ephemerisTime, satellite->GetName());
-                position *= SCALE;
-                position *= 1.05; // TODO: find out the value
+                glm::vec3 satellitePosition = spice::GetCoordinate(ephemerisTime, satellite->GetName(), "Earth");
+                satellitePosition *= 0.000005;
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::translate(model, position);
+                model = glm::translate(model, satellitePosition);
                 model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.SetMat4("u_Model", model);
 
