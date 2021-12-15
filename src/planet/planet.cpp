@@ -177,9 +177,12 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
         }
 
         //-------------------------------------------------------------------------------------------------------------------------
-        if (planet->GetName() == "earth") {
+        std::string upperName;
+        if (/*planet->GetName() == "earth"*/ !planet->GetSatelites().empty()) {
             for (Satelite* satellite : planet->GetSatelites()) {
-                glm::vec3 satellitePosition = spice::GetCoordinate(ephemerisTime, satellite->GetName(), "Earth");
+                upperName = planet->GetName();
+                upperName[0] = toupper(upperName[0]);
+                glm::vec3 satellitePosition = spice::GetCoordinate(ephemerisTime, satellite->GetName(), upperName);
                 satellitePosition *= 0.000005;
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::translate(model, position);
