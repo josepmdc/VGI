@@ -34,7 +34,7 @@ class Planet : public Sphere {
     std::vector<Satelite*> GetSatelites() { return m_satelites; }
     void Draw();
     void DrawOrbit();
-    void InitOrbit();
+    void UpdateOrbitVAO();
     void AddNextOrbitVertex(glm::vec3 coordinates);
     void ClearOrbitBuffer();
     void GenerateFullOrbit();

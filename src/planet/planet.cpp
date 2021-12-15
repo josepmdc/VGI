@@ -47,9 +47,11 @@ Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(is
     m_OrbitRadius = (UA * (0.4 + 0.3 * m_K)) / 10000000;
     m_OrbitalPeriod = values["period"].as<int>();
 
+    glGenVertexArrays(1, &m_OrbitsVAO);
+    glGenBuffers(1, &m_OrbitsVBO);
+
     if (m_Name != "sun") {
         GenerateFullOrbit();
-        InitOrbit();
     }
 
     if (!values["satelites"].IsNull()) {
@@ -59,9 +61,7 @@ Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(is
     }
 }
 
-void Planet::InitOrbit() {
-    glGenVertexArrays(1, &m_OrbitsVAO);
-    glGenBuffers(1, &m_OrbitsVBO);
+void Planet::UpdateOrbitVAO() {
     glBindVertexArray(m_OrbitsVAO);
     glBindBuffer(GL_ARRAY_BUFFER, m_OrbitsVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * m_OrbitVertices.size(), m_OrbitVertices.data(), GL_STATIC_DRAW);
@@ -82,18 +82,11 @@ void Planet::AddNextOrbitVertex(glm::vec3 coordinates) {
         m_OrbitVertices[1999] = coordinates[1];
         m_OrbitVertices[2000] = coordinates[2];
     }
-
-    glBindVertexArray(m_OrbitsVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_OrbitsVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * m_OrbitVertices.size(), m_OrbitVertices.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    UpdateOrbitVAO();
 }
 
 void Planet::ClearOrbitBuffer() {
-    m_OrbitVertices.clear();
+    m_OrbitVertices = std::vector<float>();
 }
 
 void Planet::Draw() {
@@ -132,6 +125,8 @@ void Planet::GenerateFullOrbit() {
         m_OrbitVertices[i + 1] = coordinates[1];
         m_OrbitVertices[i + 2] = coordinates[2];
     }
+
+    UpdateOrbitVAO();
 }
 
 void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, Shader& shader) {
@@ -157,6 +152,9 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
 
         planet->Draw();
 
+        if (!state.FullOrbitModeEnabled()) {
+            planet->AddNextOrbitVertex(position);
+        }
         shader.SetMat4("u_Model", glm::mat4(1.0f));
         planet->DrawOrbit();
 

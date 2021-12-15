@@ -15,7 +15,7 @@ class State {
     bool m_DisableCursorCallback = false;
 
     bool m_RealisticModePlanets = false;
-    bool m_RealisticModeOrbits = false;
+    bool m_FullOrbitMode = true;
 
     float m_OrbitRadius = 1.0f;
 
@@ -42,9 +42,9 @@ class State {
     void EnableCursorCallback() { m_DisableCursorCallback = false; }
 
     bool RealisticModePlanetsEnabled() { return m_RealisticModePlanets; }
-    bool RealisticModeOrbitsEnabled() { return m_RealisticModeOrbits; }
+    bool FullOrbitModeEnabled() { return m_FullOrbitMode; }
     void ToggleRealisticModePlanets() { m_RealisticModePlanets = !m_RealisticModePlanets; }
-    void ToggleRealisticModeOrbits() { m_RealisticModeOrbits = !m_RealisticModeOrbits; }
+    void ToggleOrbitsMode() { m_FullOrbitMode = !m_FullOrbitMode; }
 
     float GetOrbitRadius() { return m_OrbitRadius; }
     void SetOrbitRadius(float radius) { m_OrbitRadius = radius; }

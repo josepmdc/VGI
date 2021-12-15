@@ -12,11 +12,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <date.h>
+
 #ifdef _WIN32
+#define NOMINMAX
 #include <Windows.h>
 #endif
-#include <date.h>
-#include <mutex>
 
 #include "glm/fwd.hpp"
 #include "shader/shader.h"
@@ -33,7 +34,6 @@
 
 State state;
 Camera camera;
-std::mutex mtx; // TODO
 
 void GetDate() {
     using namespace date;
