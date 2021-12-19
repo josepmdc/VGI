@@ -57,6 +57,7 @@ Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(is
     if (!values["satelites"].IsNull()) {
         for (auto satelite = values["satelites"].begin(); satelite != values["satelites"].end(); satelite++) {
             m_satelites.push_back(new Satelite(satelite->second, satelite->first.as<std::string>(), true));
+            m_RealisticSatelites.push_back(new Satelite(satelite->second, satelite->first.as<std::string>(), false));
         }
     }
 }
@@ -179,11 +180,12 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
         //-------------------------------------------------------------------------------------------------------------------------
         std::string upperName;
         if (/*planet->GetName() == "earth"*/ !planet->GetSatelites().empty()) {
-            for (Satelite* satellite : planet->GetSatelites()) {
+            std::vector<Satelite*> satellites = state.RealisticModePlanetsEnabled() ? planet->GetRealisticSatelites() : planet->GetSatelites();
+            for (Satelite* satellite : satellites) {
                 upperName = planet->GetName();
                 upperName[0] = toupper(upperName[0]);
                 glm::vec3 satellitePosition = spice::GetCoordinate(ephemerisTime, satellite->GetName(), upperName);
-                satellitePosition *= 0.000005;
+                satellitePosition *= 0.000009;
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::translate(model, position);
                 model = glm::translate(model, satellitePosition);
