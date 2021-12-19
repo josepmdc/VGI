@@ -9,7 +9,7 @@
 
 static float ComputeSphereRadius(YAML::Node values) {
     float radius = values["diameter"].as<float>() / 2;
-    return radius / 10000000;
+    return radius / 100000;
 }
 
 static float ComputeAcademicSphereRadius(YAML::Node values) {
@@ -21,7 +21,6 @@ static float ComputeAcademicSphereRadius(YAML::Node values) {
 Satelite::Satelite(YAML::Node values, std::string name, bool isAcademic) : Sphere(isAcademic ? ComputeAcademicSphereRadius(values) : ComputeSphereRadius(values), 36, 18) {
     m_Texture = util::LoadTexture(values["texture"].as<std::string>());
     m_Name = name;
-    //std::cout << m_Name << " -> " << values["texture"].as<std::string>() << std::endl;
     float UA = 149597870.7;
     m_OrbitRadius = 1;
 }

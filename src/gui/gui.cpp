@@ -65,6 +65,9 @@ void DrawControls(std::vector<Planet*> planets, std::vector<Planet*> academicPla
         selectedPlanets = state.RealisticModePlanetsEnabled() ? planets : academicPlanets;
         for (Planet* planet : selectedPlanets) {
             planet->ClearOrbitBuffer();
+            if (state.FullOrbitModeEnabled() && planet->GetName() != "sun") {
+                planet->GenerateFullOrbit();
+            }
         }
     }
 

@@ -50,7 +50,7 @@ void GetDate() {
             sleepDuration = 500;
             break;
         case SpeedMode::Normal:
-            sleepDuration = 10;
+            sleepDuration = 100;
             break;
         default:
             sleepDuration = 0;
