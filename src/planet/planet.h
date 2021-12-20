@@ -20,6 +20,7 @@ class Planet : public Sphere {
     int m_OrbitIndex = -1;
     GLuint m_OrbitsVBO, m_OrbitsVAO;
     std::vector<Satelite*> m_satelites;
+    std::vector<Satelite*> m_RealisticSatelites;
     int m_OrbitalPeriod = 0;
 
   public:
@@ -32,6 +33,7 @@ class Planet : public Sphere {
     float GetOrbitRadius() { return m_OrbitRadius; }
     std::string GetName() { return m_Name; }
     std::vector<Satelite*> GetSatelites() { return m_satelites; }
+    std::vector<Satelite*> GetRealisticSatelites() { return m_RealisticSatelites; }
     void Draw();
     void DrawOrbit();
     void UpdateOrbitVAO();

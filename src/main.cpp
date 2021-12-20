@@ -47,10 +47,10 @@ void GetDate() {
         int sleepDuration = 0;
         switch (state.GetSpeedMode()) {
         case SpeedMode::Slow:
-            sleepDuration = 100;
+            sleepDuration = 500;
             break;
         case SpeedMode::Normal:
-            sleepDuration = 10;
+            sleepDuration = 100;
             break;
         default:
             sleepDuration = 0;

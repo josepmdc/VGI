@@ -27,7 +27,7 @@ Planet::Planet(float r, int sectors, int stacks, glm::vec3 coordinates, std::str
 
 static float ComputeSphereRadius(YAML::Node values) {
     float radius = values["diameter"].as<float>() / 2;
-    return radius / 15000;
+    return radius / 100000;
 }
 
 static float ComputeAcademicSphereRadius(YAML::Node values) {
@@ -57,6 +57,7 @@ Planet::Planet(YAML::Node values, std::string name, bool isAcademic) : Sphere(is
     if (!values["satelites"].IsNull()) {
         for (auto satelite = values["satelites"].begin(); satelite != values["satelites"].end(); satelite++) {
             m_satelites.push_back(new Satelite(satelite->second, satelite->first.as<std::string>(), true));
+            m_RealisticSatelites.push_back(new Satelite(satelite->second, satelite->first.as<std::string>(), false));
         }
     }
 }
@@ -161,7 +162,7 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
         // Render Rings
         if (planet->GetName() == "saturn") {
             glLineWidth(2.0f);
-            GLfloat rr = 0.01f;
+            GLfloat rr = state.RealisticModePlanetsEnabled() ? 0.0025f  : 0.01f;
             for (int i = 0; i < 25; i++) {
                 glm::mat4 ringModel(1);
                 ringModel = glm::translate(ringModel, position);
@@ -170,22 +171,24 @@ void RenderPlanets(std::vector<Planet*> planets, State& state, Camera& camera, S
                 shader.SetMat4("u_Model", ringModel);
                 glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)planet->GetOrbitVertices().size() / 3);
                 if (i == 15)
-                    rr += 0.0003f;
+                    rr += state.RealisticModePlanetsEnabled() ? 0.00005f : 0.0003f;
                 else
-                    rr += 0.0002f;
+                    rr += state.RealisticModePlanetsEnabled() ? 0.00004 : 0.0002f;
             }
         }
 
         //-------------------------------------------------------------------------------------------------------------------------
-        if (planet->GetName() == "earth") {
-            for (Satelite* satellite : planet->GetSatelites()) {
-                double satelite_lt;
-
-                position = spice::GetCoordinate(ephemerisTime, satellite->GetName());
-                position *= SCALE;
-                position *= 1.05; // TODO: find out the value
+        std::string upperName;
+        if (/*planet->GetName() == "earth"*/ !planet->GetSatelites().empty()) {
+            std::vector<Satelite*> satellites = state.RealisticModePlanetsEnabled() ? planet->GetRealisticSatelites() : planet->GetSatelites();
+            for (Satelite* satellite : satellites) {
+                upperName = planet->GetName();
+                upperName[0] = toupper(upperName[0]);
+                glm::vec3 satellitePosition = spice::GetCoordinate(ephemerisTime, satellite->GetName(), upperName);
+                satellitePosition *= 0.000009;
                 glm::mat4 model = glm::mat4(1.0f);
                 model = glm::translate(model, position);
+                model = glm::translate(model, satellitePosition);
                 model = glm::rotate(model, (float)glfwGetTime() * glm::radians(50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
                 shader.SetMat4("u_Model", model);
 

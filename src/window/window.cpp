@@ -75,7 +75,7 @@ Window InitWindow(State* s, Camera* cam) {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    glfwWindow = glfwCreateWindow(window.ScreenWidth, window.ScreenHeight, "OpenGL", NULL, NULL);
+    glfwWindow = glfwCreateWindow(window.ScreenWidth, window.ScreenHeight, "OpenGL", glfwGetPrimaryMonitor(), NULL);
     if (!glfwWindow) {
         glfwTerminate();
         return window;
